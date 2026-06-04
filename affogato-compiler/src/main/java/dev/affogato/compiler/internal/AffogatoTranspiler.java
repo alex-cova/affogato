@@ -5286,6 +5286,15 @@ public final class AffogatoTranspiler {
             if (!overrideEquivalent) {
                 return Optional.empty();
             }
+            if (best.stream().anyMatch(candidate -> Modifier.isStatic(candidate.executable().getModifiers()))) {
+                Class<?> declaringClass = best.get(0).executable().getDeclaringClass();
+                boolean sameStaticOwner = best.stream().allMatch(candidate ->
+                        Modifier.isStatic(candidate.executable().getModifiers())
+                                && candidate.executable().getDeclaringClass().equals(declaringClass));
+                if (!sameStaticOwner) {
+                    return Optional.empty();
+                }
+            }
             return best.stream().min(Comparator
                     .comparingInt((ScoredExecutable candidate) -> Modifier.isAbstract(candidate.executable().getModifiers()) ? 1 : 0)
                     .thenComparingInt(candidate -> -returnTypeSpecificity(candidate, best))

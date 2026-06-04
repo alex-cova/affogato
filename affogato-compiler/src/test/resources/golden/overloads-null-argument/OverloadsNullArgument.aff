@@ -1,0 +1,17 @@
+package dev.affogato.golden
+
+class NullOverloads {
+    static pick(value: String): String {
+        return "string"
+    }
+
+    static pick(value: Object): String {
+        return "object"
+    }
+}
+
+class OverloadsNullArgument {
+    run(): String {
+        return NullOverloads.pick(null)
+    }
+}

@@ -1,0 +1,27 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class GenericOverloadMethods {
+    static pick<T>(value: T): String {
+        return "t:" + value.toString()
+    }
+
+    static pick<T>(values: List<T>): String {
+        let size = values.size()
+        return "list:" + size
+    }
+
+    static pick(value: String): String {
+        return "string:" + value
+    }
+}
+
+class OverloadsGenericMethods {
+    run(): String {
+        let fromString = GenericOverloadMethods.pick("affogato")
+        let fromList = GenericOverloadMethods.pick(List.of("af", "fogato"))
+        let fromGeneric = GenericOverloadMethods.pick(Integer.valueOf(3))
+        return fromString + ":" + fromList + ":" + fromGeneric
+    }
+}

@@ -1,0 +1,17 @@
+package dev.affogato.negative
+
+class NamedAmbiguousOverloads {
+    static route(first: String, second: CharSequence): String {
+        return first + second.toString()
+    }
+
+    static route(first: CharSequence, second: String): String {
+        return first.toString() + second
+    }
+}
+
+class BadNamedArgsAmbiguous {
+    run(): String {
+        return NamedAmbiguousOverloads.route(first = "a", second = "b")
+    }
+}

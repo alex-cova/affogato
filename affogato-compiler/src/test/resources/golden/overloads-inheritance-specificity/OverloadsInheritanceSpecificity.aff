@@ -1,0 +1,30 @@
+package dev.affogato.golden
+
+class SpecificBase {
+    choose(value: CharSequence): String {
+        return "base-char:" + value.toString()
+    }
+
+    choose(value: Object): String {
+        return "base-object:" + value.toString()
+    }
+}
+
+class SpecificChild: SpecificBase {
+    override choose(value: CharSequence): String {
+        return "child-char:" + value.toString()
+    }
+
+    choose(value: String): String {
+        return "child-string:" + value
+    }
+}
+
+class OverloadsInheritanceSpecificity {
+    run(): String {
+        let child = SpecificChild()
+        let specific = child.choose("affogato")
+        let inherited = child.choose(StringBuilder("builder"))
+        return specific + ":" + inherited
+    }
+}

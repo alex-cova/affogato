@@ -1,0 +1,29 @@
+package dev.affogato.golden
+
+class NumericOverloads {
+    static widen(value: long): String {
+        return "long" + value
+    }
+
+    static widen(value: double): String {
+        return "double" + value
+    }
+
+    static boxed(value: Integer): String {
+        return "boxed" + value
+    }
+
+    static unboxed(value: int): String {
+        return "unboxed" + value
+    }
+}
+
+class OverloadsNumericWidening {
+    run(): String {
+        let longValue = NumericOverloads.widen(7)
+        let doubleValue = NumericOverloads.widen(1.5f)
+        let boxedValue = NumericOverloads.boxed(8)
+        let unboxedValue = NumericOverloads.unboxed(Integer.valueOf(9))
+        return longValue + ":" + doubleValue + ":" + boxedValue + ":" + unboxedValue
+    }
+}

@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+import java.util.function.Supplier
+
+class LambdaTargetOverloads {
+    static use(fn: Supplier<String>): String {
+        let value = fn.get()
+        return "supplier:" + value
+    }
+
+    static use(fn: Function<String, String>): String {
+        let value = fn.apply("x")
+        return "function:" + value
+    }
+}
+
+class OverloadsLambdaTarget {
+    run(): String {
+        let supplied = LambdaTargetOverloads.use(() -> "ready")
+        let mapped = LambdaTargetOverloads.use(value -> value.toUpperCase())
+        return supplied + ":" + mapped
+    }
+}

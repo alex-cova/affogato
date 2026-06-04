@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class OverloadsVarargs {
+    run(): String {
+        let formatted = String.format("%s-%s-%d", "af", "fogato", 2)
+        let values = List.of("one", "two", "three")
+        let size = values.size()
+        return formatted + ":" + size
+    }
+}

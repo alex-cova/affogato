@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+import static java.lang.Integer.max
+import static java.lang.Math.max
+
+class BadStaticImportConflict {
+    run(): int {
+        return max(1, 2)
+    }
+}
