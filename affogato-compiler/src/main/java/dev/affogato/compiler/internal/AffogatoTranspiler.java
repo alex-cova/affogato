@@ -638,8 +638,7 @@ public final class AffogatoTranspiler {
             MethodContext context = MethodContext.forExecutable(unit, shape, extension.name(), extension.returnType(), classSymbols, extensionSymbols, javaResolver);
             context.receiverType = extension.receiverType().javaType();
             for (ParamDecl parameter : parameters) {
-                context.variableTypes.put(parameter.name(), parameter.type().javaType());
-                context.mutableVariables.put(parameter.name(), true);
+                context.declareVariable(parameter.name(), parameter.type(), true);
             }
 
             writeAnnotations(out, extension.annotations(), 1);
@@ -720,8 +719,7 @@ public final class AffogatoTranspiler {
                         .append(System.lineSeparator());
                 MethodContext context = MethodContext.forExecutable(unit, dummyClass, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver);
                 for (ParamDecl param : method.parameters()) {
-                    context.variableTypes.put(param.name(), param.type().javaType());
-                    context.mutableVariables.put(param.name(), true);
+                    context.declareVariable(param.name(), param.type(), true);
                 }
                 writeBlockStatements(out, unit, method.body(), context, 2);
                 out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
@@ -808,6 +806,7 @@ public final class AffogatoTranspiler {
     private void writeFields(StringBuilder out, CompilationUnit unit, ParsedClass clazz) {
         MethodContext context = MethodContext.empty(unit, clazz, classSymbols, extensionSymbols, javaResolver);
         for (FieldDecl field : clazz.fields()) {
+            validateTypeRef(field.type(), unit, field.line(), 1);
             writeAnnotations(out, field.annotations(), 1);
             out.append("    ")
                     .append(field.access())
@@ -834,8 +833,8 @@ public final class AffogatoTranspiler {
         }
         MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
         for (ParamDecl parameter : clazz.compactParameters()) {
-            context.variableTypes.put(parameter.name(), parameter.type().javaType());
-            context.mutableVariables.put(parameter.name(), true);
+            validateTypeRef(parameter.type(), unit, 1, 1);
+            context.declareVariable(parameter.name(), parameter.type(), true);
         }
 
         out.append("    public ").append(clazz.name()).append('(').append(parameterList(clazz.compactParameters())).append(") {")
@@ -856,8 +855,8 @@ public final class AffogatoTranspiler {
         for (ConstructorDecl constructor : clazz.constructors()) {
             MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
             for (ParamDecl parameter : constructor.parameters()) {
-                context.variableTypes.put(parameter.name(), parameter.type().javaType());
-                context.mutableVariables.put(parameter.name(), true);
+                validateTypeRef(parameter.type(), unit, constructor.line(), 1);
+                context.declareVariable(parameter.name(), parameter.type(), true);
             }
             writeAnnotations(out, constructor.annotations(), 1);
             out.append("    ")
@@ -915,9 +914,10 @@ public final class AffogatoTranspiler {
     private void writeMethods(StringBuilder out, CompilationUnit unit, ParsedClass clazz) {
         for (MethodDecl method : clazz.methods()) {
             MethodContext context = MethodContext.forExecutable(unit, clazz, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver);
+            validateTypeRef(method.returnType(), unit, method.line(), 1);
             for (ParamDecl parameter : method.parameters()) {
-                context.variableTypes.put(parameter.name(), parameter.type().javaType());
-                context.mutableVariables.put(parameter.name(), true);
+                validateTypeRef(parameter.type(), unit, method.line(), 1);
+                context.declareVariable(parameter.name(), parameter.type(), true);
             }
 
             writeAnnotations(out, method.annotations(), 1);
@@ -1013,8 +1013,9 @@ public final class AffogatoTranspiler {
             return;
         }
         if (statement.throwStatement() != null) {
-            String expression = transformExpression(sourceText(unit.source(), statement.throwStatement().expression()), context);
-            out.append(indent(indent)).append("throw ").append(expression).append(";").append(System.lineSeparator());
+            TypedExpression expression = transformExpressionTyped(sourceText(unit.source(), statement.throwStatement().expression()), context);
+            validateThrowExpression(expression, context, statement.throwStatement().getStart().getLine(), statement.throwStatement().getStart().getCharPositionInLine() + 1);
+            out.append(indent(indent)).append("throw ").append(expression.javaSource()).append(";").append(System.lineSeparator());
             return;
         }
         if (statement.localVarDecl() != null) {
@@ -1091,7 +1092,18 @@ public final class AffogatoTranspiler {
             String rawIterable = sourceText(unit.source(), content.expression());
             TypedExpression typedIterable = transformExpressionTyped(rawIterable, context);
             String iterable = typedIterable.javaSource();
-            elementType(typedIterable.resolvedType()).ifPresent(type -> context.variableTypes.put(variable, type.javaType()));
+            Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
+            if (elementType.isPresent()) {
+                context.declareVariable(variable, TypeRef.unspecified(elementType.get().javaType()), true);
+            } else if (typedIterable.resolvedType().isKnown() && !typedIterable.resolvedType().isNullLiteral()) {
+                diagnostics.add(error(
+                        unit.sourceFile(),
+                        forStatement.getStart().getLine(),
+                        forStatement.getStart().getCharPositionInLine() + 1,
+                        "AFFOGATO_FOR_ITERABLE_TYPE",
+                        "For-in loops require an array or Iterable expression."
+                ));
+            }
             context.mutableVariables.put(variable, true);
             out.append(indent(indent)).append("for (var ").append(variable).append(" : ").append(iterable).append(") {")
                     .append(System.lineSeparator());
@@ -1117,16 +1129,31 @@ public final class AffogatoTranspiler {
         writeBlockStatements(out, unit, tryStatement.block(), context, indent + 1);
         out.append(indent(indent)).append("}");
         for (AffogatoParser.CatchClauseContext catchClause : tryStatement.catchClause()) {
-            String catchTypes = catchClause.catchType().typeRef().stream()
-                    .map(typeRefCtx -> typeRef(typeRefCtx).javaType())
+            List<TypeRef> caughtTypes = new ArrayList<>();
+            for (AffogatoParser.TypeRefContext catchTypeContext : catchClause.catchType().typeRef()) {
+                TypeRef catchType = typeRef(catchTypeContext);
+                caughtTypes.add(catchType);
+                validateTypeRef(catchType, unit, catchClause.getStart().getLine(), catchClause.getStart().getCharPositionInLine() + 1);
+                if (!context.javaResolver.throwableCompatible(TypeGuess.of(catchType.javaType()), unit)) {
+                    diagnostics.add(error(
+                            unit.sourceFile(),
+                            catchClause.getStart().getLine(),
+                            catchClause.getStart().getCharPositionInLine() + 1,
+                            "AFFOGATO_CATCH_TYPE",
+                            "Catch types must be Throwable."
+                    ));
+                }
+            }
+            String catchTypes = caughtTypes.stream()
+                    .map(TypeRef::javaType)
                     .collect(java.util.stream.Collectors.joining(" | "));
             String varName = catchClause.Identifier().getText();
             out.append(" catch (").append(catchTypes).append(" ").append(varName).append(") {").append(System.lineSeparator());
             MethodContext catchContext = MethodContext.forExecutable(unit, context.currentClass, context.executableName, context.returnType, classSymbols, extensionSymbols, javaResolver);
             catchContext.variableTypes.putAll(context.variableTypes);
             catchContext.mutableVariables.putAll(context.mutableVariables);
-            catchContext.variableTypes.put(varName, catchTypes.contains("|") ? "Exception" : catchClause.catchType().typeRef(0).qualifiedName().getText());
-            catchContext.mutableVariables.put(varName, false);
+            catchContext.variableNullabilities.putAll(context.variableNullabilities);
+            catchContext.declareVariable(varName, TypeRef.unspecified(caughtTypes.size() > 1 ? "Exception" : caughtTypes.get(0).javaType()), false);
             writeBlockStatements(out, unit, catchClause.block(), catchContext, indent + 1);
             out.append(indent(indent)).append("}");
         }
@@ -1140,7 +1167,9 @@ public final class AffogatoTranspiler {
 
     private void writeSwitch(StringBuilder out, CompilationUnit unit, AffogatoParser.SwitchStatementContext switchStatement, MethodContext context, int indent) {
         String rawCondition = sourceText(unit.source(), switchStatement.condition());
-        String condition = transformExpression(rawCondition, context);
+        TypedExpression typedCondition = transformExpressionTyped(rawCondition, context);
+        validateSwitchSelector(typedCondition.resolvedType(), unit, context);
+        String condition = typedCondition.javaSource();
         out.append(indent(indent)).append("switch (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
         for (AffogatoParser.SwitchArmContext arm : switchStatement.switchBody().switchArm()) {
             context.currentLine = arm.getStart().getLine();
@@ -1148,9 +1177,12 @@ public final class AffogatoTranspiler {
             if (arm.DEFAULT() != null) {
                 out.append(indent(indent + 1)).append("default -> ");
             } else {
-                List<String> labels = arm.switchLabel().stream()
-                        .map(label -> transformExpression(sourceText(unit.source(), label.expression()), context))
-                        .toList();
+                List<String> labels = new ArrayList<>();
+                for (AffogatoParser.SwitchLabelContext label : arm.switchLabel()) {
+                    TypedExpression typedLabel = transformExpressionTyped(sourceText(unit.source(), label.expression()), context);
+                    validateSwitchLabel(typedCondition.resolvedType(), typedLabel.resolvedType(), unit, context);
+                    labels.add(typedLabel.javaSource());
+                }
                 out.append(indent(indent + 1)).append("case ").append(String.join(", ", labels)).append(" -> ");
             }
             AffogatoParser.SwitchArmBodyContext body = arm.switchArmBody();
@@ -1178,7 +1210,9 @@ public final class AffogatoTranspiler {
             String mismatchCode,
             String mismatchMessage
     ) {
-        String condition = transformExpression(sourceText(unit.source(), switchExpression.condition()), context);
+        TypedExpression typedCondition = transformExpressionTyped(sourceText(unit.source(), switchExpression.condition()), context);
+        validateSwitchSelector(typedCondition.resolvedType(), unit, context);
+        String condition = typedCondition.javaSource();
         StringBuilder out = new StringBuilder();
         TypeGuess inferredType = TypeGuess.unknown();
         out.append("switch (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
@@ -1188,9 +1222,12 @@ public final class AffogatoTranspiler {
             if (arm.DEFAULT() != null) {
                 out.append(indent(indent + 1)).append("default -> ");
             } else {
-                List<String> labels = arm.switchLabel().stream()
-                        .map(label -> transformExpression(sourceText(unit.source(), label.expression()), context))
-                        .toList();
+                List<String> labels = new ArrayList<>();
+                for (AffogatoParser.SwitchLabelContext label : arm.switchLabel()) {
+                    TypedExpression typedLabel = transformExpressionTyped(sourceText(unit.source(), label.expression()), context);
+                    validateSwitchLabel(typedCondition.resolvedType(), typedLabel.resolvedType(), unit, context);
+                    labels.add(typedLabel.javaSource());
+                }
                 out.append(indent(indent + 1)).append("case ").append(String.join(", ", labels)).append(" -> ");
             }
             AffogatoParser.SwitchArmBodyContext body = arm.switchArmBody();
@@ -1211,6 +1248,36 @@ public final class AffogatoTranspiler {
         }
         out.append(indent(indent)).append("}");
         return new TypedExpression(out.toString(), inferredType, new SwitchExpressionNode(out.toString(), inferredType));
+    }
+
+    private void validateSwitchLabel(TypeGuess selectorType, TypeGuess labelType, CompilationUnit unit, MethodContext context) {
+        if (!selectorType.isKnown() || !labelType.isKnown() || selectorType.isNullLiteral() || labelType.isNullLiteral()) {
+            return;
+        }
+        if (!context.javaResolver.assignmentCompatible(labelType, selectorType.javaType(), unit, InvocationPhase.LOOSE)) {
+            diagnostics.add(error(
+                    unit.sourceFile(),
+                    context.currentLine,
+                    context.currentColumn,
+                    "AFFOGATO_SWITCH_LABEL_TYPE",
+                    "Switch case label is not compatible with " + selectorType.javaType() + "."
+            ));
+        }
+    }
+
+    private void validateSwitchSelector(TypeGuess selectorType, CompilationUnit unit, MethodContext context) {
+        if (!selectorType.isKnown() || selectorType.isNullLiteral()) {
+            return;
+        }
+        if (!context.javaResolver.switchSelectorCompatible(selectorType, unit)) {
+            diagnostics.add(error(
+                    unit.sourceFile(),
+                    context.currentLine,
+                    context.currentColumn,
+                    "AFFOGATO_SWITCH_SELECTOR_TYPE",
+                    "Switch selectors must be String, enum, or an int-compatible type."
+            ));
+        }
     }
 
     private TypeGuess mergeSwitchArmType(TypeGuess current, TypeGuess next, MethodContext context) {
@@ -1241,15 +1308,18 @@ public final class AffogatoTranspiler {
         TypeRef type = declaration.typeRef() == null ? null : typeRef(declaration.typeRef());
         int declLine = declaration.getStart().getLine();
         int declCol = declaration.getStart().getCharPositionInLine() + 1;
+        if (type != null) {
+            validateTypeRef(type, unit, declLine, declCol);
+        }
 
         if (declaration.switchExpression() != null) {
             TypedExpression switchExpr = buildSwitchExpression(unit, declaration.switchExpression(), context, indent, type,
                     "AFFOGATO_ASSIGNMENT_TYPE", "Switch arm value is not assignable to " + (type == null ? "the inferred local type" : type.javaType()) + ".");
             TypeGuess switchType = switchExpr.resolvedType();
             if (type != null) {
-                context.variableTypes.put(name, type.javaType());
+                context.declareVariable(name, type, !immutable);
             } else if (switchType.isKnown() && !switchType.isNullLiteral()) {
-                context.variableTypes.put(name, switchType.javaType());
+                context.declareVariable(name, TypeRef.unspecified(switchType.javaType()), !immutable);
             }
             context.mutableVariables.put(name, !immutable);
             StringBuilder decl = new StringBuilder();
@@ -1267,7 +1337,12 @@ public final class AffogatoTranspiler {
 
         if (type == null && typedInit != null) {
             TypeGuess inferred = typedInit.resolvedType();
-            type = inferred.isKnown() && !inferred.isNullLiteral() ? TypeRef.unspecified(inferred.javaType()) : inferType(initializer);
+            if (inferred.isLambda()) {
+                diagnostics.add(error(unit.sourceFile(), declLine, declCol, "AFFOGATO_POLY_TARGET_TYPE",
+                        "Lambda and method-reference expressions need an explicit target type."));
+            } else {
+                type = inferred.isKnown() && !inferred.isNullLiteral() ? TypeRef.unspecified(inferred.javaType()) : inferType(initializer);
+            }
             if (type == null && inferred.isNullLiteral()) {
                 diagnostics.add(error(unit.sourceFile(), declLine, declCol, "AFFOGATO_LOCAL_TYPE",
                         "Local variables initialized with null need an explicit type."));
@@ -1277,8 +1352,7 @@ public final class AffogatoTranspiler {
                     "AFFOGATO_ASSIGNMENT_TYPE", "Initializer type is not assignable to " + type.javaType() + ".");
         }
         if (type != null) {
-            context.variableTypes.put(name, type.javaType());
-            context.mutableVariables.put(name, !immutable);
+            context.declareVariable(name, type, !immutable);
         }
 
         StringBuilder out = new StringBuilder();
@@ -1327,6 +1401,55 @@ public final class AffogatoTranspiler {
 
     // ── TYPE CHECKING ────────────────────────────────────────────────────────────
 
+    private void validateTypeRef(TypeRef type, CompilationUnit unit, int line, int column) {
+        validateTypeName(type.javaType(), unit, line, column);
+    }
+
+    private void validateTypeName(String typeName, CompilationUnit unit, int line, int column) {
+        String javaType = stripNullableSuffix(typeName.trim());
+        if (javaType.equals("void") || PRIMITIVES.contains(javaType) || javaType.equals("?")) {
+            return;
+        }
+        String raw = javaType;
+        while (raw.endsWith("[]")) {
+            raw = raw.substring(0, raw.length() - 2);
+        }
+        int generic = raw.indexOf('<');
+        if (generic >= 0) {
+            int genericEnd = raw.lastIndexOf('>');
+            if (genericEnd > generic) {
+                for (String argument : splitTopLevel(raw.substring(generic + 1, genericEnd), ',')) {
+                    validateTypeName(stripWildcardBound(argument), unit, line, column);
+                }
+            }
+            raw = raw.substring(0, generic);
+        }
+        if (PRIMITIVES.contains(raw) || classSymbol(raw, unit) != null || javaResolver.typeExists(raw, unit)) {
+            return;
+        }
+        diagnostics.add(error(
+                unit.sourceFile(),
+                line,
+                column,
+                "AFFOGATO_TYPE_RESOLUTION",
+                "Cannot resolve type " + raw + "."
+        ));
+    }
+
+    private String stripWildcardBound(String typeName) {
+        String type = typeName.trim();
+        if (type.equals("?")) {
+            return type;
+        }
+        if (type.startsWith("? extends ")) {
+            return type.substring("? extends ".length()).trim();
+        }
+        if (type.startsWith("? super ")) {
+            return type.substring("? super ".length()).trim();
+        }
+        return type;
+    }
+
     private void validateReturn(String rawExpression, MethodContext context, int line, int column) {
         boolean returnsVoid = context.returnType.javaType().equals("void");
         if (rawExpression.isBlank()) {
@@ -1362,6 +1485,19 @@ public final class AffogatoTranspiler {
         );
     }
 
+    private void validateThrowExpression(TypedExpression expression, MethodContext context, int line, int column) {
+        TypeGuess type = expression.resolvedType();
+        if (type.isKnown() && !type.isNullLiteral() && !context.javaResolver.throwableCompatible(type, context.unit)) {
+            diagnostics.add(error(
+                    context.unit.sourceFile(),
+                    line,
+                    column,
+                    "AFFOGATO_THROW_TYPE",
+                    "Throw expressions must be Throwable."
+            ));
+        }
+    }
+
     private void validateVariableAssignment(Matcher matcher, MethodContext context, int line, int column) {
         String name = matcher.group(1);
         String expectedType = context.variableTypes.get(name);
@@ -1379,7 +1515,7 @@ public final class AffogatoTranspiler {
             return;
         }
         validateAssignment(
-                TypeRef.unspecified(expectedType),
+                new TypeRef(expectedType, context.variableNullabilities.getOrDefault(name, Nullability.UNSPECIFIED)),
                 matcher.group(2),
                 context,
                 line,
@@ -1391,7 +1527,7 @@ public final class AffogatoTranspiler {
 
     private void validateCondition(String rawExpression, MethodContext context, int line, int column) {
         AstExpression ast = expressionAst(rawExpression, context);
-        TypeGuess type = inferExpressionType(rawExpression, context);
+        TypeGuess type = ast.resolvedType().isKnown() ? ast.resolvedType() : inferExpressionType(rawExpression, context);
         if ((type.isKnown() && !isBooleanType(type)) || !isBooleanConditionAst(ast, context)) {
             diagnostics.add(error(
                     context.unit.sourceFile(),
@@ -1432,8 +1568,28 @@ public final class AffogatoTranspiler {
                     && isAssignmentAstCompatible(ternary.thenExpression(), expected, context)
                     && isAssignmentAstCompatible(ternary.elseExpression(), expected, context);
         }
+        if (expected.nullability() == Nullability.NOT_NULL && expressionMayBeNullable(ast, context)) {
+            return false;
+        }
         TypeGuess actual = ast.resolvedType().isKnown() ? ast.resolvedType() : inferExpressionType(ast.source(), context);
         return !actual.isKnown() || isAssignable(actual, expected, context);
+    }
+
+    private boolean expressionMayBeNullable(AstExpression ast, MethodContext context) {
+        if (ast instanceof LiteralExpression literal && literal.resolvedType().isNullLiteral()) {
+            return true;
+        }
+        if (ast instanceof IdentifierExpression identifier) {
+            return context.variableNullabilities.getOrDefault(identifier.name(), Nullability.UNSPECIFIED) == Nullability.NULLABLE;
+        }
+        if (ast instanceof TernaryExpression ternary) {
+            return expressionMayBeNullable(ternary.thenExpression(), context)
+                    || expressionMayBeNullable(ternary.elseExpression(), context);
+        }
+        if (ast instanceof CastExpression cast) {
+            return expressionMayBeNullable(cast.expression(), context);
+        }
+        return false;
     }
 
     private boolean isBooleanConditionAst(AstExpression ast, MethodContext context) {
@@ -1469,8 +1625,56 @@ public final class AffogatoTranspiler {
         return !type.isKnown() || isNumericType(type);
     }
 
+    private boolean isPlusOperandCompatible(AstExpression left, AstExpression right, MethodContext context) {
+        TypeGuess leftType = left.resolvedType().isKnown() ? left.resolvedType() : inferExpressionType(left.source(), context);
+        TypeGuess rightType = right.resolvedType().isKnown() ? right.resolvedType() : inferExpressionType(right.source(), context);
+        if (!leftType.isKnown() || !rightType.isKnown()) {
+            return true;
+        }
+        return isStringType(leftType) || isStringType(rightType) || isNumericType(leftType) && isNumericType(rightType);
+    }
+
+    private boolean isEqualityCompatible(AstExpression left, AstExpression right, MethodContext context) {
+        TypeGuess leftType = left.resolvedType().isKnown() ? left.resolvedType() : inferExpressionType(left.source(), context);
+        TypeGuess rightType = right.resolvedType().isKnown() ? right.resolvedType() : inferExpressionType(right.source(), context);
+        if (!leftType.isKnown() || !rightType.isKnown() || leftType.isNullLiteral() || rightType.isNullLiteral()) {
+            return true;
+        }
+        if (isBooleanType(leftType) || isBooleanType(rightType)) {
+            return isBooleanType(leftType) && isBooleanType(rightType);
+        }
+        if (isNumericType(leftType) || isNumericType(rightType)) {
+            return isNumericType(leftType) && isNumericType(rightType);
+        }
+        return context.javaResolver.assignmentCompatible(leftType, rightType.javaType(), context.unit, InvocationPhase.LOOSE)
+                || context.javaResolver.assignmentCompatible(rightType, leftType.javaType(), context.unit, InvocationPhase.LOOSE);
+    }
+
+    private boolean ternaryBranchesCompatible(AstExpression thenExpression, AstExpression elseExpression, MethodContext context) {
+        TypeGuess thenType = thenExpression.resolvedType().isKnown() ? thenExpression.resolvedType() : inferExpressionType(thenExpression.source(), context);
+        TypeGuess elseType = elseExpression.resolvedType().isKnown() ? elseExpression.resolvedType() : inferExpressionType(elseExpression.source(), context);
+        if (!thenType.isKnown() || !elseType.isKnown() || thenType.isNullLiteral() || elseType.isNullLiteral()) {
+            return true;
+        }
+        if (thenType.javaType().equals(elseType.javaType())) {
+            return true;
+        }
+        if (isNumericType(thenType) && isNumericType(elseType)) {
+            return true;
+        }
+        return context.javaResolver.assignmentCompatible(thenType, elseType.javaType(), context.unit, InvocationPhase.LOOSE)
+                || context.javaResolver.assignmentCompatible(elseType, thenType.javaType(), context.unit, InvocationPhase.LOOSE);
+    }
+
     private boolean isBooleanType(TypeGuess type) {
         return type.javaType().equals("boolean") || type.javaType().equals("java.lang.Boolean");
+    }
+
+    private boolean isArrayIndexType(TypeGuess type) {
+        return switch (primitiveNumericType(type.javaType())) {
+            case "byte", "short", "char", "int" -> true;
+            default -> false;
+        };
     }
 
     private boolean isAssignable(TypeGuess actual, TypeRef expected, MethodContext context) {
@@ -1492,6 +1696,7 @@ public final class AffogatoTranspiler {
     private TypedExpression transformExpressionTyped(String expression, MethodContext context) {
         AstExpression ast = expressionAst(expression, context);
         validateExpressionSubset(ast, context);
+        validateExpressionSemantics(ast, context);
         String result = expression.trim();
         result = transformStringInterpolation(result);
         result = transformReceiverThis(result, context);
@@ -1524,6 +1729,230 @@ public final class AffogatoTranspiler {
                     unsupported.code(),
                     unsupported.message()
             ));
+        }
+    }
+
+    private void validateExpressionSemantics(AstExpression ast, MethodContext context) {
+        if (ast instanceof BinaryExpression binary) {
+            validateExpressionSemantics(binary.left(), context);
+            validateExpressionSemantics(binary.right(), context);
+            if ((binary.operator().equals("||") || binary.operator().equals("&&"))
+                    && (!isBooleanOperand(binary.left(), context) || !isBooleanOperand(binary.right(), context))) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CONDITION_TYPE",
+                        "Boolean operators require boolean operands."
+                ));
+            } else if (List.of("<", "<=", ">", ">=").contains(binary.operator())
+                    && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CONDITION_TYPE",
+                        "Relational operators require numeric operands."
+                ));
+            } else if (List.of("-", "*", "/", "%").contains(binary.operator())
+                    && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Arithmetic operators require numeric operands."
+                ));
+            } else if (binary.operator().equals("+") && !isPlusOperandCompatible(binary.left(), binary.right(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Plus operands must be numeric or include a String operand."
+                ));
+            } else if ((binary.operator().equals("==") || binary.operator().equals("!="))
+                    && !isEqualityCompatible(binary.left(), binary.right(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Equality operands are not comparable."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof UnaryExpression unary) {
+            validateExpressionSemantics(unary.expression(), context);
+            if (unary.operator().equals("!") && !isBooleanOperand(unary.expression(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CONDITION_TYPE",
+                        "Boolean negation requires a boolean operand."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof TernaryExpression ternary) {
+            validateExpressionSemantics(ternary.condition(), context);
+            validateExpressionSemantics(ternary.thenExpression(), context);
+            validateExpressionSemantics(ternary.elseExpression(), context);
+            if (!isBooleanConditionAst(ternary.condition(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CONDITION_TYPE",
+                        "Ternary conditions must be boolean."
+                ));
+            }
+            if (!ternaryBranchesCompatible(ternary.thenExpression(), ternary.elseExpression(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_TERNARY_TYPE",
+                        "Ternary branches must have compatible types."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof InstanceOfExpression instanceOf) {
+            validateExpressionSemantics(instanceOf.expression(), context);
+            TypeGuess source = instanceOf.expression().resolvedType().isKnown()
+                    ? instanceOf.expression().resolvedType()
+                    : inferExpressionType(instanceOf.expression().source(), context);
+            if (classSymbol(instanceOf.targetType(), context.unit) == null
+                    && !context.javaResolver.typeExists(instanceOf.targetType(), context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + instanceOf.targetType() + "."
+                ));
+            }
+            if (source.isKnown() && PRIMITIVES.contains(primitiveNumericType(source.javaType()))) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_INSTANCEOF_TYPE",
+                        "Instance-of source must be a reference type."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof CallExpression call) {
+            call.arguments().forEach(argument -> validateExpressionSemantics(argument, context));
+            validateExpressionSemantics(call.receiver(), context);
+            return;
+        }
+        if (ast instanceof ConstructorExpression constructor) {
+            constructor.arguments().forEach(argument -> validateExpressionSemantics(argument, context));
+            return;
+        }
+        if (ast instanceof AssignmentExpression assignment) {
+            validateExpressionSemantics(assignment.target(), context);
+            validateExpressionSemantics(assignment.value(), context);
+            return;
+        }
+        if (ast instanceof CastExpression cast) {
+            validateExpressionSemantics(cast.expression(), context);
+            TypeGuess source = cast.expression().resolvedType().isKnown()
+                    ? cast.expression().resolvedType()
+                    : inferExpressionType(cast.expression().source(), context);
+            if (classSymbol(cast.targetType(), context.unit) == null
+                    && !context.javaResolver.typeExists(cast.targetType(), context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + cast.targetType() + "."
+                ));
+            }
+            if (source.isKnown()
+                    && !source.isNullLiteral()
+                    && !source.isLambda()
+                    && !context.javaResolver.castPossible(source, cast.targetType(), context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CAST_TYPE",
+                        "Cannot cast " + source.javaType() + " to " + cast.targetType() + "."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof PropertyAccessExpression property) {
+            validateExpressionSemantics(property.receiver(), context);
+            TypeGuess receiverType = property.receiver().resolvedType().isKnown()
+                    ? property.receiver().resolvedType()
+                    : inferExpressionType(property.receiver().source(), context);
+            TypeGuess resolved = propertyType(property.source(), context);
+            if (receiverType.isKnown() && !receiverType.isNullLiteral() && !resolved.isKnown()) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_PROPERTY_RESOLUTION",
+                        "Cannot resolve property " + property.property() + " on " + receiverType.javaType() + "."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof ArrayLiteralExpression arrayLiteral) {
+            arrayLiteral.elements().forEach(element -> validateExpressionSemantics(element, context));
+            return;
+        }
+        if (ast instanceof ArrayAccessExpression arrayAccess) {
+            validateExpressionSemantics(arrayAccess.receiver(), context);
+            validateExpressionSemantics(arrayAccess.index(), context);
+            TypeGuess receiverType = arrayAccess.receiver().resolvedType().isKnown()
+                    ? arrayAccess.receiver().resolvedType()
+                    : inferExpressionType(arrayAccess.receiver().source(), context);
+            TypeGuess indexType = arrayAccess.index().resolvedType().isKnown()
+                    ? arrayAccess.index().resolvedType()
+                    : inferExpressionType(arrayAccess.index().source(), context);
+            if (receiverType.isKnown() && !receiverType.isNullLiteral() && !receiverType.javaType().endsWith("[]")) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_ARRAY_ACCESS_TYPE",
+                        "Array access requires an array receiver."
+                ));
+            }
+            if (indexType.isKnown() && !isArrayIndexType(indexType)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_ARRAY_INDEX_TYPE",
+                        "Array indexes must be int-compatible."
+                ));
+            }
+            return;
+        }
+        if (ast instanceof IdentifierExpression identifier && !identifier.resolvedType().isKnown()) {
+            if (!identifier.name().equals("this")
+                    && !identifier.name().equals("super")
+                    && !context.identifierResolvesAsMember(identifier.name())
+                    && classSymbol(identifier.name(), context.unit) == null
+                    && !context.javaResolver.typeExists(identifier.name(), context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_IDENTIFIER_RESOLUTION",
+                        "Cannot resolve identifier " + identifier.name() + "."
+                ));
+            }
         }
     }
 
@@ -1989,8 +2418,27 @@ public final class AffogatoTranspiler {
                 return;
             }
             String callName = callNameBefore(expression, open);
+            List<TypedArgument> arguments = typedArgumentsForInference(expression.substring(open + 1, close), context);
+            String receiver = receiverBeforeMethod(expression, open);
+            if (!receiver.isBlank()) {
+                String methodName = callName.substring(callName.lastIndexOf('.') + 1);
+                TypeGuess receiverType = inferExpressionType(receiver, context);
+                if (receiverType.isKnown()) {
+                    TypeGuess returnType = context.returnTypeForReceiverType(simpleTypeName(receiverType.javaType()), methodName, arguments);
+                    if (!returnType.isKnown()) {
+                        diagnostics.add(error(
+                                context.unit.sourceFile(),
+                                context.currentLine,
+                                context.currentColumn,
+                                "AFFOGATO_CALL_RESOLUTION",
+                                "Cannot resolve call " + methodName + " on " + receiverType.javaType() + "."
+                        ));
+                    }
+                    index = close + 1;
+                    continue;
+                }
+            }
             if (shouldValidateCall(callName, expression, open, context)) {
-                List<TypedArgument> arguments = typedArgumentsForInference(expression.substring(open + 1, close), context);
                 TypeGuess returnType = context.returnType(callName, arguments);
                 if (!returnType.isKnown()) {
                     diagnostics.add(error(
@@ -2789,7 +3237,7 @@ public final class AffogatoTranspiler {
 
         @Override
         public String variableType(String name) {
-            return context.variableTypes.get(name);
+            return context.identifierType(name).orElse(null);
         }
     }
 
@@ -2863,17 +3311,28 @@ public final class AffogatoTranspiler {
         }
         String owner = expression.substring(0, dot);
         String property = expression.substring(dot + 1);
-        String ownerType = context.variableTypes.get(owner);
-        if (ownerType == null) {
+        TypeGuess ownerType = inferExpressionType(owner, context);
+        if (!ownerType.isKnown() || ownerType.isNullLiteral()) {
             return TypeGuess.unknown();
         }
-        FieldSymbol field = resolveField(owner, property, context);
+        if (isArrayLengthAccess(ownerType.javaType(), property)) {
+            return TypeGuess.of("int");
+        }
+        FieldSymbol field = fieldForOwnerType(ownerType.javaType(), property, context);
         if (field != null) {
             return TypeGuess.of(field.type().javaType());
         }
-        return context.javaResolver.getterReturnType(ownerType, property, context.unit)
-                .or(() -> context.javaResolver.fieldType(ownerType, property, context.unit))
+        return context.javaResolver.getterReturnType(ownerType.javaType(), property, context.unit)
+                .or(() -> context.javaResolver.fieldType(ownerType.javaType(), property, context.unit))
                 .orElse(TypeGuess.unknown());
+    }
+
+    private FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {
+        ClassSymbol symbol = classSymbol(ownerType, context.unit);
+        if (symbol == null) {
+            return null;
+        }
+        return symbol.fields.get(property);
     }
 
     private Optional<TypeGuess> elementType(TypeGuess iterableType) {
@@ -3570,6 +4029,7 @@ public final class AffogatoTranspiler {
         private final JavaResolver javaResolver;
         final Map<String, String> variableTypes = new LinkedHashMap<>();
         final Map<String, Boolean> mutableVariables = new LinkedHashMap<>();
+        final Map<String, Nullability> variableNullabilities = new LinkedHashMap<>();
         /** Non-null only when generating an extension function body; the receiver type bound to {@code $this}. */
         String receiverType;
         private String resolutionFailure = "";
@@ -3614,6 +4074,12 @@ public final class AffogatoTranspiler {
                 JavaResolver javaResolver
         ) {
             return new MethodContext(unit, currentClass, "", TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
+        }
+
+        void declareVariable(String name, TypeRef type, boolean mutable) {
+            variableTypes.put(name, type.javaType());
+            mutableVariables.put(name, mutable);
+            variableNullabilities.put(name, type.nullability());
         }
 
         Optional<ResolvedArguments> resolveArguments(String callName, List<TypedArgument> arguments) {
@@ -3856,7 +4322,48 @@ public final class AffogatoTranspiler {
             return javaResolver.hasMethodNamed(receiverType, name, unit);
         }
 
+        boolean identifierResolvesAsMember(String name) {
+            return identifierType(name).isPresent();
+        }
+
+        Optional<String> identifierType(String name) {
+            String localType = variableTypes.get(name);
+            if (localType != null) {
+                return Optional.of(localType);
+            }
+            if (currentClass != null) {
+                Optional<String> fieldType = currentClass.fields().stream()
+                        .filter(field -> field.name().equals(name))
+                        .map(field -> field.type().javaType())
+                        .findFirst();
+                if (fieldType.isPresent()) {
+                    return fieldType;
+                }
+                Optional<String> componentType = currentClass.compactParameters().stream()
+                        .filter(parameter -> parameter.name().equals(name))
+                        .map(parameter -> parameter.type().javaType())
+                        .findFirst();
+                if (componentType.isPresent()) {
+                    return componentType;
+                }
+            }
+            if (receiverType != null) {
+                Optional<String> receiverFieldType = affogatoFieldType(receiverType, name)
+                        .map(TypeRef::javaType)
+                        .or(() -> javaResolver.getterReturnType(receiverType, name, unit).map(TypeGuess::javaType))
+                        .or(() -> javaResolver.fieldType(receiverType, name, unit).map(TypeGuess::javaType));
+                if (receiverFieldType.isPresent()) {
+                    return receiverFieldType;
+                }
+            }
+            return Optional.empty();
+        }
+
         private boolean affogatoFieldExists(String type, String name) {
+            return affogatoFieldType(type, name).isPresent();
+        }
+
+        private Optional<TypeRef> affogatoFieldType(String type, String name) {
             Set<String> seen = new LinkedHashSet<>();
             String current = type;
             while (current != null && !current.isBlank()) {
@@ -3864,12 +4371,13 @@ public final class AffogatoTranspiler {
                 if (symbol == null || !seen.add(symbol.name())) {
                     break;
                 }
-                if (symbol.fields.containsKey(name)) {
-                    return true;
+                FieldSymbol field = symbol.fields.get(name);
+                if (field != null) {
+                    return Optional.of(field.type());
                 }
                 current = symbol.extendsType();
             }
-            return false;
+            return Optional.empty();
         }
 
         private List<ExtensionSymbol> extensionCandidates(String ownerType, String methodName) {
@@ -4152,6 +4660,27 @@ public final class AffogatoTranspiler {
 
         private boolean isInterface(String typeName, CompilationUnit unit) {
             return classForType(typeName, unit).map(Class::isInterface).orElse(false);
+        }
+
+        private boolean switchSelectorCompatible(TypeGuess selectorType, CompilationUnit unit) {
+            if (!selectorType.isKnown() || selectorType.isNullLiteral() || selectorType.isLambda()) {
+                return false;
+            }
+            return switch (simpleType(selectorType.javaType())) {
+                case "byte", "short", "char", "int",
+                     "Byte", "Short", "Character", "Integer",
+                     "String" -> true;
+                case "boolean", "Boolean", "long", "Long", "float", "Float", "double", "Double" -> false;
+                default -> classForType(selectorType.javaType(), unit)
+                        .map(Class::isEnum)
+                        .orElse(true);
+            };
+        }
+
+        private boolean throwableCompatible(TypeGuess type, CompilationUnit unit) {
+            return classForType(type.javaType(), unit)
+                    .map(Throwable.class::isAssignableFrom)
+                    .orElse(true);
         }
 
         private Optional<TypeGuess> getterReturnType(String ownerType, String property, CompilationUnit unit) {

@@ -4,12 +4,15 @@ import java.util.List;
 
 sealed interface AstExpression permits
         LiteralExpression,
+        ArrayLiteralExpression,
+        ArrayAccessExpression,
         IdentifierExpression,
         CallExpression,
         ConstructorExpression,
         PropertyAccessExpression,
         AssignmentExpression,
         TernaryExpression,
+        InstanceOfExpression,
         BinaryExpression,
         UnaryExpression,
         CastExpression,
@@ -24,6 +27,12 @@ sealed interface AstExpression permits
 }
 
 record LiteralExpression(String source, TypeGuess resolvedType) implements AstExpression {
+}
+
+record ArrayLiteralExpression(String source, List<AstExpression> elements, TypeGuess resolvedType) implements AstExpression {
+}
+
+record ArrayAccessExpression(String source, AstExpression receiver, AstExpression index, TypeGuess resolvedType) implements AstExpression {
 }
 
 record IdentifierExpression(String source, String name, TypeGuess resolvedType) implements AstExpression {
@@ -53,6 +62,9 @@ record AssignmentExpression(String source, AstExpression target, AstExpression v
 }
 
 record TernaryExpression(String source, AstExpression condition, AstExpression thenExpression, AstExpression elseExpression, TypeGuess resolvedType) implements AstExpression {
+}
+
+record InstanceOfExpression(String source, AstExpression expression, String targetType, TypeGuess resolvedType) implements AstExpression {
 }
 
 record BinaryExpression(String source, String operator, AstExpression left, AstExpression right, TypeGuess resolvedType) implements AstExpression {

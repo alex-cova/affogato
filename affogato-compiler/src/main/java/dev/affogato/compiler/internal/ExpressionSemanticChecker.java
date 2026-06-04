@@ -95,6 +95,21 @@ final class ExpressionSemanticChecker {
         if (value.matches("-?\\d+\\.\\d+[dD]?")) {
             return new LiteralExpression(value, TypeGuess.of("double"));
         }
+        if (value.startsWith("[") && value.endsWith("]")) {
+            String contents = value.substring(1, value.length() - 1);
+            List<AstExpression> elements = contents.isBlank()
+                    ? List.of()
+                    : support.splitTopLevel(contents, ',').stream()
+                            .map(this::parse)
+                            .toList();
+            return new ArrayLiteralExpression(value, elements, arrayLiteralType(elements));
+        }
+        int arrayOpen = topLevelArrayAccessOpen(value);
+        if (arrayOpen > 0) {
+            AstExpression receiver = parse(value.substring(0, arrayOpen));
+            AstExpression index = parse(value.substring(arrayOpen + 1, value.length() - 1));
+            return new ArrayAccessExpression(value, receiver, index, arrayElementType(receiver.resolvedType()));
+        }
 
         Matcher affogatoCast = Pattern.compile("^(.+)\\s+as\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?\\??)$").matcher(value);
         if (affogatoCast.matches()) {
@@ -114,40 +129,10 @@ final class ExpressionSemanticChecker {
             return new AssignmentExpression(value, target, assigned, assigned.resolvedType());
         }
 
-        int ternaryQ = support.topLevelOperatorIndex(value, List.of("?"));
-        if (ternaryQ > 0 && !Character.isJavaIdentifierPart(value.charAt(ternaryQ - 1))) {
-            String rest = value.substring(ternaryQ + 1).trim();
-            int colonIdx = support.topLevelOperatorIndex(rest, List.of(":"));
-            if (colonIdx >= 0) {
-                AstExpression thenExpr = parse(rest.substring(0, colonIdx));
-                AstExpression elseExpr = parse(rest.substring(colonIdx + 1));
-                TypeGuess type = thenExpr.resolvedType().isKnown() && !thenExpr.resolvedType().isNullLiteral()
-                        ? thenExpr.resolvedType()
-                        : elseExpr.resolvedType();
-                return new TernaryExpression(value, parse(value.substring(0, ternaryQ)), thenExpr, elseExpr, type.isKnown() ? type : TypeGuess.unknown());
-            }
-        }
-
-        for (String operator : List.of("||", "&&", "==", "!=", "<=", ">=", "<", ">")) {
-            int index = support.topLevelOperatorIndex(value, List.of(operator));
-            if (index > 0) {
-                return new BinaryExpression(value, operator, parse(value.substring(0, index)), parse(value.substring(index + operator.length())), TypeGuess.of("boolean"));
-            }
-        }
-        for (String operator : List.of("+", "-", "*", "/", "%")) {
-            int index = support.topLevelOperatorIndex(value, List.of(operator));
-            if (index > 0) {
-                AstExpression left = parse(value.substring(0, index));
-                AstExpression right = parse(value.substring(index + operator.length()));
-                TypeGuess type = numericOrStringType(operator, left.resolvedType(), right.resolvedType());
-                return new BinaryExpression(value, operator, left, right, type);
-            }
-        }
-        if (support.startsWithBooleanNegation(value)) {
-            String operand = value.startsWith("not(") && value.endsWith(")")
-                    ? value.substring("not(".length(), value.length() - 1)
-                    : value.substring(1);
-            return new UnaryExpression(value, "!", parse(operand), TypeGuess.of("boolean"));
+        Matcher instanceOf = Pattern.compile("^(.+)\\s+is\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?\\??)$").matcher(value);
+        if (instanceOf.matches()) {
+            String targetType = support.stripNullableSuffix(instanceOf.group(2));
+            return new InstanceOfExpression(value, parse(instanceOf.group(1)), targetType, TypeGuess.of("boolean"));
         }
 
         Matcher newExpression = Pattern.compile("^new\\s+([A-Za-z_$][A-Za-z0-9_.$]*(?:<[^>]+>)?(?:\\[\\])*)\\s*\\((.*)\\)$").matcher(value);
@@ -180,6 +165,40 @@ final class ExpressionSemanticChecker {
                 }
                 return new CallExpression(value, callName, receiver, arguments, TypeGuess.unknown());
             }
+        }
+
+        int ternaryQ = support.topLevelOperatorIndex(value, List.of("?"));
+        if (ternaryQ > 0 && !Character.isJavaIdentifierPart(value.charAt(ternaryQ - 1))) {
+            String rest = value.substring(ternaryQ + 1).trim();
+            int colonIdx = support.topLevelOperatorIndex(rest, List.of(":"));
+            if (colonIdx >= 0) {
+                AstExpression thenExpr = parse(rest.substring(0, colonIdx));
+                AstExpression elseExpr = parse(rest.substring(colonIdx + 1));
+                TypeGuess type = ternaryType(thenExpr.resolvedType(), elseExpr.resolvedType());
+                return new TernaryExpression(value, parse(value.substring(0, ternaryQ)), thenExpr, elseExpr, type.isKnown() ? type : TypeGuess.unknown());
+            }
+        }
+
+        for (String operator : List.of("||", "&&", "==", "!=", "<=", ">=", "<", ">")) {
+            int index = support.topLevelOperatorIndex(value, List.of(operator));
+            if (index > 0) {
+                return new BinaryExpression(value, operator, parse(value.substring(0, index)), parse(value.substring(index + operator.length())), TypeGuess.of("boolean"));
+            }
+        }
+        for (String operator : List.of("+", "-", "*", "/", "%")) {
+            int index = support.topLevelOperatorIndex(value, List.of(operator));
+            if (index > 0) {
+                AstExpression left = parse(value.substring(0, index));
+                AstExpression right = parse(value.substring(index + operator.length()));
+                TypeGuess type = numericOrStringType(operator, left.resolvedType(), right.resolvedType());
+                return new BinaryExpression(value, operator, left, right, type);
+            }
+        }
+        if (support.startsWithBooleanNegation(value)) {
+            String operand = value.startsWith("not(") && value.endsWith(")")
+                    ? value.substring("not(".length(), value.length() - 1)
+                    : value.substring(1);
+            return new UnaryExpression(value, "!", parse(operand), TypeGuess.of("boolean"));
         }
 
         int dot = value.lastIndexOf('.');
@@ -219,5 +238,84 @@ final class ExpressionSemanticChecker {
             return TypeGuess.of(support.promotedNumericType(left.javaType(), right.javaType()));
         }
         return TypeGuess.unknown();
+    }
+
+    private TypeGuess ternaryType(TypeGuess thenType, TypeGuess elseType) {
+        if (thenType.isNullLiteral()) {
+            return elseType;
+        }
+        if (elseType.isNullLiteral()) {
+            return thenType;
+        }
+        if (!thenType.isKnown() || !elseType.isKnown()) {
+            return TypeGuess.unknown();
+        }
+        if (thenType.javaType().equals(elseType.javaType())) {
+            return thenType;
+        }
+        if (support.isNumericType(thenType) && support.isNumericType(elseType)) {
+            return TypeGuess.of(support.promotedNumericType(thenType.javaType(), elseType.javaType()));
+        }
+        return TypeGuess.unknown();
+    }
+
+    private TypeGuess arrayLiteralType(List<AstExpression> elements) {
+        if (elements.isEmpty()) {
+            return TypeGuess.of("Object[]");
+        }
+        TypeGuess current = null;
+        for (AstExpression element : elements) {
+            TypeGuess type = element.resolvedType();
+            if (!type.isKnown() || type.isNullLiteral() || type.isLambda()) {
+                return TypeGuess.unknown();
+            }
+            if (current == null) {
+                current = type;
+                continue;
+            }
+            if (current.javaType().equals(type.javaType())) {
+                continue;
+            }
+            if (support.isNumericType(current) && support.isNumericType(type)) {
+                current = TypeGuess.of(support.promotedNumericType(current.javaType(), type.javaType()));
+                continue;
+            }
+            return TypeGuess.of("Object[]");
+        }
+        return current == null ? TypeGuess.of("Object[]") : TypeGuess.of(current.javaType() + "[]");
+    }
+
+    private TypeGuess arrayElementType(TypeGuess receiverType) {
+        if (!receiverType.isKnown() || receiverType.isNullLiteral() || !receiverType.javaType().endsWith("[]")) {
+            return TypeGuess.unknown();
+        }
+        return TypeGuess.of(receiverType.javaType().substring(0, receiverType.javaType().length() - 2));
+    }
+
+    private int topLevelArrayAccessOpen(String value) {
+        if (!value.endsWith("]")) {
+            return -1;
+        }
+        int depth = 0;
+        boolean inString = false;
+        for (int index = value.length() - 1; index >= 0; index--) {
+            char current = value.charAt(index);
+            char previous = index > 0 ? value.charAt(index - 1) : '\0';
+            if (current == '"' && previous != '\\') {
+                inString = !inString;
+            }
+            if (inString) {
+                continue;
+            }
+            if (current == ']') {
+                depth++;
+            } else if (current == '[') {
+                depth--;
+                if (depth == 0) {
+                    return index;
+                }
+            }
+        }
+        return -1;
     }
 }

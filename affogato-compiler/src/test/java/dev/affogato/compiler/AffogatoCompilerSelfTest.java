@@ -77,6 +77,8 @@ public final class AffogatoCompilerSelfTest {
                     static func main(args: String[]) {
                         let person = Person(age = 1, name = "Affogato")
                         println(person.name)
+                        let trimmedName = person.name.trim()
+                        println(trimmedName)
                         let greeting = person.greeting(prefix = "Hola")
                         println(greeting)
                         println("hi".shout())
@@ -379,6 +381,7 @@ public final class AffogatoCompilerSelfTest {
         requireContains(personJava, "Objects.requireNonNull(name, \"name\");");
         requireContains(personJava, "@Override");
         requireContains(appJava, "final Person person = new Person(\"Affogato\", 1);");
+        requireContains(appJava, "final java.lang.String trimmedName = person.getName().trim();");
         requireContains(appJava, "final JavaApi api = new JavaApi(\"interop\");");
         requireContains(appJava, "System.out.println(api.getLabel());");
         requireContains(appJava, "System.out.println(api.direct);");
@@ -593,6 +596,7 @@ public final class AffogatoCompilerSelfTest {
                 public final class JavaApi {
                     private final String label;
                     public final String direct = "direct";
+                    public final Nested nested = new Nested();
                     public int mutableCount;
 
                     public JavaApi(String label) {
@@ -620,6 +624,10 @@ public final class AffogatoCompilerSelfTest {
                     }
 
                     public static String stringOnly(String value) {
+                        return value;
+                    }
+
+                    public static boolean booleanOnly(boolean value) {
                         return value;
                     }
 
@@ -759,6 +767,10 @@ public final class AffogatoCompilerSelfTest {
                     public String tag() {
                         return "tag";
                     }
+                }
+
+                final class Nested {
+                    public final String name = "nested";
                 }
 
                 interface JavaDefault {
@@ -987,6 +999,7 @@ public final class AffogatoCompilerSelfTest {
 
                 class BadTypes {
                     var badField: int = "field"
+                    var missingFieldType: MissingThing
 
                     String badReturn() {
                         return 1
@@ -1000,6 +1013,16 @@ public final class AffogatoCompilerSelfTest {
                         let typed: int = "local"
                     }
 
+                    func badLocalType() {
+                        let typed: MissingThing = null
+                        println(typed)
+                    }
+
+                    func badGenericTypeArgument() {
+                        let values: List<MissingThing> = List<MissingThing>()
+                        println(values)
+                    }
+
                     func badLet() {
                         let value: int = 1
                         value = 2
@@ -1009,13 +1032,58 @@ public final class AffogatoCompilerSelfTest {
                         let value: String! = null
                     }
 
+                    func badNullReassignment() {
+                        var value: String! = "x"
+                        value = null
+                        println(value)
+                    }
+
+                    func badNullableLocal() {
+                        let maybe: String? = null
+                        let value: String! = maybe
+                        println(value)
+                    }
+
+                    func badNullableParameter(maybe: String?) {
+                        let value: String! = maybe
+                        println(value)
+                    }
+
+                    func badNullableTernary(flag: boolean) {
+                        let maybe: String? = null
+                        let value: String! = flag ? "ok" : maybe
+                        println(value)
+                    }
+
                     func badCast() {
                         var value: String = "x"
                         println(value as Integer)
                     }
 
+                    func badExpressionCast() {
+                        println((1 + 2) as String)
+                    }
+
+                    func badCastTarget() {
+                        var value: Object = "x"
+                        println(value as MissingThing)
+                    }
+
                     func badCondition() {
                         if 1 {
+                            println("bad")
+                        }
+                    }
+
+                    func badInstanceOfSource() {
+                        if 1 is String {
+                            println("bad")
+                        }
+                    }
+
+                    func badInstanceOfTarget() {
+                        var value: Object = "x"
+                        if value is MissingThing {
                             println("bad")
                         }
                     }
@@ -1037,9 +1105,76 @@ public final class AffogatoCompilerSelfTest {
                         println(value)
                     }
 
+                    func badUntypedTernary(flag: boolean) {
+                        let value = flag ? "ok" : 1
+                        println(value)
+                    }
+
                     func badTernaryCondition(flag: boolean) {
                         if flag ? true : 1 {
                             println("bad")
+                        }
+                    }
+
+                    func badBooleanInitializer() {
+                        let value: boolean = !1
+                        println(value)
+                    }
+
+                    func badRelationalInitializer() {
+                        let value: boolean = "left" < "right"
+                        println(value)
+                    }
+
+                    func badArithmeticInitializer() {
+                        let value = true + 1
+                        println(value)
+                    }
+
+                    func badEqualityInitializer() {
+                        let value = 1 == "one"
+                        println(value)
+                    }
+
+                    func badArrayAssignment() {
+                        let values: int[] = ["bad"]
+                        println(values.length)
+                    }
+
+                    func badArrayElementExpression() {
+                        let values: boolean[] = [!1]
+                        println(values.length)
+                    }
+
+                    func badUnknownIdentifier() {
+                        println(missingValue)
+                    }
+
+                    func badThrow() {
+                        throw "bad"
+                    }
+
+                    func badCatchType() {
+                        try {
+                            println("try")
+                        } catch (String e) {
+                            println(e)
+                        }
+                    }
+
+                    func badUntargetedLambda() {
+                        let fn = value -> value
+                        println(fn)
+                    }
+
+                    func badUntargetedMethodReference() {
+                        let fn = String::trim
+                        println(fn)
+                    }
+
+                    func badForIterable() {
+                        for value in 1 {
+                            println(value)
                         }
                     }
 
@@ -1049,6 +1184,29 @@ public final class AffogatoCompilerSelfTest {
                             default -> 1
                         }
                         println(label)
+                    }
+
+                    func badSwitchLabel(width: int) {
+                        switch width {
+                            case "zero" -> println("bad")
+                            default -> println("ok")
+                        }
+                    }
+
+                    func badSwitchExpressionLabel(width: int) {
+                        let label = switch width {
+                            case "zero" -> "bad"
+                            default -> "ok"
+                        }
+                        println(label)
+                    }
+
+                    func badSwitchSelector() {
+                        let selector: long = 1L
+                        switch selector {
+                            case 1L -> println("bad")
+                            default -> println("ok")
+                        }
                     }
 
                     badSwitchReturn(width: int): String {
@@ -1063,8 +1221,18 @@ public final class AffogatoCompilerSelfTest {
                         value.noSuchMethod()
                     }
 
+                    func badChainedCall() {
+                        var value: String = "x"
+                        value.trim().noSuchMethod()
+                    }
+
                     func badTernaryJavaCall(flag: boolean) {
                         let value = JavaApi.stringOnly(flag ? "ok" : 1)
+                        println(value)
+                    }
+
+                    func badBooleanJavaCall() {
+                        let value = JavaApi.booleanOnly(!1)
                         println(value)
                     }
 
@@ -1082,6 +1250,11 @@ public final class AffogatoCompilerSelfTest {
                         println(value.noSuchProperty)
                     }
 
+                    func badPropertyChain() {
+                        let api = JavaApi("interop")
+                        println(api.nested.noSuchProperty)
+                    }
+
                     func badType() {
                         let value = MissingThing()
                         println(value)
@@ -1090,8 +1263,12 @@ public final class AffogatoCompilerSelfTest {
                     func badConstructor() {
                         let shorthand = NeedsInt("bad")
                         let explicit = new NeedsInt("bad")
+                        let badBoolShorthand = NeedsBoolean(!1)
+                        let badBoolExplicit = new NeedsBoolean(!1)
                         println(shorthand)
                         println(explicit)
+                        println(badBoolShorthand)
+                        println(badBoolExplicit)
                     }
 
                     func badGenericAssignment() {
@@ -1108,6 +1285,12 @@ public final class AffogatoCompilerSelfTest {
 
                 class NeedsInt {
                     constructor(value: int) {
+                        println(value)
+                    }
+                }
+
+                class NeedsBoolean {
+                    constructor(value: boolean) {
                         println(value)
                     }
                 }
@@ -1128,10 +1311,20 @@ public final class AffogatoCompilerSelfTest {
             require(hasDiagnostic(exception, "AFFOGATO_LET_ASSIGN"), "Bad let reassignment should report AFFOGATO_LET_ASSIGN.");
             require(hasDiagnostic(exception, "AFFOGATO_CAST_TYPE"), "Bad cast should report AFFOGATO_CAST_TYPE.");
             require(hasDiagnostic(exception, "AFFOGATO_CONDITION_TYPE"), "Bad condition should report AFFOGATO_CONDITION_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_OPERATOR_TYPE"), "Bad operators should report AFFOGATO_OPERATOR_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_TERNARY_TYPE"), "Bad ternary branches should report AFFOGATO_TERNARY_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_INSTANCEOF_TYPE"), "Bad instance-of source should report AFFOGATO_INSTANCEOF_TYPE.");
             require(hasDiagnostic(exception, "AFFOGATO_CALL_RESOLUTION"), "Bad method call should report AFFOGATO_CALL_RESOLUTION.");
             require(hasDiagnostic(exception, "AFFOGATO_PROPERTY_RESOLUTION"), "Bad property should report AFFOGATO_PROPERTY_RESOLUTION.");
             require(hasDiagnostic(exception, "AFFOGATO_TYPE_RESOLUTION"), "Bad type should report AFFOGATO_TYPE_RESOLUTION.");
             require(hasDiagnostic(exception, "AFFOGATO_CONSTRUCTOR_RESOLUTION"), "Bad constructor should report AFFOGATO_CONSTRUCTOR_RESOLUTION.");
+            require(hasDiagnostic(exception, "AFFOGATO_SWITCH_LABEL_TYPE"), "Bad switch labels should report AFFOGATO_SWITCH_LABEL_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_SWITCH_SELECTOR_TYPE"), "Bad switch selectors should report AFFOGATO_SWITCH_SELECTOR_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_FOR_ITERABLE_TYPE"), "Bad for-in iterable should report AFFOGATO_FOR_ITERABLE_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_IDENTIFIER_RESOLUTION"), "Bad identifiers should report AFFOGATO_IDENTIFIER_RESOLUTION.");
+            require(hasDiagnostic(exception, "AFFOGATO_POLY_TARGET_TYPE"), "Untargeted poly expressions should report AFFOGATO_POLY_TARGET_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_THROW_TYPE"), "Bad throw expressions should report AFFOGATO_THROW_TYPE.");
+            require(hasDiagnostic(exception, "AFFOGATO_CATCH_TYPE"), "Bad catch types should report AFFOGATO_CATCH_TYPE.");
         }
     }
 
