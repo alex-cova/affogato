@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+interface RecordValue<T> {
+    value(): T
+}
+
+record RecordBox<T>(value: T): RecordValue<T> {
+    describe(): String {
+        return value.toString()
+    }
+}
+
+class RecordImplementsInterface {
+    run(): String {
+        let value: RecordValue<String> = RecordBox<String>("affogato")
+        return value.value()
+    }
+}

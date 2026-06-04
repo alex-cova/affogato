@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+import java.util.List
+
+record Page<T>(items: List<T>) {
+    first(): T {
+        return items.get(0)
+    }
+
+    size(): int {
+        return items.size()
+    }
+}
+
+class RecordNestedGenerics {
+    run(): String {
+        let page = Page<String>(List.of("af", "fogato"))
+        let first: String = page.first()
+        let size = page.size()
+        return first + ":" + size
+    }
+}

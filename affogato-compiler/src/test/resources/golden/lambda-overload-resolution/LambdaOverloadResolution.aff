@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+import java.util.function.Supplier
+
+class LambdaOverloadPicker {
+    static pick(fn: Supplier<String>): String {
+        let value = fn.get()
+        return "supplier:" + value
+    }
+
+    static pick(fn: Function<String, String>): String {
+        let value = fn.apply("af")
+        return "function:" + value
+    }
+}
+
+class LambdaOverloadResolution {
+    run(): String {
+        let supplied = LambdaOverloadPicker.pick(() -> "ready")
+        let mapped = LambdaOverloadPicker.pick(value -> value.toUpperCase())
+        return supplied + ":" + mapped
+    }
+}

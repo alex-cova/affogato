@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class LambdaCapturesLetLocal {
+    run(): String {
+        let prefix = "af"
+        let mapper: Function<String, String> = value -> prefix + value
+        return mapper.apply("fogato")
+    }
+}

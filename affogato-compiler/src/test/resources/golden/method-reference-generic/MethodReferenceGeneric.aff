@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class GenericMethodReferences {
+    static identity<T>(value: T): T {
+        return value
+    }
+}
+
+class MethodReferenceGeneric {
+    run(): String {
+        let stringIdentity: Function<String, String> = GenericMethodReferences::identity
+        let intIdentity: Function<Integer, Integer> = GenericMethodReferences::identity
+        let text = stringIdentity.apply("affogato")
+        let number = intIdentity.apply(7)
+        return text + ":" + number
+    }
+}

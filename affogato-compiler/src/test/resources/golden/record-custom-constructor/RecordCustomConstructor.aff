@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+record RecordUserName(name: String!) {
+    normalized(): String {
+        return name.trim()
+    }
+}
+
+class RecordCustomConstructor {
+    run(): String {
+        let user = RecordUserName(" affogato ")
+        return user.normalized()
+    }
+}

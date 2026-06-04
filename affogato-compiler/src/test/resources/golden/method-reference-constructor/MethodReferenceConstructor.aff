@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+import java.util.function.Supplier
+
+class MethodReferenceConstructor {
+    run(): String {
+        let empty: Supplier<StringBuilder> = StringBuilder::new
+        let fromString: Function<String, StringBuilder> = StringBuilder::new
+        let first = empty.get().append("af").toString()
+        let second = fromString.apply("fogato").toString()
+        return first + second
+    }
+}

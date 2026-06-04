@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class LambdaGenericFunctionalInterface {
+    apply<T, R>(value: T, fn: Function<T, R>): R {
+        return fn.apply(value)
+    }
+
+    run(): String {
+        let upper: String = apply("affogato", value -> value.toUpperCase())
+        let length: Integer = apply("latte", value -> value.length())
+        return upper + ":" + length
+    }
+}

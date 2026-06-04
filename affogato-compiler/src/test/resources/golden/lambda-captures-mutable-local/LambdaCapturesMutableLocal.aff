@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+import java.util.function.Supplier
+
+class LambdaCapturesMutableLocal {
+    run(): String {
+        var suffix = "!"
+        let supplier: Supplier<String> = () -> "af" + suffix
+        return supplier.get()
+    }
+}

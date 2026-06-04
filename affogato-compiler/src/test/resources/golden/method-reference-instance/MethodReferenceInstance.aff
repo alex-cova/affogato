@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import java.util.function.Supplier
+
+class MethodReferenceInstance {
+    run(): String {
+        let value = StringBuilder(" affogato ")
+        let supplier: Supplier = value::toString
+        let text = supplier.get().toString()
+        return text.trim()
+    }
+}

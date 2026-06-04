@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class LambdaBlockBody {
+    run(): String {
+        let mapper: Function<String, String> = value -> {
+            var suffix = "!";
+            return value + suffix;
+        }
+        return mapper.apply("af")
+    }
+}

@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+record RecordFormatter(prefix: String) {
+    format(value: String): String {
+        return prefix + ":" + value
+    }
+
+    format(value: int): String {
+        return prefix + ":" + value
+    }
+}
+
+class RecordMethodOverload {
+    run(): String {
+        let formatter = RecordFormatter("item")
+        let text = formatter.format("af")
+        let number = formatter.format(2)
+        return text + ":" + number
+    }
+}

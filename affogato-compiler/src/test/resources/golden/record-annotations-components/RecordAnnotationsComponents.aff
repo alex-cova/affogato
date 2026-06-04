@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+record AnnotatedComponentRecord(@Deprecated name: String, @SuppressWarnings("unused") count: int) {
+    label(): String {
+        return name + count
+    }
+}
+
+class RecordAnnotationsComponents {
+    run(): String {
+        let item = AnnotatedComponentRecord("shots", 2)
+        return item.label()
+    }
+}

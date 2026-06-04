@@ -101,8 +101,8 @@ parameterList
     ;
 
 parameter
-    : variableKind? Identifier COLON typeRef
-    | typeRef Identifier
+    : annotation* variableKind? Identifier COLON typeRef
+    | annotation* typeRef Identifier
     ;
 
 variableKind
@@ -310,7 +310,7 @@ lambdaExpression
     ;
 
 methodReferenceExpression
-    : qualifiedName DOUBLE_COLON Identifier
+    : qualifiedName DOUBLE_COLON (Identifier | NEW)
     ;
 
 lambdaParameters

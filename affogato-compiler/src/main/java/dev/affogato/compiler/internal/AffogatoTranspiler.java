@@ -252,7 +252,7 @@ public final class AffogatoTranspiler {
                                 extension.parameters()
                         ));
                 List<ParamDecl> staticParameters = new ArrayList<>();
-                staticParameters.add(new ParamDecl("$this", extension.receiverType(), PropertyKind.NONE));
+                staticParameters.add(new ParamDecl("$this", extension.receiverType(), PropertyKind.NONE, List.of()));
                 staticParameters.addAll(extension.parameters());
                 holderSymbol.methods.computeIfAbsent(extension.name(), ignored -> new ArrayList<>())
                         .add(new MethodSymbol(extension.name(), extension.returnType(), staticParameters, true));
@@ -556,7 +556,7 @@ public final class AffogatoTranspiler {
                         "Compact constructor parameters need var or let."
                 ));
             }
-            parameters.add(new ParamDecl(name, type, propertyKind));
+            parameters.add(new ParamDecl(name, type, propertyKind, annotations(parameter.annotation())));
         }
         return parameters;
     }
@@ -697,7 +697,7 @@ public final class AffogatoTranspiler {
 
     private List<ParamDecl> holderParameters(ExtensionFuncDecl extension) {
         List<ParamDecl> parameters = new ArrayList<>();
-        parameters.add(new ParamDecl("$this", extension.receiverType(), PropertyKind.NONE));
+        parameters.add(new ParamDecl("$this", extension.receiverType(), PropertyKind.NONE, List.of()));
         parameters.addAll(extension.parameters());
         return parameters;
     }
@@ -3675,7 +3675,8 @@ public final class AffogatoTranspiler {
     private String parameterList(List<ParamDecl> parameters) {
         List<String> rendered = new ArrayList<>();
         for (ParamDecl parameter : parameters) {
-            rendered.add(parameter.type().declaration() + " " + parameter.name());
+            String prefix = parameter.annotations().isEmpty() ? "" : String.join(" ", parameter.annotations()) + " ";
+            rendered.add(prefix + parameter.type().declaration() + " " + parameter.name());
         }
         return String.join(", ", rendered);
     }
@@ -4309,7 +4310,7 @@ public final class AffogatoTranspiler {
         }
     }
 
-    private record ParamDecl(String name, TypeRef type, PropertyKind propertyKind) {
+    private record ParamDecl(String name, TypeRef type, PropertyKind propertyKind, List<String> annotations) {
     }
 
     private record ConstructorSymbol(List<ParamDecl> parameters) {
@@ -5686,6 +5687,9 @@ public final class AffogatoTranspiler {
         private boolean assignmentCompatible(TypeGuess source, String targetType, CompilationUnit unit, InvocationPhase phase) {
             if (conversionScore(source, targetType, unit, phase) >= NO_CONVERSION) {
                 return false;
+            }
+            if (source.isLambda()) {
+                return true;
             }
             return genericTypeArgumentsAssignable(source.javaType(), targetType, unit);
         }
