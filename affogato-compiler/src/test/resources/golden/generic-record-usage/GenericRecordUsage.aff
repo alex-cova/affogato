@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+record Entry<K, V>(key: K, value: V) {}
+
+class GenericRecordUsage {
+    run(): String {
+        let entry = Entry<String, Integer>("shots", 2)
+        return entry.key + "" + entry.value
+    }
+}

@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class NumericOperators {
+    compute(left: int, right: long): long {
+        let sum: long = left + right
+        let diff: long = right - left
+        let product: long = sum * diff
+        return product / 2L
+    }
+
+    compare(value: int): boolean {
+        return value >= 0 && value <= 10
+    }
+}

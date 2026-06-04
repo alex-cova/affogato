@@ -1,0 +1,21 @@
+package dev.affogato.golden
+
+class NullabilityFlow {
+    require(value: String!): String {
+        return value.trim()
+    }
+
+    maybe(flag: boolean): String? {
+        if flag {
+            return "ok"
+        }
+        return null
+    }
+
+    run(): String {
+        let value: String! = "ready"
+        let optional: String? = null
+        println(optional)
+        return require(value = value)
+    }
+}

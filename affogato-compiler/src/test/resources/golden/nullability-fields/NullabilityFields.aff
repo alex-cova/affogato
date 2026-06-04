@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class NullabilityFields(var required: String!, var optional: String?) {
+    describe(): String {
+        println(optional)
+        return required.trim()
+    }
+}
+
+class NullabilityFieldUsage {
+    run(): String {
+        let holder = NullabilityFields(required = " ready ", optional = null)
+        return holder.describe()
+    }
+}

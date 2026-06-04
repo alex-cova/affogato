@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+interface Describer<T> {
+    describe(value: T): String
+
+    default describeTwice(value: T): String {
+        return describe(value) + describe(value)
+    }
+}
+
+class StringDescriber: Describer<String> {
+    override describe(value: String): String {
+        return "[" + value + "]"
+    }
+}
+
+class GenericInterfaceDefaults {
+    run(): String {
+        let describer: Describer<String> = StringDescriber()
+        return describer.describeTwice(value = "mocha")
+    }
+}

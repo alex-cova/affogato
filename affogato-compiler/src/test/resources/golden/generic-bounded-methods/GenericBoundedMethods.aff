@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class GenericBoundedMethods {
+    pickText<T: CharSequence>(left: T, right: T): T {
+        println(right)
+        return left
+    }
+
+    pickNumber<T: Number>(left: T, right: T): T {
+        println(right)
+        return left
+    }
+
+    run(): int {
+        let text: String = pickText(left = "affogato", right = "latte")
+        let number: Integer = pickNumber(left = 7, right = 9)
+        println(number)
+        return text.length()
+    }
+}

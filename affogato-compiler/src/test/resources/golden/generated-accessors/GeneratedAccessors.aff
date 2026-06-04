@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class AccessorBox(var value: String) {}
+
+class GeneratedAccessors {
+    run(): String {
+        let box = AccessorBox(value = "a")
+        box.value = "b"
+        return box.value
+    }
+}

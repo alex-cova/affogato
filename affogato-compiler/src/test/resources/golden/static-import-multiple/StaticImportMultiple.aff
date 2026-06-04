@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import static java.lang.Math.max
+import static java.lang.Math.min
+
+class StaticImportMultiple {
+    run(): int {
+        let low = min(1, 2)
+        let high = max(3, 4)
+        return low + high
+    }
+}

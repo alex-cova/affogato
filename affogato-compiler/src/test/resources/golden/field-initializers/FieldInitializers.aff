@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class FieldInitializers {
+    var count: int = 1
+    var label: String = "ready"
+
+    run(): String {
+        count = count + 1
+        return label + count
+    }
+}

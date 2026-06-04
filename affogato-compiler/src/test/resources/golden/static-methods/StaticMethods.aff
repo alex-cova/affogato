@@ -1,0 +1,17 @@
+package dev.affogato.golden
+
+class StaticMethods {
+    static prefix(value: String): String {
+        return "x-" + value
+    }
+
+    static add(left: int, right: int): int {
+        return left + right
+    }
+
+    run(): String {
+        let label = StaticMethods.prefix(value = "id")
+        let total = StaticMethods.add(right = 2, left = 1)
+        return label + total
+    }
+}

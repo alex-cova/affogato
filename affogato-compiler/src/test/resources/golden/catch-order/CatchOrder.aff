@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class CatchOrder {
+    recover(value: String): String {
+        try {
+            if value.isBlank() {
+                throw new IllegalArgumentException("blank")
+            }
+            return value
+        } catch (IllegalArgumentException e) {
+            return e.getMessage()
+        } catch (RuntimeException e) {
+            return "runtime"
+        }
+    }
+}

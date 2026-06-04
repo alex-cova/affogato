@@ -1,0 +1,8 @@
+package dev.affogato.golden
+
+class InterpolationRich {
+    describe(name: String, count: int): String {
+        let label = "Order ${name}: $count items"
+        return "${label} / next ${count + 1}"
+    }
+}

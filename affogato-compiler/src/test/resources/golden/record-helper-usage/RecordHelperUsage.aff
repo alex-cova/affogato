@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+record UserRecord(name: String, age: int) {}
+
+class UserRecordHelpers {
+    static label(user: UserRecord): String {
+        return user.name + ":" + user.age
+    }
+}
+
+class RecordHelperUsage {
+    run(): String {
+        let user = UserRecord("Ada", 42)
+        return UserRecordHelpers.label(user = user)
+    }
+}

@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class CastsNegativeBranch {
+    describe(value: Object): String {
+        if value is String {
+            return value as String
+        } else {
+            return "not string"
+        }
+    }
+}

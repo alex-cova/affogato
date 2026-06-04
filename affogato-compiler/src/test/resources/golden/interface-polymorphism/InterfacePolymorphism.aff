@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+interface Formatter {
+    format(value: String): String
+}
+
+class UpperFormatter: Formatter {
+    override format(value: String): String {
+        return value.toUpperCase()
+    }
+}
+
+class PrefixFormatter: Formatter {
+    override format(value: String): String {
+        return "x-" + value
+    }
+}
+
+class InterfacePolymorphism {
+    run(flag: boolean): String {
+        let formatter: Formatter = flag ? UpperFormatter() : PrefixFormatter()
+        return formatter.format(value = "ok")
+    }
+}

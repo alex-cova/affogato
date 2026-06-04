@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class MethodReferenceStatic {
+    parse(fn: Function<String, Integer>): Integer {
+        return fn.apply("42")
+    }
+
+    run(): Integer {
+        return parse(fn = Integer::parseInt)
+    }
+}

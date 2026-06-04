@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class InstanceRouter {
+    route(value: String): String {
+        return value
+    }
+
+    route(value: int): String {
+        return "count" + value
+    }
+}
+
+class InstanceOverloads {
+    run(): String {
+        let router = InstanceRouter()
+        let name = router.route(value = "name")
+        let count = router.route(value = 3)
+        return name + count
+    }
+}

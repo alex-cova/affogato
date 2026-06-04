@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class EmptyThing {}
+
+class EmptyClassConstructor {
+    run(): String {
+        let thing = EmptyThing()
+        println(thing)
+        return "ok"
+    }
+}

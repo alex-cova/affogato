@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class TryHelperCall {
+    parse(value: String): int {
+        return Integer.parseInt(value)
+    }
+
+    run(value: String): String {
+        try {
+            let parsed = parse(value = value)
+            return "ok" + parsed
+        } catch (NumberFormatException e) {
+            return "bad"
+        }
+    }
+}

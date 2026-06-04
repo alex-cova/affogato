@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+class NestedBlocks {
+    run(value: int): String {
+        {
+            if value > 0 {
+                return "positive"
+            }
+        }
+        return "other"
+    }
+}

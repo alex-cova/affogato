@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+record GenericPair<A, B>(first: A, second: B) {
+    firstValue(): A {
+        return first
+    }
+
+    secondValue(): B {
+        return second
+    }
+}
+
+class GenericRecordMethods {
+    run(): String {
+        let pair = GenericPair<String, Integer>("shots", 2)
+        let first: String = pair.firstValue()
+        let second: Integer = pair.secondValue()
+        return first + ":" + second
+    }
+}

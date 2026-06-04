@@ -1,0 +1,21 @@
+package dev.affogato.golden
+
+class GenericMethods {
+    identity<T>(value: T): T {
+        return value
+    }
+
+    choose<T>(first: T, second: T): T {
+        return first
+    }
+}
+
+class GenericMethodUsage {
+    run(): String {
+        let methods = GenericMethods()
+        let number: Integer = methods.identity(7)
+        println(number)
+        let chosen: String = methods.choose(first = "affogato", second = "latte")
+        return chosen
+    }
+}

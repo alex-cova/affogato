@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class ExplicitThing {
+    let name: String
+
+    init(name: String) {
+        this.name = name
+    }
+}
+
+class ExplicitNew {
+    run(): String {
+        let thing = new ExplicitThing("box")
+        return thing.name
+    }
+}

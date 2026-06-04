@@ -1,0 +1,3 @@
+package dev.affogato.golden
+
+class CrossUser(var name: String, let age: int) {}

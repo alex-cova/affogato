@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+class StringArrayUsage {
+    join(): String {
+        let labels: String[] = ["a", "b", "c"]
+        var text = ""
+        for label in labels {
+            text = text + label
+        }
+        return text + labels.length
+    }
+}

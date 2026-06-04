@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+class InitOnly {
+    let name: String
+    var count: int
+
+    init(name: String, count: int) {
+        this.name = name
+        this.count = count
+    }
+
+    bump(): int {
+        count = count + 1
+        return count
+    }
+}
+
+class InitConstructors {
+    run(): String {
+        let item = InitOnly(name = "box", count = 2)
+        let next = item.bump()
+        return item.name + next
+    }
+}

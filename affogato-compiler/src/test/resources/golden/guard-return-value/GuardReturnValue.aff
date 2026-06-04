@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+class GuardReturnValue {
+    describe(value: Object): String {
+        guard value is String else {
+            return "other"
+        }
+        return value as String
+    }
+}

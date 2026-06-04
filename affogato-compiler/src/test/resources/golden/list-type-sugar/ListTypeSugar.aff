@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+class ListTypeSugar {
+    run(): [String] {
+        var names = List<String>()
+        names.add("espresso")
+        names.add("latte")
+        return names
+    }
+}

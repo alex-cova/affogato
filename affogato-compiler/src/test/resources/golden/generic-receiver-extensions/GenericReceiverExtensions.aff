@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class GenericReceiverBox<T>(var value: T) {}
+
+func GenericReceiverBox<String>.label(prefix: String): String {
+    return prefix + ":" + this.value
+}
+
+class GenericReceiverExtensions {
+    run(): String {
+        let stringBox = GenericReceiverBox<String>("bean")
+        return stringBox.label(prefix = "kind")
+    }
+}

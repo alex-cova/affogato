@@ -1,0 +1,7 @@
+package dev.affogato.golden.nested
+
+class NestedPackage {
+    run(): String {
+        return "nested"
+    }
+}

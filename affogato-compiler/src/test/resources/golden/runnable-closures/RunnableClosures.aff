@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class RunnableClosures {
+    static func runTask(task: Runnable) {
+        task.run()
+    }
+
+    run(): String {
+        RunnableClosures.runTask {
+            println("done")
+        }
+        return "ok"
+    }
+}

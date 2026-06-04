@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+import java.util.Collections
+import java.util.Optional
+
+class GenericJavaInference {
+    singleton(): java.util.List<String> {
+        return Collections.singletonList("solo")
+    }
+
+    optional(): String {
+        let value = Optional.of("present")
+        return value.get()
+    }
+}

@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import java.util.HashMap
+
+class MapOperations {
+    run(): String {
+        var values = HashMap<String, Integer>()
+        values.put("one", 1)
+        values.put("two", 2)
+        println(values)
+        let size = values.size()
+        return "size" + size
+    }
+}

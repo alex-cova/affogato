@@ -1,0 +1,9 @@
+package dev.affogato.golden
+
+class JavaStringChaining {
+    run(value: String): String {
+        let cleaned = value.trim().toUpperCase()
+        let prefix = cleaned.substring(0, 1)
+        return prefix + cleaned.length()
+    }
+}

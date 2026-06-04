@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class Throwing {
+    fail(message: String): String {
+        throw new RuntimeException(message)
+    }
+
+    recover(): String {
+        try {
+            return fail(message = "bad")
+        } catch (RuntimeException e) {
+            return e.getMessage()
+        }
+    }
+}

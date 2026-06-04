@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class NestedSugarBox<T>(var value: T) {}
+
+class GenericNestedSugar {
+    run(): [NestedSugarBox<String>] {
+        var boxes = List<NestedSugarBox<String>>()
+        boxes.add(NestedSugarBox<String>("cortado"))
+        return boxes
+    }
+
+    lookup(): java.util.Map<String, [NestedSugarBox<Integer>]> {
+        var numbers = List<NestedSugarBox<Integer>>()
+        numbers.add(NestedSugarBox<Integer>(3))
+        var lookup = Map<String, java.util.List<NestedSugarBox<Integer>>>()
+        lookup.put("shots", numbers)
+        return lookup
+    }
+}

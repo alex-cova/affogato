@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+interface Source<T> {
+    get(): T
+}
+
+class StringSource: Source<String> {
+    override get(): String {
+        return "value"
+    }
+}
+
+class GenericInterfaceUsage {
+    run(): String {
+        let source = StringSource()
+        return source.get()
+    }
+}

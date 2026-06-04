@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+
+class LambdaLocals {
+    run(): String {
+        let mapper: Function<String, String> = value -> value + "!"
+        let trimmer: Function<String, String> = String::trim
+        return mapper.apply(trimmer.apply(" ok "))
+    }
+}

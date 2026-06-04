@@ -1,0 +1,5 @@
+package dev.affogato.golden
+
+func CrossUser.label(prefix: String): String {
+    return prefix + ":" + name + ":" + age
+}

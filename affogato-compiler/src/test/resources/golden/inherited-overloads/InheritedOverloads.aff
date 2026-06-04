@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class BaseChoices {
+    pick(value: CharSequence): String {
+        return value.toString()
+    }
+
+    pick(value: Object): String {
+        return value.toString()
+    }
+}
+
+class DerivedChoices: BaseChoices {}
+
+class InheritedOverloads {
+    run(): String {
+        let choices = DerivedChoices()
+        return choices.pick(value = "child")
+    }
+}

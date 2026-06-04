@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+class TernaryNumeric {
+    choose(flag: boolean): long {
+        let value: long = flag ? 1 : 2L
+        return value
+    }
+
+    label(count: int): String {
+        return count > 0 ? "positive" : "zero"
+    }
+}

@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class Holder<T> {
+    echo(value: T): T {
+        return value
+    }
+}
+
+class StringHolder: Holder<String> {
+    override echo(value: String): String {
+        return "string:" + value
+    }
+}
+
+class GenericInheritance {
+    run(): String {
+        let holder: Holder<String> = StringHolder()
+        return holder.echo(value = "latte")
+    }
+}

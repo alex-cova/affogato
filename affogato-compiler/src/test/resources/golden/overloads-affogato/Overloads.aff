@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class LocalOverloads {
+    static route(name: String, count: int): String {
+        return name + count
+    }
+
+    static route(count: long, name: Object): String {
+        return name.toString() + count
+    }
+}
+
+class OverloadUser {
+    run(): String {
+        let first = LocalOverloads.route(name = "a", count = 1)
+        let second = LocalOverloads.route(name = "b", count = 2L)
+        return first + second
+    }
+}

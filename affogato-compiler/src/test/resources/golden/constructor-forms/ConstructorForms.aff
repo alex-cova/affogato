@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+class PairPoint {
+    let x: int
+    let y: int
+
+    init(x: int, y: int) {
+        this.x = x
+        this.y = y
+    }
+
+    sum(): int {
+        return x + y
+    }
+}
+
+class ConstructorForms {
+    run(): int {
+        let shorthand = PairPoint(1, 2)
+        let explicit = new PairPoint(3, 4)
+        let named = PairPoint(y = 6, x = 5)
+        return shorthand.sum() + explicit.sum() + named.sum()
+    }
+}

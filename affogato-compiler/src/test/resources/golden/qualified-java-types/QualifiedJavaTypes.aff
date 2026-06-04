@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import java.time.LocalDate
+import java.util.ArrayList
+
+class QualifiedJavaTypes {
+    run(): String {
+        let date = LocalDate.of(2026, 6, 4)
+        let list = ArrayList<String>()
+        list.add("affogato")
+        println(list)
+        return date.toString()
+    }
+}

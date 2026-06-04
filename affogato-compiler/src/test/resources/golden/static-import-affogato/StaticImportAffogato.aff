@@ -1,0 +1,9 @@
+package dev.affogato.golden
+
+import static dev.affogato.golden.StaticImportSource.echo
+
+class StaticImportAffogato {
+    run(): String {
+        return StaticImportSource.echo(value = "imported")
+    }
+}

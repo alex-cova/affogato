@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class SelfMethodCalls {
+    greet(name: String): String {
+        return "Hello " + name
+    }
+
+    excited(name: String): String {
+        return this.greet(name) + "!"
+    }
+
+    run(): String {
+        return excited(name = "Ada")
+    }
+}

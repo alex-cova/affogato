@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class GenericStatics {
+    static identity<T>(value: T): T {
+        return value
+    }
+
+    static choose<T>(first: T, second: T): T {
+        return second
+    }
+}
+
+class GenericStaticMethods {
+    run(): String {
+        let id: String = GenericStatics.identity("espresso")
+        let chosen: Integer = GenericStatics.choose(first = 1, second = 2)
+        return id + chosen
+    }
+}

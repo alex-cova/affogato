@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class FinallyReturn {
+    done(): String {
+        try {
+            println("before")
+        } finally {
+            return "done"
+        }
+    }
+}

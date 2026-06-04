@@ -1,0 +1,8 @@
+package dev.affogato.golden
+
+class CrossFileApp {
+    run(): String {
+        let user = CrossUser(name = "Ada", age = 42)
+        return user.label(prefix = "user")
+    }
+}

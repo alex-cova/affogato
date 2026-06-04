@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+class LoopsAccumulators {
+    sum(): int {
+        let values: int[] = [1, 2, 3, 4]
+        var total = 0
+        for value in values {
+            total = total + value
+        }
+
+        var index = 0
+        while index < values.length {
+            index = index + 1
+        }
+
+        return total + index
+    }
+}

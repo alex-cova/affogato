@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class ArrayItem(var name: String) {}
+
+class ObjectArrays {
+    run(): String {
+        let items: Object[] = [ArrayItem(name = "a"), ArrayItem(name = "b")]
+        var text = ""
+        for item in items {
+            text = text + item.toString()
+        }
+        return text + items.length
+    }
+}

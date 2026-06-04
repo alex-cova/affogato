@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+interface NameCarrier {
+    name(): String
+}
+
+class NamedCup: NameCarrier {
+    override name(): String {
+        return "cup"
+    }
+}
+
+func NameCarrier.display(): String {
+    return "carrier"
+}
+
+class ExtensionInterface {
+    run(): String {
+        let cup = NamedCup()
+        return cup.display()
+    }
+}

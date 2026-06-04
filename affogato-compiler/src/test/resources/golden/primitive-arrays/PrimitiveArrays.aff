@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class PrimitiveArrays {
+    run(): long {
+        let flags: boolean[] = [true, false, true]
+        let values: long[] = [1L, 2L, 3L]
+        var total: long = 0L
+        for value in values {
+            total = total + value
+        }
+        if flags.length > 0 {
+            total = total + flags.length
+        }
+        return total
+    }
+}
