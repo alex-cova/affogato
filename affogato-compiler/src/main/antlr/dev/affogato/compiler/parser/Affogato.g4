@@ -248,6 +248,7 @@ switchArmBody
 
 returnStatement
     : RETURN switchExpression
+    | RETURN expression trailingClosure
     | RETURN expression?
     ;
 
@@ -257,11 +258,16 @@ throwStatement
 
 localVarDecl
     : variableKind Identifier (COLON typeRef)? ASSIGN switchExpression
+    | variableKind Identifier (COLON typeRef)? ASSIGN expression trailingClosure
     | variableKind Identifier (COLON typeRef)? (ASSIGN expression)?
     ;
 
 expressionStatement
-    : expression
+    : expression trailingClosure?
+    ;
+
+trailingClosure
+    : LBRACE (lambdaParameters ARROW)? lambdaBody RBRACE
     ;
 
 condition

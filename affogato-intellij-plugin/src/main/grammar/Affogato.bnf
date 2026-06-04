@@ -149,8 +149,10 @@ statement ::= block
   | returnStatement terminator*
   | throwStatement terminator*
   | localVarDecl terminator*
-  | expression terminator*
+  | expression trailingClosure? terminator*
   | terminator
+
+trailingClosure ::= '{' ((identifier | callGroup) '->')? expression? '}'
 
 guardStatement ::= 'guard' expression 'else' block
 ifStatement ::= 'if' condition block ('else' (ifStatement | block))?
@@ -167,9 +169,9 @@ switchArm ::= 'case' switchLabel (',' switchLabel)* '->' switchArmBody
   | 'default' '->' switchArmBody
 switchLabel ::= expression
 switchArmBody ::= block | expression terminator*
-returnStatement ::= 'return' (switchExpression | expression)?
+returnStatement ::= 'return' (switchExpression | expression)? trailingClosure?
 throwStatement ::= 'throw' expression
-localVarDecl ::= variableKind identifier (':' typeRef)? ('=' (switchExpression | expression))?
+localVarDecl ::= variableKind identifier (':' typeRef)? ('=' (switchExpression | expression))? trailingClosure?
 condition ::= '(' expression ')' | expression
 forCondition ::= '(' forContent ')' | forContent
 forContent ::= variableKind? identifier 'in' expression | expression

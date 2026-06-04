@@ -1004,7 +1004,8 @@ public final class AffogatoTranspiler {
             }
             String rawExpression = statement.returnStatement().expression() == null
                     ? ""
-                    : sourceText(unit.source(), statement.returnStatement().expression());
+                    : mergeTrailingClosure(sourceText(unit.source(), statement.returnStatement().expression()),
+                            unit.source(), statement.returnStatement().trailingClosure());
             validateReturn(rawExpression, context, statement.returnStatement().getStart().getLine(), statement.returnStatement().getStart().getCharPositionInLine() + 1);
             String expression = rawExpression.isBlank()
                     ? ""
@@ -1023,7 +1024,9 @@ public final class AffogatoTranspiler {
             return;
         }
         if (statement.expressionStatement() != null) {
-            String expression = sourceText(unit.source(), statement.expressionStatement().expression()).trim();
+            String expression = mergeTrailingClosure(
+                    sourceText(unit.source(), statement.expressionStatement().expression()),
+                    unit.source(), statement.expressionStatement().trailingClosure()).trim();
             Matcher assignmentMatcher = PROPERTY_ASSIGNMENT.matcher(expression);
             String transformed = assignmentMatcher.matches()
                     ? transformPropertyAssignment(assignmentMatcher, context)
@@ -1331,7 +1334,10 @@ public final class AffogatoTranspiler {
             return decl.toString();
         }
 
-        String rawInitializer = declaration.expression() == null ? "" : sourceText(unit.source(), declaration.expression());
+        String rawInitializer = declaration.expression() == null
+                ? ""
+                : mergeTrailingClosure(sourceText(unit.source(), declaration.expression()),
+                        unit.source(), declaration.trailingClosure());
         TypedExpression typedInit = rawInitializer.isBlank() ? null : transformExpressionTyped(rawInitializer, context);
         String initializer = typedInit == null ? "" : typedInit.javaSource();
 
@@ -3604,6 +3610,63 @@ public final class AffogatoTranspiler {
         return text.replaceAll("[;\\r\\n]+$", "").trim();
     }
 
+    /**
+     * Normalizes a Swift-style trailing closure into the parenthesized lambda form that the
+     * rest of the pipeline already understands. {@code call(args) { p -> body }} becomes
+     * {@code call(args, p -> body)} and {@code receiver.method { p -> body }} becomes
+     * {@code receiver.method(p -> body)}. Returns {@code exprText} untouched when there is no
+     * trailing closure, preserving full backward compatibility.
+     */
+    private String mergeTrailingClosure(String exprText, String source,
+                                        AffogatoParser.TrailingClosureContext closure) {
+        if (closure == null) {
+            return exprText;
+        }
+        String params = closure.lambdaParameters() == null
+                ? "()"
+                : sourceText(source, closure.lambdaParameters()).trim();
+        String body = sourceText(source, closure.lambdaBody()).trim();
+        String lambda = params + " -> " + body;
+
+        String trimmed = exprText.stripTrailing();
+        if (trimmed.endsWith(")")) {
+            int open = matchingOpenIndex(trimmed);
+            if (open > 0) {
+                String prefix = trimmed.substring(0, open);
+                String args = trimmed.substring(open + 1, trimmed.length() - 1).trim();
+                String merged = args.isEmpty() ? lambda : args + ", " + lambda;
+                return prefix + "(" + merged + ")";
+            }
+        }
+        return trimmed + "(" + lambda + ")";
+    }
+
+    /** Index of the '(' opening the final top-level group of {@code text} (which ends in ')'). */
+    private int matchingOpenIndex(String text) {
+        int depth = 0;
+        int lastTopLevelOpen = -1;
+        boolean inString = false;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            char previous = index > 0 ? text.charAt(index - 1) : '\0';
+            if (current == '"' && previous != '\\') {
+                inString = !inString;
+            }
+            if (inString) {
+                continue;
+            }
+            if (current == '(') {
+                if (depth == 0) {
+                    lastTopLevelOpen = index;
+                }
+                depth++;
+            } else if (current == ')') {
+                depth = Math.max(0, depth - 1);
+            }
+        }
+        return lastTopLevelOpen;
+    }
+
     private String sourceText(String source, ParserRuleContext context) {
         Token start = context.getStart();
         Token stop = context.getStop();
@@ -4527,24 +4590,37 @@ public final class AffogatoTranspiler {
                 ordered.add(null);
             }
 
-            int positionalIndex = 0;
+            // Bind named arguments to their slots first, then fill the remaining slots with
+            // positional arguments left-to-right. This lets a positional argument follow a named
+            // one (e.g. a Swift-style trailing closure after a named argument: f(value = x) { ... }).
             for (TypedArgument argument : arguments) {
-                int parameterIndex;
                 if (argument.name().isBlank()) {
-                    parameterIndex = positionalIndex++;
-                } else {
-                    parameterIndex = -1;
-                    for (int index = 0; index < parameters.size(); index++) {
-                        if (parameters.get(index).name().equals(argument.name())) {
-                            parameterIndex = index;
-                            break;
-                        }
+                    continue;
+                }
+                int parameterIndex = -1;
+                for (int index = 0; index < parameters.size(); index++) {
+                    if (parameters.get(index).name().equals(argument.name())) {
+                        parameterIndex = index;
+                        break;
                     }
                 }
-                if (parameterIndex < 0 || parameterIndex >= parameters.size() || ordered.get(parameterIndex) != null) {
+                if (parameterIndex < 0 || ordered.get(parameterIndex) != null) {
                     return Optional.empty();
                 }
                 ordered.set(parameterIndex, argument);
+            }
+            int slot = 0;
+            for (TypedArgument argument : arguments) {
+                if (!argument.name().isBlank()) {
+                    continue;
+                }
+                while (slot < parameters.size() && ordered.get(slot) != null) {
+                    slot++;
+                }
+                if (slot >= parameters.size()) {
+                    return Optional.empty();
+                }
+                ordered.set(slot++, argument);
             }
 
             List<String> expressions = new ArrayList<>();

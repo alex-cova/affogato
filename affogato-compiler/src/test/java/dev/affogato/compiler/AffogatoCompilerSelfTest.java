@@ -124,6 +124,13 @@ public final class AffogatoCompilerSelfTest {
                         println(supplied)
                         let mapped = JavaApi.functional(fn = value -> value)
                         println(mapped)
+                        let suppliedClosure = JavaApi.functional { "ready" }
+                        println(suppliedClosure)
+                        let mappedClosure = JavaApi.lambdaResult { value -> value }
+                        println(mappedClosure)
+                        let mixedClosure = JavaApi.mapWith("seed") { item -> item }
+                        println(mixedClosure)
+                        JavaApi.functional { "discarded" }
                         let pinged = JavaApi.combined()
                         let pong = pinged.ping()
                         println(pong)
@@ -403,6 +410,10 @@ public final class AffogatoCompilerSelfTest {
         requireContains(appJava, "final java.lang.String methodRefValue = JavaApi.lambdaResult(String::trim);");
         requireContains(appJava, "final java.lang.String supplied = JavaApi.functional(() -> \"ready\");");
         requireContains(appJava, "final java.lang.String mapped = JavaApi.functional(value -> value);");
+        requireContains(appJava, "final java.lang.String suppliedClosure = JavaApi.functional(() -> \"ready\");");
+        requireContains(appJava, "final java.lang.String mappedClosure = JavaApi.lambdaResult(value -> value);");
+        requireContains(appJava, "final java.lang.String mixedClosure = JavaApi.mapWith(\"seed\", item -> item);");
+        requireContains(appJava, "JavaApi.functional(() -> \"discarded\");");
         requireContains(appJava, "JavaApi.combined()");
         requireContains(appJava, "final java.lang.String pong = pinged.ping();");
         requireContains(appJava, "final String routed = router.label(\"x\");");
@@ -685,6 +696,10 @@ public final class AffogatoCompilerSelfTest {
 
                     public static String functional(java.util.function.Function<String, String> fn) {
                         return fn.apply("x");
+                    }
+
+                    public static String mapWith(String value, java.util.function.Function<String, String> fn) {
+                        return fn.apply(value);
                     }
 
                     public static String ambiguous(String value) {

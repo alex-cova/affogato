@@ -11,15 +11,21 @@ class LambdasSample {
         names.add("flat white")
 
         for name in names {
-            let display = LambdasSample.map(value = name, mapper = item -> item + "!")
+            // Swift-style trailing closure with a named argument before it.
+            let display = LambdasSample.map(value = name) { item -> item + "!" }
             println(display)
         }
 
-        let ready = LambdasSample.supply(factory = () -> "lambda ready")
+        // No-parameter trailing closure (Supplier).
+        let ready = LambdasSample.supply { "lambda ready" }
         println(ready)
+
+        // Trailing closure in a return statement (see shout()).
+        println(LambdasSample.shout("hi"))
 
         var counter = 0
         while counter < 3 {
+            // The classic named-argument form still works (backward compatible).
             let label = LambdasSample.map(value = "step " + counter, mapper = text -> text + text)
             println(label)
             counter = counter + 1
@@ -32,5 +38,9 @@ class LambdasSample {
 
     static String supply(factory: Supplier<String>) {
         return factory.get()
+    }
+
+    static String shout(word: String) {
+        return LambdasSample.map(value = word) { item -> item + "???" }
     }
 }
