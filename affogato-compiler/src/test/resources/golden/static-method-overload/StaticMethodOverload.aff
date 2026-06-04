@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class StaticOverloadSource {
+    static pick(value: String): String {
+        return "string:" + value
+    }
+
+    static pick(value: int): String {
+        return "int:" + value
+    }
+}
+
+class StaticMethodOverload {
+    run(): String {
+        let text = StaticOverloadSource.pick("af")
+        let number = StaticOverloadSource.pick(2)
+        return text + "|" + number
+    }
+}

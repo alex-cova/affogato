@@ -288,11 +288,14 @@ public final class AffogatoTranspiler {
     private CompilationUnit buildCompilationUnit(Path sourceFile, String source, AffogatoParser.CompilationUnitContext tree) {
         String packageName = tree.packageDecl() == null ? "" : tree.packageDecl().qualifiedName().getText();
         List<String> imports = new ArrayList<>();
+        Map<String, String> importedSimpleNames = new LinkedHashMap<>();
         for (AffogatoParser.ImportDeclContext importDecl : tree.importDecl()) {
             String importName = sourceText(source, importDecl)
                     .replaceFirst("^import\\s+", "")
                     .trim();
-            imports.add(stripTerminators(importName));
+            String cleanedImport = stripTerminators(importName);
+            imports.add(cleanedImport);
+            validateImportConflict(sourceFile, importDecl, cleanedImport, importedSimpleNames);
         }
 
         List<ParsedClass> classes = new ArrayList<>();
@@ -315,6 +318,27 @@ public final class AffogatoTranspiler {
         }
 
         return new CompilationUnit(sourceFile, source, packageName, imports, classes, enums, interfaces, records, extensions);
+    }
+
+    private void validateImportConflict(Path sourceFile, AffogatoParser.ImportDeclContext importDecl, String importName, Map<String, String> importedSimpleNames) {
+        if (importName.startsWith("static ") || importName.endsWith(".*")) {
+            return;
+        }
+        int dot = importName.lastIndexOf('.');
+        if (dot < 0 || dot == importName.length() - 1) {
+            return;
+        }
+        String simpleName = importName.substring(dot + 1);
+        String previous = importedSimpleNames.putIfAbsent(simpleName, importName);
+        if (previous != null && !previous.equals(importName)) {
+            diagnostics.add(error(
+                    sourceFile,
+                    importDecl.getStart().getLine(),
+                    importDecl.getStart().getCharPositionInLine() + 1,
+                    "AFFOGATO_IMPORT_CONFLICT",
+                    "Import " + importName + " conflicts with " + previous + "."
+            ));
+        }
     }
 
     private ExtensionFuncDecl buildExtension(Path sourceFile, String source, AffogatoParser.ExtensionFuncDeclContext extensionDecl) {

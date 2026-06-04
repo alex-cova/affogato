@@ -1,0 +1,7 @@
+package dev.affogato.golden.model
+
+class CrossPackageModel(var name: String) {
+    label(): String {
+        return "model:" + name
+    }
+}

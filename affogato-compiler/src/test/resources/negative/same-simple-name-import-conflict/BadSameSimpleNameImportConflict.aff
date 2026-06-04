@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+import java.util.Date
+import java.sql.Date
+
+class BadSameSimpleNameImportConflict {
+    run(value: Date): String {
+        return value.toString()
+    }
+}

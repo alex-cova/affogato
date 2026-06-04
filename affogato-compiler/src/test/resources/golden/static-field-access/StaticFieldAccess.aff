@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class StaticFieldSource {
+    static let DEFAULT_LABEL: String = "static"
+    static var counter: int = 1
+}
+
+class StaticFieldAccess {
+    run(): String {
+        StaticFieldSource.counter = StaticFieldSource.counter + 2
+        let label: String = StaticFieldSource.DEFAULT_LABEL
+        let count: int = StaticFieldSource.counter
+        return label + ":" + count
+    }
+}

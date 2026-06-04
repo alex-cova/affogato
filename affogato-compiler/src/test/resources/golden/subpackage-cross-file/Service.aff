@@ -1,0 +1,9 @@
+package dev.affogato.golden.service
+
+import dev.affogato.golden.model.CrossPackageModel
+
+class CrossPackageService {
+    build(name: String): CrossPackageModel {
+        return CrossPackageModel(name)
+    }
+}

@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+import java.util.List as JList
+
+class BadImportAlias {
+    run(): String {
+        return "bad"
+    }
+}

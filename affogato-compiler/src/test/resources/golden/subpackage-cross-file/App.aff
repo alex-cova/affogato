@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.model.CrossPackageModel
+import dev.affogato.golden.service.CrossPackageService
+
+class SubpackageCrossFile {
+    run(): String {
+        let service = CrossPackageService()
+        let model = service.build("affogato")
+        return model.label()
+    }
+}
