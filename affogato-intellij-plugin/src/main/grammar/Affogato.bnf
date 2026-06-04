@@ -18,7 +18,7 @@
     CLASS_KEYWORD='class'
     COLON=':'
     COMMA=','
-    CONSTRUCTOR_KEYWORD='constructor'
+    INIT_KEYWORD='init'
     DEFAULT_KEYWORD='default'
     DOT='.'
     DOUBLE_COLON='::'
@@ -115,7 +115,7 @@ implementsClause ::= ':' typeRef (',' typeRef)*
 classBody ::= '{' classMember* '}'
 classMember ::= fieldDecl terminator* | constructorDecl | methodDecl | terminator
 fieldDecl ::= annotation* memberModifier* variableKind identifier (':' typeRef)? ('=' expression)?
-constructorDecl ::= annotation* memberModifier* 'constructor' '(' parameterList? ')' block
+constructorDecl ::= annotation* memberModifier* 'init' '(' parameterList? ')' block
 methodDecl ::= annotation* memberModifier* methodSignature block
 methodSignature ::= 'func' identifier '(' parameterList? ')' (':' typeRef)?
   | typeRef identifier '(' parameterList? ')'
@@ -133,6 +133,7 @@ parameter ::= variableKind? identifier ':' typeRef | typeRef identifier
 variableKind ::= 'var' | 'let'
 
 typeRef ::= qualifiedName typeArguments? arraySuffix* nullability?
+  | '[' typeRef ']' nullability?
 typeArguments ::= '<' typeRef (',' typeRef)* '>'
 arraySuffix ::= '[' ']'
 nullability ::= '?' | '!'
@@ -152,7 +153,7 @@ statement ::= block
   | expression trailingClosure? terminator*
   | terminator
 
-trailingClosure ::= '{' ((identifier | callGroup) '->')? expression? '}'
+trailingClosure ::= '{' ((identifier | callGroup) '->')? statement* '}'
 
 guardStatement ::= 'guard' expression 'else' block
 ifStatement ::= 'if' condition block ('else' (ifStatement | block))?

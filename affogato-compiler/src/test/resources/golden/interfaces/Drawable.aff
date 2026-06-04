@@ -1,0 +1,25 @@
+package dev.affogato.golden
+
+interface Drawable {
+    func draw()
+    describe(): String
+    default func label() {
+        println("Drawable")
+    }
+}
+
+class Square: Drawable {
+    let side: int
+
+    init(side: int) {
+        this.side = side
+    }
+
+    override func draw() {
+        println("square")
+    }
+
+    override describe(): String {
+        return "Square"
+    }
+}

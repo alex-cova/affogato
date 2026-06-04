@@ -1,0 +1,6 @@
+package dev.affogato.golden
+
+@Deprecated
+enum Color {
+    RED, GREEN, BLUE
+}

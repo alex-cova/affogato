@@ -75,7 +75,7 @@ fieldDecl
     ;
 
 constructorDecl
-    : annotation* memberModifier* CONSTRUCTOR LPAREN parameterList? RPAREN block
+    : annotation* memberModifier* INIT LPAREN parameterList? RPAREN block
     ;
 
 methodDecl
@@ -112,6 +112,7 @@ variableKind
 
 typeRef
     : qualifiedName typeArguments? arraySuffix* nullability?
+    | LBRACK typeRef RBRACK nullability?
     ;
 
 typeArguments
@@ -267,7 +268,12 @@ expressionStatement
     ;
 
 trailingClosure
-    : LBRACE (lambdaParameters ARROW)? lambdaBody RBRACE
+    : LBRACE (lambdaParameters ARROW)? closureBody RBRACE
+    ;
+
+closureBody
+    : lambdaBody
+    | separators? statement*
     ;
 
 condition
@@ -429,7 +435,7 @@ PRIVATE: 'private';
 PROTECTED: 'protected';
 VAR: 'var';
 LET: 'let';
-CONSTRUCTOR: 'constructor';
+INIT: 'init';
 FUNC: 'func';
 OVERRIDE: 'override';
 GUARD: 'guard';

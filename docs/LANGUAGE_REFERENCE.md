@@ -12,7 +12,7 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 - Classes use `class Name { ... }`; inheritance and interface implementation use
   `class Child : Parent, Interface`.
 - Compact constructors are supported: `class User(var name: String!, let id: int)`.
-- Explicit constructors use `constructor(...) { ... }`.
+- Explicit constructors use `init(...) { ... }`.
 - Records, enums and interfaces are supported, including interface `default`
   methods.
 - Methods may use Java-style return-first syntax (`String name()`) or Affogato
@@ -24,6 +24,12 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 - Expressions include literals, identifiers, calls, constructors, property
   access, assignment, binary/unary operators, casts, lambdas, method references,
   ternary expressions and switch expressions.
+- `[T]` is shorthand for `java.util.List<T>` (e.g. `Supplier<[Component]>`).
+- A trailing closure on a call/constructor binds to the last parameter:
+  `Button(text = "Hi") { ... }` lowers the block to a lambda for the trailing
+  parameter. When that parameter is a `Supplier<[T]>`, the block becomes a
+  result builder that collects each child expression into a list, enabling DSLs
+  such as `Panel { Label(...) Button(...) { ... } }`.
 
 ## Nullability
 

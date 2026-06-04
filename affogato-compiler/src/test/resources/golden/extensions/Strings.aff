@@ -1,0 +1,9 @@
+package dev.affogato.golden
+
+func String.shout(): String {
+    return this + "!"
+}
+
+func String.twice(): String {
+    return this + this
+}

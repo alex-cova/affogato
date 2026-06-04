@@ -1,9 +1,21 @@
 package dev.affogato.compiler.internal;
 
+import dev.affogato.compiler.parser.AffogatoLexer;
+import dev.affogato.compiler.parser.AffogatoParser;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.antlr.v4.runtime.BaseErrorListener;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 final class ExpressionSemanticChecker {
     interface Support {
@@ -63,6 +75,15 @@ final class ExpressionSemanticChecker {
             return new UnsupportedExpression(value, "AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION", "Not-null assertion expressions are not in the production subset; use an explicit cast or null check.");
         }
 
+        // Prefer the real ANTLR parser: it handles operator precedence, nested generics, string
+        // literals containing operators and other corner cases that the regex path below mishandles.
+        // Fall back to the regex path only when the string is not a clean Affogato expression
+        // (for example an already-transformed Java fragment), so behavior can never regress.
+        AstExpression parsed = parseViaAntlr(value);
+        return parsed != null ? parsed : parseViaRegex(value);
+    }
+
+    private AstExpression parseViaRegex(String value) {
         int arrowIndex = support.topLevelOperatorIndex(value, List.of("->"));
         if (arrowIndex >= 0) {
             int arity = support.lambdaParameterArity(value.substring(0, arrowIndex));
@@ -216,6 +237,276 @@ final class ExpressionSemanticChecker {
             return new IdentifierExpression(value, value, TypeGuess.unknown());
         }
         return new UnknownExpression(value);
+    }
+
+    // ── ANTLR-backed expression AST construction ─────────────────────────────────
+    //
+    // Walks the real Affogato `expression` parse tree to build the same AstExpression records the
+    // regex path produces, but with correct precedence and nesting. `whole` is the exact string that
+    // was handed to the parser, so token start/stop indices slice back into it to recover each node's
+    // original source text (preserving spacing that downstream string consumers rely on).
+
+    private AstExpression parseViaAntlr(String value) {
+        try {
+            AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(value));
+            SyntaxFlag flag = new SyntaxFlag();
+            lexer.removeErrorListeners();
+            lexer.addErrorListener(flag);
+            CommonTokenStream tokens = new CommonTokenStream(lexer);
+            AffogatoParser parser = new AffogatoParser(tokens);
+            parser.removeErrorListeners();
+            parser.addErrorListener(flag);
+            AffogatoParser.ExpressionContext tree = parser.expression();
+            if (flag.errors || parser.getCurrentToken().getType() != Token.EOF) {
+                return null;
+            }
+            return buildExpression(tree, value);
+        } catch (RuntimeException failure) {
+            return null;
+        }
+    }
+
+    private static final class SyntaxFlag extends BaseErrorListener {
+        private boolean errors;
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String message, RecognitionException exception) {
+            errors = true;
+        }
+    }
+
+    private static String src(ParserRuleContext ctx, String whole) {
+        return whole.substring(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex() + 1);
+    }
+
+    private static String srcBetween(String whole, ParserRuleContext first, ParserRuleContext last) {
+        return whole.substring(first.getStart().getStartIndex(), last.getStop().getStopIndex() + 1);
+    }
+
+    private AstExpression buildExpression(AffogatoParser.ExpressionContext ctx, String whole) {
+        return buildLambda(ctx.lambdaExpression(), whole);
+    }
+
+    private AstExpression buildLambda(AffogatoParser.LambdaExpressionContext ctx, String whole) {
+        if (ctx.ARROW() != null) {
+            int arity = support.lambdaParameterArity(src(ctx.lambdaParameters(), whole));
+            return new LambdaExpression(src(ctx, whole), arity, TypeGuess.lambda(arity));
+        }
+        if (ctx.methodReferenceExpression() != null) {
+            return new MethodReferenceExpression(src(ctx, whole), TypeGuess.lambda());
+        }
+        return buildAssignment(ctx.assignmentExpression(), whole);
+    }
+
+    private AstExpression buildAssignment(AffogatoParser.AssignmentExpressionContext ctx, String whole) {
+        if (ctx.assignmentExpression() != null) {
+            AstExpression target = buildTernary(ctx.ternaryExpression(), whole);
+            AstExpression value = buildAssignment(ctx.assignmentExpression(), whole);
+            return new AssignmentExpression(src(ctx, whole), target, value, value.resolvedType());
+        }
+        return buildTernary(ctx.ternaryExpression(), whole);
+    }
+
+    private AstExpression buildTernary(AffogatoParser.TernaryExpressionContext ctx, String whole) {
+        if (ctx.QUESTION() != null) {
+            AstExpression condition = buildLogicalOr(ctx.logicalOrExpression(), whole);
+            AstExpression thenExpression = buildExpression(ctx.expression(0), whole);
+            AstExpression elseExpression = buildExpression(ctx.expression(1), whole);
+            TypeGuess type = ternaryType(thenExpression.resolvedType(), elseExpression.resolvedType());
+            return new TernaryExpression(src(ctx, whole), condition, thenExpression, elseExpression,
+                    type.isKnown() ? type : TypeGuess.unknown());
+        }
+        return buildLogicalOr(ctx.logicalOrExpression(), whole);
+    }
+
+    private AstExpression buildLogicalOr(AffogatoParser.LogicalOrExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildLogicalAnd((AffogatoParser.LogicalAndExpressionContext) child, whole), true);
+    }
+
+    private AstExpression buildLogicalAnd(AffogatoParser.LogicalAndExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildEquality((AffogatoParser.EqualityExpressionContext) child, whole), true);
+    }
+
+    private AstExpression buildEquality(AffogatoParser.EqualityExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildRelational((AffogatoParser.RelationalExpressionContext) child, whole), true);
+    }
+
+    private AstExpression buildRelational(AffogatoParser.RelationalExpressionContext ctx, String whole) {
+        if (!ctx.IS().isEmpty()) {
+            String target = support.stripNullableSuffix(ctx.typeRef(0).getText());
+            return new InstanceOfExpression(src(ctx, whole), buildCast(ctx.castExpression(0), whole), target, TypeGuess.of("boolean"));
+        }
+        return foldBinary(ctx, whole, child -> buildCast((AffogatoParser.CastExpressionContext) child, whole), true);
+    }
+
+    private AstExpression buildCast(AffogatoParser.CastExpressionContext ctx, String whole) {
+        if (ctx.AS() != null) {
+            String target = support.stripNullableSuffix(ctx.typeRef().getText());
+            return new CastExpression(src(ctx, whole), buildAdditive(ctx.additiveExpression(), whole), target, TypeGuess.of(target));
+        }
+        return buildAdditive(ctx.additiveExpression(), whole);
+    }
+
+    private AstExpression buildAdditive(AffogatoParser.AdditiveExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildMultiplicative((AffogatoParser.MultiplicativeExpressionContext) child, whole), false);
+    }
+
+    private AstExpression buildMultiplicative(AffogatoParser.MultiplicativeExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildUnary((AffogatoParser.UnaryExpressionContext) child, whole), false);
+    }
+
+    /**
+     * Folds a left-associative binary rule ({@code operand (OP operand)*}) into nested
+     * BinaryExpression nodes. With a single operand it returns that operand untouched.
+     * {@code booleanResult} selects boolean-valued operators (logical, equality, relational) from
+     * arithmetic operators, which take {@link #numericOrStringType}.
+     */
+    private AstExpression foldBinary(ParserRuleContext ctx, String whole, Function<ParseTree, AstExpression> build, boolean booleanResult) {
+        AstExpression current = null;
+        ParserRuleContext first = null;
+        String operator = null;
+        for (int index = 0; index < ctx.getChildCount(); index++) {
+            ParseTree child = ctx.getChild(index);
+            if (child instanceof TerminalNode terminal) {
+                operator = terminal.getText();
+                continue;
+            }
+            ParserRuleContext operandCtx = (ParserRuleContext) child;
+            AstExpression operand = build.apply(child);
+            if (current == null) {
+                current = operand;
+                first = operandCtx;
+            } else {
+                TypeGuess type = booleanResult
+                        ? TypeGuess.of("boolean")
+                        : numericOrStringType(operator, current.resolvedType(), operand.resolvedType());
+                current = new BinaryExpression(srcBetween(whole, first, operandCtx), operator, current, operand, type);
+            }
+        }
+        return current;
+    }
+
+    private AstExpression buildUnary(AffogatoParser.UnaryExpressionContext ctx, String whole) {
+        if (ctx.NOT() != null) {
+            return new UnaryExpression(src(ctx, whole), "!", buildExpression(ctx.expression(), whole), TypeGuess.of("boolean"));
+        }
+        if (ctx.BANG() != null) {
+            return new UnaryExpression(src(ctx, whole), "!", buildUnary(ctx.unaryExpression(), whole), TypeGuess.of("boolean"));
+        }
+        if (ctx.MINUS() != null) {
+            AstExpression operand = buildUnary(ctx.unaryExpression(), whole);
+            TypeGuess type = support.isNumericType(operand.resolvedType()) ? operand.resolvedType() : TypeGuess.unknown();
+            return new UnaryExpression(src(ctx, whole), "-", operand, type);
+        }
+        return buildPostfix(ctx.postfixExpression(), whole);
+    }
+
+    private AstExpression buildPostfix(AffogatoParser.PostfixExpressionContext ctx, String whole) {
+        AstExpression current = buildPrimary(ctx.primaryExpression(), whole);
+        List<AffogatoParser.PostfixPartContext> parts = ctx.postfixPart();
+        int index = 0;
+        while (index < parts.size()) {
+            AffogatoParser.PostfixPartContext part = parts.get(index);
+            if (part.LPAREN() != null) {
+                // A call applied directly to the primary, e.g. `foo(args)` or `Foo(args)`.
+                List<AstExpression> arguments = buildArguments(part.argumentList(), whole);
+                current = makeCall(current.source(), new UnknownExpression(""), arguments, srcBetween(whole, ctx, part));
+                index++;
+            } else {
+                String name = part.Identifier().getText();
+                if (index + 1 < parts.size() && parts.get(index + 1).LPAREN() != null) {
+                    // `receiver.name(args)` — a method (or qualified constructor) call.
+                    AffogatoParser.PostfixPartContext callPart = parts.get(index + 1);
+                    List<AstExpression> arguments = buildArguments(callPart.argumentList(), whole);
+                    String callName = current.source() + "." + name;
+                    current = makeCall(callName, current, arguments, srcBetween(whole, ctx, callPart));
+                    index += 2;
+                } else {
+                    current = new PropertyAccessExpression(srcBetween(whole, ctx, part), current, name, TypeGuess.unknown());
+                    index++;
+                }
+            }
+        }
+        return current;
+    }
+
+    /**
+     * Builds a call site, mirroring the regex path's heuristic: a callable whose simple (last) name
+     * segment starts with an uppercase letter is treated as a constructor, otherwise as a method call.
+     */
+    private AstExpression makeCall(String callName, AstExpression receiver, List<AstExpression> arguments, String source) {
+        String simple = support.simpleTypeName(callName);
+        if (!simple.isBlank() && Character.isUpperCase(simple.charAt(0))) {
+            return new ConstructorExpression(source, callName, arguments, TypeGuess.of(support.constructorImplementation(callName)));
+        }
+        return new CallExpression(source, callName, receiver, arguments, TypeGuess.unknown());
+    }
+
+    private AstExpression buildPrimary(AffogatoParser.PrimaryExpressionContext ctx, String whole) {
+        if (ctx.literal() != null) {
+            return buildLiteral(ctx.literal(), whole);
+        }
+        if (ctx.genericConstructorExpression() != null) {
+            AffogatoParser.GenericConstructorExpressionContext generic = ctx.genericConstructorExpression();
+            String typeName = generic.qualifiedName().getText() + generic.typeArguments().getText();
+            return new ConstructorExpression(src(ctx, whole), typeName, buildArguments(generic.argumentList(), whole),
+                    TypeGuess.of(support.constructorImplementation(typeName)));
+        }
+        if (ctx.NEW() != null) {
+            String typeName = ctx.typeRef().getText();
+            return new ConstructorExpression(src(ctx, whole), typeName, buildArguments(ctx.argumentList(), whole), TypeGuess.of(typeName));
+        }
+        if (ctx.arrayLiteral() != null) {
+            List<AstExpression> elements = new ArrayList<>();
+            for (AffogatoParser.ExpressionContext element : ctx.arrayLiteral().expression()) {
+                elements.add(buildExpression(element, whole));
+            }
+            return new ArrayLiteralExpression(src(ctx, whole), elements, arrayLiteralType(elements));
+        }
+        if (ctx.expression() != null) {
+            // Parenthesized expression: drop the parentheses, exactly like stripOuterParens.
+            return buildExpression(ctx.expression(), whole);
+        }
+        String text = src(ctx, whole);
+        String variableType = support.variableType(text);
+        if (variableType != null) {
+            return new IdentifierExpression(text, text, TypeGuess.of(variableType));
+        }
+        return new IdentifierExpression(text, text, TypeGuess.unknown());
+    }
+
+    private AstExpression buildLiteral(AffogatoParser.LiteralContext ctx, String whole) {
+        String text = src(ctx, whole);
+        if (ctx.NULL() != null) {
+            return new LiteralExpression(text, TypeGuess.nullLiteral());
+        }
+        if (ctx.StringLiteral() != null) {
+            return new LiteralExpression(text, TypeGuess.of("String"));
+        }
+        if (ctx.TRUE() != null || ctx.FALSE() != null) {
+            return new LiteralExpression(text, TypeGuess.of("boolean"));
+        }
+        if (ctx.IntegerLiteral() != null) {
+            boolean isLong = text.endsWith("l") || text.endsWith("L");
+            return new LiteralExpression(text, TypeGuess.of(isLong ? "long" : "int"));
+        }
+        if (ctx.FloatingPointLiteral() != null) {
+            boolean isFloat = text.endsWith("f") || text.endsWith("F");
+            return new LiteralExpression(text, TypeGuess.of(isFloat ? "float" : "double"));
+        }
+        return new LiteralExpression(text, TypeGuess.unknown());
+    }
+
+    private List<AstExpression> buildArguments(AffogatoParser.ArgumentListContext ctx, String whole) {
+        if (ctx == null) {
+            return List.of();
+        }
+        List<AstExpression> arguments = new ArrayList<>();
+        for (AffogatoParser.ArgumentContext argument : ctx.argument()) {
+            // Named arguments (`name = value`) and positional arguments both contribute their value.
+            arguments.add(buildExpression(argument.expression(), whole));
+        }
+        return arguments;
     }
 
     private List<AstExpression> argumentExpressions(String args) {

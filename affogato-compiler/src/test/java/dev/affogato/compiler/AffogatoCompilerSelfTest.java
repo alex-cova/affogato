@@ -309,7 +309,7 @@ public final class AffogatoCompilerSelfTest {
                     let width: int
                     let height: int
 
-                    constructor(width: int, height: int) {
+                    init(width: int, height: int) {
                         this.width = width
                         this.height = height
                     }
@@ -531,6 +531,92 @@ public final class AffogatoCompilerSelfTest {
     public void unsupportedProductionSubsetEdgesReportExplicitDiagnostics() throws Exception {
         Path workDir = newWorkDir();
         verifyUnsupportedSubsetEdgesFail(workDir);
+    }
+
+    @Test
+    public void initConstructorsAndBuilderClosures() throws Exception {
+        Path workDir = newWorkDir();
+        Path sourceRoot = workDir.resolve("src/main/affogato/dev/affogato/ui");
+        Files.createDirectories(sourceRoot);
+
+        Files.writeString(sourceRoot.resolve("Ui.aff"), """
+                package dev.affogato.ui
+
+                import java.util.function.Supplier
+
+                interface Component {
+                    render(): String
+                }
+
+                class Label: Component {
+                    let text: String
+
+                    init(text: String) {
+                        this.text = text
+                    }
+
+                    override render(): String {
+                        return text
+                    }
+                }
+
+                class Button: Component {
+                    let text: String
+                    let action: Runnable
+
+                    init(text: String, action: Runnable) {
+                        this.text = text
+                        this.action = action
+                    }
+
+                    override render(): String {
+                        return text
+                    }
+                }
+
+                class Panel: Component {
+                    init(supplier: Supplier<[Component]>) {
+                        println(supplier.get())
+                    }
+
+                    override render(): String {
+                        return "panel"
+                    }
+                }
+
+                class UiApp {
+                    static func main(args: String[]) {
+                        let panel = Panel {
+                            Label(text = "Hello")
+                            Button(text = "Kekw") {
+                            }
+                        }
+                        println(panel.render())
+                    }
+                }
+                """, StandardCharsets.UTF_8);
+
+        Path generatedRoot = workDir.resolve("generated");
+        AffogatoCompilationResult result = new AffogatoCompiler().compile(AffogatoCompilerOptions.builder()
+                .addSourceRoot(workDir.resolve("src/main/affogato"))
+                .outputDirectory(generatedRoot)
+                .build());
+
+        String labelJava = Files.readString(generatedRoot.resolve("dev/affogato/ui/Label.java"));
+        String panelJava = Files.readString(generatedRoot.resolve("dev/affogato/ui/Panel.java"));
+        String appJava = Files.readString(generatedRoot.resolve("dev/affogato/ui/UiApp.java"));
+
+        // `init` declares the constructor; it is emitted as a Java constructor named after the class.
+        requireContains(labelJava, "public Label(String text) {");
+        // `[T]` is a Swift-style list type that lowers to java.util.List<T>.
+        requireContains(panelJava, "public Panel(Supplier<java.util.List<Component>> supplier) {");
+        // A trailing closure on a Supplier<[T]> constructor parameter becomes a result builder.
+        requireContains(appJava, "final Panel panel = new Panel(() -> {");
+        requireContains(appJava, "java.util.List<Component> $children = new java.util.ArrayList<>();");
+        requireContains(appJava, "$children.add(new Label(\"Hello\"));");
+        // A trailing closure on a Runnable parameter becomes a () -> {} lambda; nested inside the builder.
+        requireContains(appJava, "$children.add(new Button(\"Kekw\", () -> {}));");
+        requireContains(appJava, "return $children;");
     }
 
     private static Path newWorkDir() throws Exception {
@@ -1299,13 +1385,13 @@ public final class AffogatoCompilerSelfTest {
                 }
 
                 class NeedsInt {
-                    constructor(value: int) {
+                    init(value: int) {
                         println(value)
                     }
                 }
 
                 class NeedsBoolean {
-                    constructor(value: boolean) {
+                    init(value: boolean) {
                         println(value)
                     }
                 }

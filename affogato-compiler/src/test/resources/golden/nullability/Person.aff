@@ -1,0 +1,7 @@
+package dev.affogato.golden
+
+class Person(var name: String!, let age: int) {
+    override String toString() {
+        return name
+    }
+}

@@ -1,0 +1,7 @@
+package dev.affogato.golden
+
+class Summary {
+    describe(width: int, height: int): String {
+        return "Rectangle ${width}x${height}, area $width"
+    }
+}

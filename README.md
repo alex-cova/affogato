@@ -25,7 +25,7 @@ Java 21 source. The supported subset is intentionally frozen around:
 - constructors, compact constructors, fields, methods, local `var` / `let`
 - `class Child : Parent` and interface implementation through the same `:`
   clause
-- `constructor(...)` as the class constructor keyword
+- `init(...)` as the class constructor keyword
 - `var name: Type`, `var name = expr`, `let name = expr`
 - nullable and non-null markers: `String?`, `String!`
 - `func` as a `void` method alias

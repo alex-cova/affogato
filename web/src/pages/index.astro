@@ -1,0 +1,462 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+// Code samples stored as raw strings for safe rendering via set:html
+const heroCode = `<span class="token-comment">// Affogato — clean, expressive JVM code</span>
+<span class="token-keyword">package</span> com.example
+
+<span class="token-keyword">import</span> java.util.List
+
+<span class="token-keyword">record</span> <span class="token-type">User</span>(<span class="token-var">var</span> name: <span class="token-type">String!</span>, <span class="token-var">var</span> id: <span class="token-type">Int</span>)
+
+<span class="token-keyword">class</span> <span class="token-type">UserService</span> {
+
+  <span class="token-var">var</span> users: <span class="token-type">List</span>&lt;<span class="token-type">User</span>&gt; = <span class="token-type">List</span>&lt;<span class="token-type">User</span>&gt;()
+
+  <span class="token-fn">func</span> <span class="token-fn">addUser</span>(name: <span class="token-type">String!</span>, id: <span class="token-type">Int</span>) {
+    users.add(<span class="token-type">User</span>(name: name, id: id))
+    <span class="token-fn">println</span>(<span class="token-string">"Added user: \${name}"</span>)
+  }
+
+  <span class="token-fn">greet</span>(): <span class="token-type">String</span> {
+    <span class="token-keyword">guard</span> <span class="token-op">not</span>(users.isEmpty()) <span class="token-keyword">else</span> {
+      <span class="token-keyword">return</span> <span class="token-string">"No users yet ☕"</span>
+    }
+    <span class="token-keyword">return</span> <span class="token-string">"Hello, \${users.get(0).name}!"</span>
+  }
+}`;
+
+const classesCode = `<span class="token-comment">// Compact record constructors</span>
+<span class="token-keyword">record</span> <span class="token-type">Point</span>(x: <span class="token-type">int</span>, y: <span class="token-type">int</span>)
+<span class="token-keyword">record</span> <span class="token-type">User</span>(name: <span class="token-type">String!</span>, email: <span class="token-type">String?</span>)
+
+<span class="token-comment">// Inheritance with : operator</span>
+<span class="token-keyword">class</span> <span class="token-type">Animal</span> {
+  <span class="token-var">var</span> name: <span class="token-type">String!</span>
+
+  <span class="token-keyword">constructor</span>(name: <span class="token-type">String!</span>) {
+    <span class="token-keyword">this</span>.name = name
+  }
+
+  <span class="token-fn">speak</span>(): <span class="token-type">String</span> = <span class="token-string">"..."</span>
+}
+
+<span class="token-keyword">class</span> <span class="token-type">Dog</span> : <span class="token-type">Animal</span> {
+  <span class="token-keyword">override</span> <span class="token-fn">speak</span>(): <span class="token-type">String</span> {
+    <span class="token-keyword">return</span> <span class="token-string">"Woof! I'm \${name}"</span>
+  }
+}`;
+
+const controlFlowCode = `<span class="token-comment">// Guard for early exits</span>
+<span class="token-fn">processOrder</span>(id: <span class="token-type">Int</span>): <span class="token-type">String</span> {
+  <span class="token-keyword">guard</span> id &gt; <span class="token-num">0</span> <span class="token-keyword">else</span> {
+    <span class="token-keyword">return</span> <span class="token-string">"Invalid order ID"</span>
+  }
+
+  <span class="token-comment">// Switch expressions</span>
+  <span class="token-var">let</span> status = <span class="token-keyword">switch</span> id % <span class="token-num">3</span> {
+    <span class="token-keyword">case</span> <span class="token-num">0</span> -&gt; <span class="token-string">"shipped"</span>
+    <span class="token-keyword">case</span> <span class="token-num">1</span> -&gt; <span class="token-string">"pending"</span>
+    <span class="token-keyword">default</span> -&gt; <span class="token-string">"processing"</span>
+  }
+
+  <span class="token-comment">// For-in loops</span>
+  <span class="token-keyword">for</span> item <span class="token-keyword">in</span> items {
+    <span class="token-fn">println</span>(<span class="token-string">"\${item.name}: \${status}"</span>)
+  }
+
+  <span class="token-keyword">return</span> status
+}`;
+
+const nullabilityCode = `<span class="token-comment">// Type! = non-null (compile-time check)</span>
+<span class="token-comment">// Type? = nullable</span>
+<span class="token-var">var</span> name: <span class="token-type">String!</span> = <span class="token-string">"Alex"</span>
+<span class="token-var">var</span> email: <span class="token-type">String?</span> = <span class="token-keyword">null</span>
+
+<span class="token-comment">// Compile error: null → non-null</span>
+<span class="token-comment">// var bad: String! = null ✗</span>
+
+<span class="token-comment">// is = instanceof check</span>
+<span class="token-var">var</span> obj: <span class="token-type">Object</span> = <span class="token-string">"hello"</span>
+<span class="token-keyword">if</span> obj <span class="token-keyword">is</span> <span class="token-type">String</span> {
+  <span class="token-fn">println</span>(<span class="token-string">"It's a String!"</span>)
+}
+
+<span class="token-comment">// as = cast</span>
+<span class="token-var">let</span> s = obj <span class="token-keyword">as</span> <span class="token-type">String</span>
+<span class="token-fn">println</span>(s.toUpperCase())`;
+
+const javaInteropCode = `<span class="token-keyword">import</span> java.util.List
+<span class="token-keyword">import</span> java.util.stream.Collectors
+<span class="token-keyword">import static</span> java.util.Collections.sort
+
+<span class="token-fn">demo</span>(): <span class="token-type">List</span>&lt;<span class="token-type">String</span>&gt; {
+  <span class="token-comment">// Collection aliases</span>
+  <span class="token-var">var</span> items: <span class="token-type">List</span>&lt;<span class="token-type">String</span>&gt; = <span class="token-type">List</span>&lt;<span class="token-type">String</span>&gt;()
+  items.add(<span class="token-string">"espresso"</span>)
+  items.add(<span class="token-string">"affogato"</span>)
+
+  <span class="token-comment">// Lambdas with Java functional interfaces</span>
+  <span class="token-var">var</span> upper = items.stream()
+    .map(s -&gt; s.toUpperCase())
+    .collect(Collectors.toList())
+
+  sort(upper)
+  <span class="token-keyword">return</span> upper
+}`;
+
+const gradleStep1 = `<span class="token-comment">// build.gradle.kts</span>
+<span class="token-fn">plugins</span> {
+  id(<span class="token-string">"dev.affogato"</span>) version <span class="token-string">"0.1.0"</span>
+}`;
+
+const gradleStep2 = `<span class="token-comment">// src/main/affogato/Hello.aff</span>
+<span class="token-keyword">package</span> com.example
+
+<span class="token-keyword">class</span> <span class="token-type">Hello</span> {
+  <span class="token-fn">func</span> <span class="token-fn">main</span>() {
+    <span class="token-fn">println</span>(<span class="token-string">"Hello from Affogato ☕"</span>)
+  }
+}`;
+
+const gradleStep3 = `<span class="token-comment"># Compiles .aff → Java → bytecode</span>
+./gradlew run
+
+<span class="token-comment"># Or compile only</span>
+./gradlew compileAffogato`;
+
+const marqueeItems = ['JVM Native', 'Java 21', 'ANTLR Grammar', 'Type Safety', 'Named Arguments', 'Nullable Types', 'Guard Clauses', 'Switch Expressions', 'Records', 'Enums', 'Interfaces', 'Gradle Plugin', 'IntelliJ Support', 'Java Interop', 'Lambdas', 'Method References'];
+
+const features = [
+  { icon: '🔒', title: 'Null Safety', desc: 'First-class nullability with String? nullable and String! non-null markers. Compile-time enforcement with runtime annotations.' },
+  { icon: '☕', title: '100% Java Interop', desc: 'Seamless integration with any Java library. Call Java methods, use lambdas, method references, generics, and static imports.' },
+  { icon: '🎯', title: 'Named Arguments', desc: 'Reorder function arguments by name for maximum readability. Works across Affogato and Java calls with overload resolution.' },
+  { icon: '⚡', title: 'ANTLR Grammar', desc: 'Robust ANTLR-based parser replaces fragile line-by-line parsing. Accurate diagnostics with stable error codes.' },
+  { icon: '🧩', title: 'Gradle Integration', desc: 'First-class Gradle plugin wires .aff compilation into your build. Configuration-cache compatible with cacheable tasks.' },
+  { icon: '🔬', title: 'IntelliJ Plugin', desc: 'Syntax highlighting, navigation, rename, and live compiler diagnostics directly in your editor. Built with Grammar-Kit.' },
+  { icon: '🛡️', title: 'Guard Clauses', desc: 'Swift-inspired guard condition else for early exits. Clean, readable defensive programming built into the language.' },
+  { icon: '📦', title: 'Records & Enums', desc: 'Compact record constructors like record Coord(x: int, y: int). Full enum and interface support with default methods.' },
+  { icon: '🔀', title: 'Switch Expressions', desc: 'Modern switch as both statements and expressions. Arrow syntax case ... -> with multi-label arms and block bodies.' },
+];
+
+const roadmapItems = [
+  { done: true,  label: 'ANTLR grammar & parser',               desc: 'Replaced line-based parsing with robust ANTLR grammar.' },
+  { done: true,  label: 'Semantic symbol tables',                desc: 'Project-wide class, field, method and constructor resolution.' },
+  { done: true,  label: 'Java classpath reflection',             desc: 'URLClassLoader-based method param names and getter discovery.' },
+  { done: true,  label: 'Named arguments & overload resolution', desc: 'Strict, loose and varargs phases with most-specific tie breaking.' },
+  { done: true,  label: 'Type checking & flow analysis',         desc: 'Field/local initializers, return expressions, assignment checks.' },
+  { done: true,  label: 'Records, Enums & Interfaces',           desc: 'Full support with compact constructors and default methods.' },
+  { done: true,  label: 'Switch statements/expressions',         desc: 'Arrow syntax, multi-label arms and block bodies.' },
+  { done: true,  label: 'Try/Catch/Finally & multi-catch',       desc: 'Full exception handling with multi-catch via pipe syntax.' },
+  { done: true,  label: 'Gradle plugin (cache-compatible)',      desc: 'Configuration-cache and incremental build support.' },
+  { done: true,  label: 'IntelliJ plugin with diagnostics',      desc: 'Grammar-Kit, JFlex, live compiler errors in editor.' },
+  { done: false, label: 'Dedicated semantic pass',               desc: 'Move type-checker into a proper AST pass.' },
+  { done: false, label: 'Full JLS overload corner cases',        desc: 'Target-typed poly expressions and capture conversion.' },
+  { done: false, label: 'IntelliJ completion & quick fixes',     desc: 'Import-aware references, code completion and formatting.' },
+  { done: false, label: 'Bytecode backend',                      desc: 'Direct bytecode generation beyond Java source transpilation.' },
+  { done: false, label: 'Plugin portal publication',             desc: 'Gradle Plugin Portal and JetBrains Marketplace distribution.' },
+];
+---
+
+<Layout title="Affogato — The Rich, Smooth JVM Language">
+  <Navbar />
+
+  <!-- ══════════════════════════════
+       HERO
+  ══════════════════════════════════ -->
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <div class="hero-grid absolute inset-0 opacity-60"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-16 text-center">
+      <div class="animate-fade-up animation-delay-1 inline-flex mb-8">
+        <span class="section-badge">
+          <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-amber)] animate-pulse"></span>
+          JVM Language · Java 21 · ANTLR Parser
+        </span>
+      </div>
+
+      <h1 class="animate-fade-up animation-delay-2 text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.05] mb-6">
+        <span class="text-gradient-2">Code that tastes</span>
+        <br />
+        <span class="text-gradient glow-text">like espresso.</span>
+      </h1>
+
+      <p class="animate-fade-up animation-delay-3 text-xl md:text-2xl text-[var(--color-muted)] mb-4 max-w-2xl mx-auto leading-relaxed">
+        Affogato is a JVM language designed to be
+      </p>
+      <p class="animate-fade-up animation-delay-3 text-2xl md:text-3xl font-bold mb-10">
+        <span id="typewriter" class="typewriter text-gradient"></span>
+      </p>
+
+      <div class="animate-fade-up animation-delay-4 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <a href="/docs" id="hero-cta-primary" class="btn-primary text-base py-3 px-8 glow-amber rounded-xl">
+          Start Brewing
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+        <a href="#syntax" id="hero-cta-secondary" class="btn-secondary text-base py-3 px-8 rounded-xl">
+          See the Syntax
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Hero code preview -->
+      <div class="animate-fade-up animation-delay-5 code-block max-w-3xl mx-auto text-left shadow-2xl">
+        <div class="code-header">
+          <span class="code-dot" style="background:#FF5F57"></span>
+          <span class="code-dot" style="background:#FEBC2E"></span>
+          <span class="code-dot" style="background:#28C840"></span>
+          <span class="ml-4 text-xs text-[var(--color-muted)] font-mono">hello.aff</span>
+        </div>
+        <div class="code-content">
+          <pre class="text-sm md:text-base" set:html={heroCode}></pre>
+        </div>
+      </div>
+
+      <div class="mt-16 flex justify-center animate-bounce">
+        <a href="#features" class="text-[var(--color-muted)] hover:text-[var(--color-amber)] transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       MARQUEE
+  ══════════════════════════════════ -->
+  <div class="relative overflow-hidden py-8 border-y border-[var(--color-border)] bg-[var(--color-surface)]/30">
+    <div class="marquee-track">
+      {[...marqueeItems, ...marqueeItems].map((t) => (
+        <span class="flex items-center gap-3 text-sm font-medium text-[var(--color-muted)] whitespace-nowrap">
+          <span class="text-[var(--color-amber)]">✦</span>
+          {t}
+        </span>
+      ))}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       FEATURES
+  ══════════════════════════════════ -->
+  <section id="features" class="py-28 relative">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="section-badge mb-4 inline-block">Features</span>
+        <h2 class="text-4xl md:text-5xl font-black text-gradient-2 mt-4 mb-4">Brewed for developers.</h2>
+        <p class="text-[var(--color-muted)] max-w-xl mx-auto text-lg">Everything you need to write expressive, type-safe JVM code with zero friction.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {features.map((f, i) => (
+          <div class="feature-card reveal" style={`transition-delay: ${i * 60}ms`}>
+            <div class="text-3xl mb-4">{f.icon}</div>
+            <h3 class="text-lg font-bold text-[var(--color-text)] mb-2">{f.title}</h3>
+            <p class="text-sm text-[var(--color-muted)] leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       SYNTAX SHOWCASE
+  ══════════════════════════════════ -->
+  <section id="syntax" class="py-28 relative bg-[var(--color-surface)]/20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="section-badge mb-4 inline-block">Syntax</span>
+        <h2 class="text-4xl md:text-5xl font-black text-gradient-2 mt-4 mb-4">Expressive by design.</h2>
+        <p class="text-[var(--color-muted)] max-w-xl mx-auto text-lg">Affogato strips away the boilerplate while keeping everything familiar.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {[
+          { title: 'records-classes.aff', code: classesCode, delay: '0ms' },
+          { title: 'control-flow.aff',   code: controlFlowCode, delay: '100ms' },
+          { title: 'nullability.aff',    code: nullabilityCode, delay: '200ms' },
+          { title: 'java-interop.aff',   code: javaInteropCode, delay: '300ms' },
+        ].map((block) => (
+          <div class="reveal code-block" style={`transition-delay: ${block.delay}`}>
+            <div class="code-header">
+              <span class="code-dot" style="background:#FF5F57"></span>
+              <span class="code-dot" style="background:#FEBC2E"></span>
+              <span class="code-dot" style="background:#28C840"></span>
+              <span class="ml-4 text-xs text-[var(--color-muted)] font-mono">{block.title}</span>
+            </div>
+            <div class="code-content">
+              <pre set:html={block.code}></pre>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       GETTING STARTED
+  ══════════════════════════════════ -->
+  <section id="getting-started" class="py-28">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="section-badge mb-4 inline-block">Quick Start</span>
+        <h2 class="text-4xl md:text-5xl font-black text-gradient-2 mt-4 mb-4">Ready in minutes.</h2>
+        <p class="text-[var(--color-muted)] max-w-xl mx-auto text-lg">Get Affogato running in your project with just a few lines of Gradle config.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        <div class="space-y-6">
+          {[
+            { num: 1, title: 'Add the Gradle plugin', code: gradleStep1 },
+            { num: 2, title: 'Write your first .aff file', code: gradleStep2 },
+            { num: 3, title: 'Build and run', code: gradleStep3 },
+          ].map((step) => (
+            <div class="reveal flex gap-5">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-amber)] to-[var(--color-crema)] flex items-center justify-center font-black text-white">
+                {step.num}
+              </div>
+              <div class="flex-1">
+                <h3 class="font-bold text-[var(--color-text)] mb-2">{step.title}</h3>
+                <div class="code-block">
+                  <div class="code-content text-sm">
+                    <pre set:html={step.code}></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Project structure -->
+        <div class="reveal glass rounded-2xl p-8">
+          <h3 class="font-bold text-[var(--color-text)] mb-6 flex items-center gap-2">
+            <span class="text-[var(--color-amber)]">📂</span>
+            Project Structure
+          </h3>
+          <div class="font-mono text-sm space-y-2">
+            {[
+              { indent: 0, icon: '📁', name: 'my-project/', highlight: false },
+              { indent: 1, icon: '📁', name: 'src/', highlight: false },
+              { indent: 2, icon: '📁', name: 'main/', highlight: false },
+              { indent: 3, icon: '📁', name: 'affogato/', highlight: true },
+              { indent: 4, icon: '☕', name: 'Main.aff', highlight: true },
+              { indent: 4, icon: '☕', name: 'Service.aff', highlight: true },
+              { indent: 3, icon: '📁', name: 'java/', highlight: false },
+              { indent: 4, icon: '☕', name: 'Utils.java', highlight: false },
+              { indent: 1, icon: '📄', name: 'build.gradle.kts', highlight: false },
+              { indent: 1, icon: '📄', name: 'settings.gradle.kts', highlight: false },
+            ].map((item) => (
+              <div
+                class={item.highlight ? 'flex items-center gap-2 text-[var(--color-amber)]' : 'flex items-center gap-2 text-[var(--color-muted)]'}
+                style={`padding-left: ${item.indent * 16}px`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.name}</span>
+              </div>
+            ))}
+          </div>
+
+          <div class="mt-8 pt-6 border-t border-[var(--color-border)]">
+            <p class="text-xs text-[var(--color-muted)] mb-3">
+              The Gradle plugin auto-discovers <span class="text-[var(--color-amber)]">.aff</span> files and wires them into your build.
+            </p>
+            <a href="/docs#gradle" class="btn-primary text-sm py-2 px-4 inline-flex">
+              Read Gradle Docs →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       STATS
+  ══════════════════════════════════ -->
+  <section class="py-20 bg-[var(--color-surface)]/20 border-y border-[var(--color-border)]">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+        {[
+          { num: 'Java 21', label: 'Target platform' },
+          { num: '4', label: 'Core modules' },
+          { num: 'ANTLR', label: 'Parser backbone' },
+          { num: '100%', label: 'Java interop' },
+        ].map((s, i) => (
+          <div class="stat-card reveal" style={`transition-delay: ${i * 80}ms`}>
+            <div class="stat-number">{s.num}</div>
+            <div class="text-sm text-[var(--color-muted)]">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       ROADMAP
+  ══════════════════════════════════ -->
+  <section id="roadmap" class="py-28">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="section-badge mb-4 inline-block">Roadmap</span>
+        <h2 class="text-4xl md:text-5xl font-black text-gradient-2 mt-4 mb-4">What's brewing.</h2>
+        <p class="text-[var(--color-muted)] max-w-xl mx-auto text-lg">The journey from MVP to a full-featured JVM language.</p>
+      </div>
+
+      <div class="space-y-2">
+        {roadmapItems.map((item, i) => (
+          <div class="timeline-item reveal" style={`transition-delay: ${i * 40}ms`}>
+            <div class={item.done ? 'timeline-dot done' : 'timeline-dot'}></div>
+            <div class={item.done ? 'glass rounded-xl p-4' : 'glass rounded-xl p-4 opacity-60'}>
+              <div class="flex items-center gap-3 mb-1">
+                <span class={item.done ? 'text-[var(--color-amber)]' : 'text-[var(--color-muted)]'}>
+                  {item.done ? '✓' : '○'}
+                </span>
+                <span class={item.done ? 'font-semibold text-sm text-[var(--color-text)]' : 'font-semibold text-sm text-[var(--color-muted)]'}>
+                  {item.label}
+                </span>
+                {item.done && (
+                  <span class="ml-auto text-xs bg-[rgba(212,129,58,0.15)] text-[var(--color-amber)] px-2 py-0.5 rounded-full">Done</span>
+                )}
+              </div>
+              <p class="text-xs text-[var(--color-muted)] pl-6">{item.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       CTA BANNER
+  ══════════════════════════════════ -->
+  <section class="py-24 relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-br from-[rgba(212,129,58,0.1)] via-transparent to-[rgba(245,166,35,0.05)]"></div>
+    <div class="absolute inset-0 hero-grid opacity-30"></div>
+
+    <div class="relative max-w-3xl mx-auto px-6 text-center reveal">
+      <div class="text-6xl mb-6">☕</div>
+      <h2 class="text-4xl md:text-5xl font-black text-gradient-2 mb-6">Start building with Affogato.</h2>
+      <p class="text-[var(--color-muted)] text-lg mb-10">
+        The language that makes JVM development feel like a perfectly pulled espresso shot.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="/docs" class="btn-primary py-4 px-10 text-base rounded-xl glow-amber">
+          Read the Docs →
+        </a>
+        <a href="https://github.com/alex-cova/affogato" target="_blank" rel="noopener" class="btn-secondary py-4 px-10 text-base rounded-xl">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</Layout>

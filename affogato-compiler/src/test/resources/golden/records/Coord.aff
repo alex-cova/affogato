@@ -1,0 +1,8 @@
+package dev.affogato.golden
+
+@SuppressWarnings("unused")
+record Coord(x: int, y: int) {
+    sum(): int {
+        return x + y
+    }
+}

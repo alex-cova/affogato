@@ -1,0 +1,737 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+
+const sections = [
+  { id: 'getting-started', label: 'Getting Started' },
+  { id: 'syntax', label: 'Syntax' },
+  { id: 'classes', label: 'Classes & Records' },
+  { id: 'nullability', label: 'Nullability' },
+  { id: 'control-flow', label: 'Control Flow' },
+  { id: 'java-interop', label: 'Java Interop' },
+  { id: 'overloads', label: 'Overloads & Named Args' },
+  { id: 'gradle', label: 'Gradle Plugin' },
+  { id: 'intellij', label: 'IntelliJ Plugin' },
+  { id: 'diagnostics', label: 'Diagnostics' },
+];
+
+// ── Code samples (HTML-safe, rendered via set:html) ──
+const code = {
+  gradleSetup: `plugins {
+    id("dev.affogato") version "0.1.0"
+    application
+}
+
+dependencies {
+    // Your Java dependencies work seamlessly
+    implementation("com.google.guava:guava:32.0.0-jre")
+}`,
+
+  gradleCli: `GRADLE_USER_HOME=.gradle ./gradlew :affogato-compiler:run \\
+  --args="src/main/affogato build/generated/sources/affogato/main/java"`,
+
+  gradleSample: `cd affogato-samples/hello
+GRADLE_USER_HOME=../../.gradle ../../gradlew run`,
+
+  gradleBuild: `GRADLE_USER_HOME=.gradle ./gradlew build`,
+
+  syntaxPackages: `package com.example
+
+import java.util.List
+import java.util.Map
+import static java.util.Collections.sort`,
+
+  syntaxVars: `var counter: int = 0       // mutable, explicit type
+var name = "Affogato"      // mutable, type inferred
+let pi = 3.14159           // immutable, type inferred
+let max: Int = 100         // immutable, explicit type`,
+
+  syntaxMethods: `// Java-style: return type first
+String greet(String name) {
+    return "Hello, " + name
+}
+
+// Affogato-style: return type after
+greet(name: String): String {
+    return "Hello, " + name
+}
+
+// func = void
+func logMessage(msg: String) {
+    println(msg)
+}`,
+
+  classBasic: `class Vehicle {
+    var brand: String!
+    var speed: int = 0
+
+    constructor(brand: String!) {
+        this.brand = brand
+    }
+
+    accelerate(by: int): int {
+        speed = speed + by
+        return speed
+    }
+}
+
+class Car : Vehicle {
+    var doors: int
+
+    constructor(brand: String!, doors: int) {
+        super(brand)
+        this.doors = doors
+    }
+
+    override accelerate(by: int): int {
+        println("Vroom! " + brand)
+        return super.accelerate(by)
+    }
+}`,
+
+  classRecord: `// Compact form — preferred
+record Point(x: int, y: int)
+record User(name: String!, email: String?, age: int)
+
+// Usage
+let p = Point(x: 10, y: 20)
+println(p.x())   // Java record accessor`,
+
+  classEnum: `enum Status {
+    PENDING, ACTIVE, ARCHIVED
+
+    isActive(): boolean {
+        return this == Status.ACTIVE
+    }
+}`,
+
+  classInterface: `interface Greetable {
+    greet(): String
+
+    default greetLoud(): String {
+        return greet().toUpperCase()
+    }
+}
+
+class FriendlyBot : Greetable {
+    override greet(): String {
+        return "Hello from Affogato!"
+    }
+}`,
+
+  classAnnotation: `@Deprecated
+class OldService {
+    @SuppressWarnings("unused")
+    func legacyMethod() {
+        // ...
+    }
+}
+
+@FunctionalInterface
+interface Transformer {
+    transform(input: String): String
+}`,
+
+  nullabilityEx: `var name: String! = "Affogato"     // ok
+var alias: String? = null           // ok
+
+// Compile error: AFFOGATO_ASSIGNMENT_TYPE
+// var bad: String! = null
+
+func processName(n: String!) {
+    // n is guaranteed non-null here
+    println(n.length())
+}
+
+func processAlias(n: String?) {
+    // n may be null — check before use
+    if n != null {
+        println(n.length())
+    }
+}`,
+
+  controlIf: `if score > 90 {
+    println("Excellent!")
+} else if score > 70 {
+    println("Good")
+} else {
+    println("Keep brewing ☕")
+}`,
+
+  controlGuard: `func process(name: String?) {
+    guard name != null else {
+        return  // early exit
+    }
+    // name is safe to use here
+    println("Processing: " + name)
+}
+
+func validateAge(age: int) {
+    guard age >= 18 else {
+        throw new IllegalArgumentException("Must be 18+")
+    }
+    println("Access granted!")
+}`,
+
+  controlFor: `var items: List&lt;String&gt; = List&lt;String&gt;()
+items.add("espresso")
+items.add("affogato")
+items.add("latte")
+
+for item in items {
+    println(item.toUpperCase())
+}`,
+
+  controlWhile: `var count = 0
+while count < 5 {
+    println("Iteration: " + count)
+    count = count + 1
+}`,
+
+  controlSwitch: `// Switch statement
+switch day {
+    case 1 -> println("Monday")
+    case 5 -> println("Friday")
+    case 6, 7 -> println("Weekend!")
+    default -> println("Midweek")
+}
+
+// Switch expression (assigns a value)
+let label: String = switch status {
+    case "ACTIVE" -> "✓ Active"
+    case "PENDING" -> "⏳ Pending"
+    default -> "○ Unknown"
+}
+
+// Block body in switch arm
+let result = switch code {
+    case 200 -> {
+        println("Success")
+        "OK"
+    }
+    default -> "Error"
+}`,
+
+  controlTry: `try {
+    var data = riskyOperation()
+    println(data)
+} catch (e: IOException) {
+    println("IO error: " + e.getMessage())
+} catch (e: IllegalArgumentException | NumberFormatException) {
+    // Multi-catch via pipe
+    println("Argument error: " + e.getMessage())
+} finally {
+    println("Cleanup done")
+}`,
+
+  javaBasic: `import java.util.ArrayList
+import java.time.LocalDate
+
+func demo() {
+    var list = new ArrayList&lt;String&gt;()
+    list.add("hello")
+    list.add("world")
+
+    var today = LocalDate.now()
+    println("Today: " + today.toString())
+    println("Size: " + list.size())
+}`,
+
+  javaCollections: `var strings: List&lt;String&gt; = List&lt;String&gt;()      // ArrayList
+var numbers: Set&lt;Int&gt; = Set&lt;Int&gt;()              // HashSet
+var map: Map&lt;String, Int&gt; = Map&lt;String, Int&gt;()  // HashMap`,
+
+  javaStatic: `import static java.util.Collections.sort
+import static java.lang.Math.max
+
+func compute(a: int, b: int): int {
+    return max(a, b)    // calls Math.max directly
+}
+
+func sortList(items: List&lt;String&gt;) {
+    sort(items)         // calls Collections.sort
+}`,
+
+  javaLambda: `import java.util.function.Function
+import java.util.stream.Collectors
+
+func transform(items: List&lt;String&gt;): List&lt;String&gt; {
+    // Lambda expression
+    return items.stream()
+        .filter(s -> s.length() > 3)
+        .map(s -> s.toUpperCase())
+        .collect(Collectors.toList())
+}
+
+func withRef(items: List&lt;String&gt;): List&lt;String&gt; {
+    // Method reference
+    return items.stream()
+        .map(String::trim)
+        .collect(Collectors.toList())
+}`,
+
+  javaNamedArgs: `// Positional (always works)
+createUser("Alice", 42)
+
+// Named (requires -parameters in Java compilation)
+createUser(name: "Alice", age: 42)`,
+
+  javaGenerics: `func firstElement&lt;T&gt;(list: List&lt;T&gt;): T {
+    return list.get(0)
+}
+
+// Common wildcard cases are supported
+func printAll(items: List&lt;? extends Object&gt;) {
+    for item in items {
+        println(item.toString())
+    }
+}`,
+
+  overloadArgs: `func sendEmail(to: String!, subject: String!, body: String?) {
+    // implementation
+}
+
+// Positional call
+sendEmail("alice@example.com", "Hello", "Body text")
+
+// Named — order doesn't matter
+sendEmail(body: "Body text", to: "alice@example.com", subject: "Hello")`,
+
+  overloadAmbig: `// Given:
+// func process(x: int): void
+// func process(x: long): void
+// func process(x: double): void
+
+process(42)     // resolves to int (strict)
+process(42L)    // resolves to long (strict)
+process(42.0)   // resolves to double (strict)`,
+
+  gradleBasic: `// build.gradle.kts
+plugins {
+    id("dev.affogato") version "0.1.0"
+    application
+}
+
+application {
+    mainClass.set("com.example.Main")
+}`,
+
+  gradleSourceSets: `sourceSets {
+    main {
+        // Affogato sources: src/main/affogato/
+    }
+    test {
+        // Test Affogato sources: src/test/affogato/
+    }
+    integration {
+        // Integration test sources: src/integration/affogato/
+    }
+}`,
+
+  gradleOptions: `affogato {
+    // Compiler configuration (future versions)
+}`,
+
+  intellijBuild: `./gradlew :affogato-intellij-plugin:buildPlugin`,
+
+  diagFormat: `src/main/affogato/Service.aff:14:5: error [AFFOGATO_RETURN_TYPE]
+  Incompatible return type: expected 'String' but found 'int'
+  return count
+         ^^^^^`,
+};
+
+const diagnosticCodes = [
+  { code: 'AFFOGATO_PARSE', desc: 'Syntax or parser error in the source file', type: 'error' },
+  { code: 'AFFOGATO_TYPE_RESOLUTION', desc: 'Unknown or unresolvable type reference', type: 'error' },
+  { code: 'AFFOGATO_CALL_RESOLUTION', desc: 'Unresolved method or function call', type: 'error' },
+  { code: 'AFFOGATO_CONSTRUCTOR_RESOLUTION', desc: 'Unresolved constructor call', type: 'error' },
+  { code: 'AFFOGATO_PROPERTY_RESOLUTION', desc: 'Unresolved property on a known receiver type', type: 'error' },
+  { code: 'AFFOGATO_RETURN_TYPE', desc: 'Returned expression is incompatible with method return type', type: 'error' },
+  { code: 'AFFOGATO_RETURN_FLOW', desc: 'Non-void method may complete without returning a value', type: 'error' },
+  { code: 'AFFOGATO_ASSIGNMENT_TYPE', desc: 'Initializer or assignment expression is type-incompatible', type: 'error' },
+  { code: 'AFFOGATO_CONDITION_TYPE', desc: 'Condition expression is not boolean', type: 'error' },
+  { code: 'AFFOGATO_NAMED_ARGS', desc: 'Named arguments cannot be mapped to the target callable', type: 'error' },
+];
+
+const unsupportedCodes = [
+  { code: 'AFFOGATO_UNSUPPORTED_SAFE_CALL', feature: 'Safe call operator ?.' },
+  { code: 'AFFOGATO_UNSUPPORTED_ELVIS', feature: 'Elvis operator ?:' },
+  { code: 'AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION', feature: 'Not-null assertion operator !!' },
+];
+---
+
+<Layout
+  title="Affogato Documentation — Language Reference"
+  description="Complete documentation for the Affogato JVM language. Syntax, nullability, Java interop, Gradle plugin, IntelliJ plugin, and diagnostic codes."
+>
+  <Navbar />
+
+  <div class="min-h-screen pt-16">
+    <div class="max-w-7xl mx-auto px-6 py-12 flex gap-8">
+
+      <!-- ── Sidebar ── -->
+      <aside class="hidden lg:block w-56 flex-shrink-0">
+        <div class="doc-sidebar pr-4">
+          <div class="mb-6">
+            <span class="text-xs font-semibold text-[var(--color-amber)] uppercase tracking-widest">Documentation</span>
+          </div>
+          <nav class="space-y-1" id="doc-nav">
+            {sections.map((s) => (
+              <a href={`#${s.id}`} class="doc-sidebar-link" data-section={s.id}>
+                {s.label}
+              </a>
+            ))}
+          </nav>
+          <div class="mt-8 pt-6 border-t border-[var(--color-border)]">
+            <a href="/" class="doc-sidebar-link flex items-center gap-1">← Back to Home</a>
+            <a href="https://github.com/alex-cova/affogato" target="_blank" rel="noopener" class="doc-sidebar-link flex items-center gap-1 mt-1">GitHub ↗</a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── Main content ── -->
+      <main class="flex-1 min-w-0 doc-content">
+
+        <!-- Page header -->
+        <div class="mb-12 pb-8 border-b border-[var(--color-border)]">
+          <span class="section-badge mb-4 inline-block">Reference</span>
+          <h1 class="text-4xl md:text-5xl font-black text-gradient-2 mt-4 mb-4">Language Reference</h1>
+          <p class="text-[var(--color-muted)] text-lg leading-relaxed max-w-2xl">
+            Complete reference for Affogato — a JVM language that transpiles to Java 21.
+            Covers syntax, nullability, Java interop, tooling, and error codes.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════
+             GETTING STARTED
+        ═══════════════════════════════ -->
+        <section id="getting-started" class="mb-16">
+          <h2>Getting Started</h2>
+
+          <h3>Prerequisites</h3>
+          <ul>
+            <li>Java 21 SDK or later</li>
+            <li>Gradle 8+ (wrapper included in the project)</li>
+            <li>IntelliJ IDEA (optional, for plugin support)</li>
+          </ul>
+
+          <h3>Gradle Plugin Setup</h3>
+          <p>Add the Affogato Gradle plugin to your <code>build.gradle.kts</code>:</p>
+          <pre><code set:html={code.gradleSetup}></code></pre>
+
+          <p>Place your <code>.aff</code> source files in <code>src/main/affogato/</code>. The plugin will automatically discover and compile them, wiring the output into <code>compileJava</code>.</p>
+
+          <h3>CLI Compiler</h3>
+          <p>Run the compiler directly from the project root:</p>
+          <pre><code set:html={code.gradleCli}></code></pre>
+
+          <h3>Running the Hello Sample</h3>
+          <pre><code set:html={code.gradleSample}></code></pre>
+
+          <h3>Building the Project</h3>
+          <pre><code set:html={code.gradleBuild}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             SYNTAX
+        ═══════════════════════════════ -->
+        <section id="syntax" class="mb-16">
+          <h2>Syntax Overview</h2>
+
+          <h3>Package &amp; Imports</h3>
+          <p>Package declarations and imports mirror Java syntax. Semicolons are optional everywhere.</p>
+          <pre><code set:html={code.syntaxPackages}></code></pre>
+
+          <h3>Variables</h3>
+          <p>Affogato uses <code>var</code> for mutable bindings and <code>let</code> for immutable bindings:</p>
+          <pre><code set:html={code.syntaxVars}></code></pre>
+
+          <h3>Methods &amp; Functions</h3>
+          <p>Methods can use Java-style or Affogato-style return type annotation. <code>func</code> is an alias for <code>void</code>:</p>
+          <pre><code set:html={code.syntaxMethods}></code></pre>
+
+          <h3>Operators</h3>
+          <table>
+            <thead>
+              <tr><th>Operator</th><th>Affogato</th><th>Java Equivalent</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>is</code></td><td><code>obj is String</code></td><td><code>obj instanceof String</code></td></tr>
+              <tr><td><code>as</code></td><td><code>obj as String</code></td><td><code>(String) obj</code></td></tr>
+              <tr><td><code>not(x)</code></td><td><code>not(flag)</code></td><td><code>!flag</code></td></tr>
+              <tr><td><code>:</code></td><td><code>class A : B</code></td><td><code>class A extends B</code></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ═══════════════════════════
+             CLASSES & RECORDS
+        ═══════════════════════════════ -->
+        <section id="classes" class="mb-16">
+          <h2>Classes, Records &amp; Enums</h2>
+
+          <h3>Classes</h3>
+          <p>Classes use familiar syntax with the <code>:</code> operator for inheritance and interface implementation:</p>
+          <pre><code set:html={code.classBasic}></code></pre>
+
+          <h3>Compact Record Constructors</h3>
+          <p>Records support a compact header syntax that auto-generates accessors:</p>
+          <pre><code set:html={code.classRecord}></code></pre>
+
+          <h3>Enums</h3>
+          <pre><code set:html={code.classEnum}></code></pre>
+
+          <h3>Interfaces with Default Methods</h3>
+          <pre><code set:html={code.classInterface}></code></pre>
+
+          <h3>Annotations</h3>
+          <pre><code set:html={code.classAnnotation}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             NULLABILITY
+        ═══════════════════════════════ -->
+        <section id="nullability" class="mb-16">
+          <h2>Nullability</h2>
+
+          <p>Affogato brings first-class nullability to the JVM without requiring a new runtime.</p>
+
+          <h3>Type Markers</h3>
+          <table>
+            <thead>
+              <tr><th>Syntax</th><th>Meaning</th><th>Java output</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>String!</code></td><td>Non-null reference — compile error if assigned null</td><td><code>@NotNull String</code></td></tr>
+              <tr><td><code>String?</code></td><td>Nullable reference — may be null</td><td><code>@Nullable String</code></td></tr>
+              <tr><td><code>String</code></td><td>Platform type — same as Java, no check enforced</td><td><code>String</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Examples</h3>
+          <pre><code set:html={code.nullabilityEx}></code></pre>
+
+          <h3>Unsupported (Production Subset)</h3>
+          <p>The following operators are <em>not</em> in the current production subset and will emit explicit diagnostics:</p>
+          <ul>
+            {unsupportedCodes.map((u) => (
+              <li><span class="diag-badge warn">{u.code}</span> — {u.feature}</li>
+            ))}
+          </ul>
+        </section>
+
+        <!-- ═══════════════════════════
+             CONTROL FLOW
+        ═══════════════════════════════ -->
+        <section id="control-flow" class="mb-16">
+          <h2>Control Flow</h2>
+
+          <h3>If / Else</h3>
+          <p>Standard if/else with optional parentheses around the condition:</p>
+          <pre><code set:html={code.controlIf}></code></pre>
+
+          <h3>Guard Clause</h3>
+          <p>Swift-inspired early exit — the <code>else</code> block <strong>must</strong> exit (return, throw, or break):</p>
+          <pre><code set:html={code.controlGuard}></code></pre>
+
+          <h3>For-In Loops</h3>
+          <pre><code set:html={code.controlFor}></code></pre>
+
+          <h3>While</h3>
+          <pre><code set:html={code.controlWhile}></code></pre>
+
+          <h3>Switch Statements &amp; Expressions</h3>
+          <pre><code set:html={code.controlSwitch}></code></pre>
+
+          <h3>Try / Catch / Finally</h3>
+          <pre><code set:html={code.controlTry}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             JAVA INTEROP
+        ═══════════════════════════════ -->
+        <section id="java-interop" class="mb-16">
+          <h2>Java Interop</h2>
+
+          <p>Affogato is designed for seamless Java integration. You can call any Java library from <code>.aff</code> code with no adapters or wrappers needed.</p>
+
+          <h3>Calling Java Methods</h3>
+          <pre><code set:html={code.javaBasic}></code></pre>
+
+          <h3>Collection Aliases</h3>
+          <p>Affogato provides short-hand aliases for common Java collections:</p>
+          <pre><code set:html={code.javaCollections}></code></pre>
+
+          <h3>Static Imports</h3>
+          <pre><code set:html={code.javaStatic}></code></pre>
+
+          <h3>Lambdas &amp; Method References</h3>
+          <pre><code set:html={code.javaLambda}></code></pre>
+
+          <h3>Named Arguments for Java</h3>
+          <p>Named arguments work for Java calls when the Java code was compiled with <code>-parameters</code>:</p>
+          <pre><code set:html={code.javaNamedArgs}></code></pre>
+
+          <h3>Generics &amp; Wildcards</h3>
+          <pre><code set:html={code.javaGenerics}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             OVERLOADS
+        ═══════════════════════════════ -->
+        <section id="overloads" class="mb-16">
+          <h2>Overloads &amp; Named Arguments</h2>
+
+          <h3>Overload Resolution Phases</h3>
+          <p>Affogato resolves overloads in three phases, matching Java's JLS approach:</p>
+          <ol style="list-style:decimal; padding-left:1.5rem; color:var(--color-muted); line-height:2; margin-bottom:1rem">
+            <li><strong style="color:var(--color-crema)">Strict phase</strong> — exact type match, no boxing/unboxing</li>
+            <li><strong style="color:var(--color-crema)">Loose phase</strong> — with boxing/unboxing and widening</li>
+            <li><strong style="color:var(--color-crema)">Varargs phase</strong> — varargs expansion</li>
+          </ol>
+
+          <h3>Named Arguments</h3>
+          <p>Name your arguments to improve readability. The compiler reorders them after overload resolution:</p>
+          <pre><code set:html={code.overloadArgs}></code></pre>
+
+          <h3>Ambiguous Overloads</h3>
+          <p>When no single best candidate can be selected, the compiler fails with a diagnostic rather than producing ambiguous Java:</p>
+          <pre><code set:html={code.overloadAmbig}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             GRADLE PLUGIN
+        ═══════════════════════════════ -->
+        <section id="gradle" class="mb-16">
+          <h2>Gradle Plugin</h2>
+
+          <h3>Basic Configuration</h3>
+          <pre><code set:html={code.gradleBasic}></code></pre>
+
+          <h3>How It Works</h3>
+          <ul>
+            <li>The plugin registers a <code>compileAffogato&lt;SourceSet&gt;</code> task for each Java source set</li>
+            <li>Generated Java source is placed in <code>build/generated/sources/affogato/&lt;sourceSet&gt;/java/</code></li>
+            <li>The generated sources are wired into the matching <code>compileJava&lt;SourceSet&gt;</code> task</li>
+            <li>Fully configuration-cache compatible with cacheable task inputs/outputs</li>
+          </ul>
+
+          <h3>Multiple Source Sets</h3>
+          <pre><code set:html={code.gradleSourceSets}></code></pre>
+
+          <h3>Compiler Options</h3>
+          <pre><code set:html={code.gradleOptions}></code></pre>
+
+          <h3>Gradle TestKit Integration</h3>
+          <p>The plugin ships with Gradle TestKit coverage for single-project builds and compiler failure scenarios. Errors produce clear diagnostics and <em>no partial generated Java</em> on failure.</p>
+        </section>
+
+        <!-- ═══════════════════════════
+             INTELLIJ PLUGIN
+        ═══════════════════════════════ -->
+        <section id="intellij" class="mb-16">
+          <h2>IntelliJ Plugin</h2>
+
+          <p>The Affogato IntelliJ plugin provides first-class IDE support for <code>.aff</code> files.</p>
+
+          <h3>Features</h3>
+          <ul>
+            <li><strong style="color:var(--color-crema)">Syntax highlighting</strong> — keywords, types, strings, comments with JFlex lexer</li>
+            <li><strong style="color:var(--color-crema)">Navigation</strong> — Go to Definition for classes, records, enums, interfaces, fields, methods, parameters</li>
+            <li><strong style="color:var(--color-crema)">Find Usages</strong> — project-wide reference search</li>
+            <li><strong style="color:var(--color-crema)">Rename</strong> — safe rename refactoring for Affogato declarations</li>
+            <li><strong style="color:var(--color-crema)">Compiler Diagnostics</strong> — live errors and warnings from the real compiler via AffogatoExternalAnnotator</li>
+          </ul>
+
+          <h3>Installation</h3>
+          <p>Build the plugin from source using the IntelliJ Platform Gradle Plugin:</p>
+          <pre><code set:html={code.intellijBuild}></code></pre>
+          <p>Then install the generated <code>.zip</code> from <code>affogato-intellij-plugin/build/distributions/</code> via <strong>Settings → Plugins → Install from disk</strong>.</p>
+
+          <h3>Grammar Synchronization</h3>
+          <p>The IntelliJ Grammar-Kit/JFlex grammars (<code>Affogato.bnf</code> + <code>Affogato.flex</code>) are maintained separately from the ANTLR grammar (<code>Affogato.g4</code>) and must be kept in sync manually when the language syntax changes.</p>
+
+          <h3>Deferred Features</h3>
+          <ul>
+            <li>Code formatter and brace matcher</li>
+            <li>Inspections and quick fixes</li>
+            <li>Java-aware imports and code completion</li>
+            <li>JetBrains Marketplace publication</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════════════════════
+             DIAGNOSTICS
+        ═══════════════════════════════ -->
+        <section id="diagnostics" class="mb-16">
+          <h2>Diagnostic Codes</h2>
+
+          <p>Affogato produces stable, namespaced diagnostic codes. All codes are prefixed with <code>AFFOGATO_</code>.</p>
+
+          <h3>Stable Error Codes</h3>
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              {diagnosticCodes.map((d) => (
+                <tr>
+                  <td><span class="diag-badge">{d.code}</span></td>
+                  <td>{d.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h3>Unsupported Feature Codes</h3>
+          <p>These codes indicate features that are outside the current production subset:</p>
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Feature</th></tr>
+            </thead>
+            <tbody>
+              {unsupportedCodes.map((u) => (
+                <tr>
+                  <td><span class="diag-badge warn">{u.code}</span></td>
+                  <td>{u.feature}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h3>Reading Diagnostics</h3>
+          <p>The compiler outputs diagnostics in the following format:</p>
+          <pre><code set:html={code.diagFormat}></code></pre>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <Footer />
+</Layout>
+
+<script>
+  // ── Active sidebar highlight on scroll ──
+  const sectionEls = document.querySelectorAll('section[id]');
+  const sidebarLinks = document.querySelectorAll('[data-section]');
+
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach((link) => {
+            link.classList.toggle(
+              'active',
+              link.getAttribute('data-section') === entry.target.id
+            );
+          });
+        }
+      });
+    },
+    { rootMargin: '-20% 0px -70% 0px' }
+  );
+
+  sectionEls.forEach((el) => io.observe(el));
+</script>

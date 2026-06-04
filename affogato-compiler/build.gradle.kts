@@ -17,6 +17,11 @@ application {
 
 val sourceSets = the<SourceSetContainer>()
 
+tasks.test {
+    // Forward the golden-update flag to the test JVM so `-Daffogato.golden.update=true` works.
+    System.getProperty("affogato.golden.update")?.let { systemProperty("affogato.golden.update", it) }
+}
+
 tasks.withType<AntlrTask>().configureEach {
     arguments = arguments + listOf(
         "-visitor",

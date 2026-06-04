@@ -1,0 +1,37 @@
+package dev.affogato.golden
+
+class Flow {
+    classify(value: int): String {
+        if value > 0 {
+            return "positive"
+        } else if value == 0 {
+            return "zero"
+        } else {
+            return "negative"
+        }
+    }
+
+    func loop() {
+        var names = List<String>()
+        names.add("a")
+        for name in names {
+            println(name)
+        }
+        var counter = 0
+        while counter < 3 {
+            counter = counter + 1
+        }
+        println(counter)
+    }
+
+    pick(flag: boolean): String {
+        return flag ? "yes" : "no"
+    }
+
+    func check(value: Object) {
+        guard value is String else {
+            return
+        }
+        println(value as String)
+    }
+}

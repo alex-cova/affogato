@@ -1,0 +1,8 @@
+package dev.affogato.golden
+
+class Nested {
+    func build() {
+        var data = Map<String, java.util.List<Integer>>()
+        println(data)
+    }
+}

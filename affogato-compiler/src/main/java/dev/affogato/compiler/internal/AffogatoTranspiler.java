@@ -1005,7 +1005,7 @@ public final class AffogatoTranspiler {
             String rawExpression = statement.returnStatement().expression() == null
                     ? ""
                     : mergeTrailingClosure(sourceText(unit.source(), statement.returnStatement().expression()),
-                            unit.source(), statement.returnStatement().trailingClosure());
+                            unit.source(), statement.returnStatement().trailingClosure(), context);
             validateReturn(rawExpression, context, statement.returnStatement().getStart().getLine(), statement.returnStatement().getStart().getCharPositionInLine() + 1);
             String expression = rawExpression.isBlank()
                     ? ""
@@ -1026,7 +1026,7 @@ public final class AffogatoTranspiler {
         if (statement.expressionStatement() != null) {
             String expression = mergeTrailingClosure(
                     sourceText(unit.source(), statement.expressionStatement().expression()),
-                    unit.source(), statement.expressionStatement().trailingClosure()).trim();
+                    unit.source(), statement.expressionStatement().trailingClosure(), context).trim();
             Matcher assignmentMatcher = PROPERTY_ASSIGNMENT.matcher(expression);
             String transformed = assignmentMatcher.matches()
                     ? transformPropertyAssignment(assignmentMatcher, context)
@@ -1337,7 +1337,7 @@ public final class AffogatoTranspiler {
         String rawInitializer = declaration.expression() == null
                 ? ""
                 : mergeTrailingClosure(sourceText(unit.source(), declaration.expression()),
-                        unit.source(), declaration.trailingClosure());
+                        unit.source(), declaration.trailingClosure(), context);
         TypedExpression typedInit = rawInitializer.isBlank() ? null : transformExpressionTyped(rawInitializer, context);
         String initializer = typedInit == null ? "" : typedInit.javaSource();
 
@@ -2647,6 +2647,7 @@ public final class AffogatoTranspiler {
     private int namedArgumentEquals(String part) {
         int angle = 0;
         int paren = 0;
+        int brace = 0;
         for (int index = 0; index < part.length(); index++) {
             char current = part.charAt(index);
             if (current == '<') {
@@ -2657,7 +2658,11 @@ public final class AffogatoTranspiler {
                 paren++;
             } else if (current == ')') {
                 paren = Math.max(0, paren - 1);
-            } else if (current == '=' && angle == 0 && paren == 0) {
+            } else if (current == '{') {
+                brace++;
+            } else if (current == '}') {
+                brace = Math.max(0, brace - 1);
+            } else if (current == '=' && angle == 0 && paren == 0 && brace == 0) {
                 char previous = index > 0 ? part.charAt(index - 1) : '\0';
                 char next = index + 1 < part.length() ? part.charAt(index + 1) : '\0';
                 if (previous != '=' && previous != '!' && previous != '<' && previous != '>' && next != '=') {
@@ -3150,8 +3155,13 @@ public final class AffogatoTranspiler {
     }
 
     private boolean astTypeCanShortCircuitInference(AstExpression ast) {
+        // The ANTLR-backed AST resolves these node types reliably, including cases the regex inference
+        // below mishandles. Constructors in particular carry the correct implementation type even when
+        // the type arguments nest generics (e.g. Map<String, List<Integer>>()), which the regex path
+        // misreads as a boolean comparison on the top-level '<' / '>'.
         return ast instanceof LambdaExpression
-                || ast instanceof MethodReferenceExpression;
+                || ast instanceof MethodReferenceExpression
+                || (ast instanceof ConstructorExpression && ast.resolvedType().isKnown());
     }
 
     private final class TranspilerExpressionSupport implements ExpressionSemanticChecker.Support {
@@ -3507,7 +3517,54 @@ public final class AffogatoTranspiler {
             nullability = Nullability.NOT_NULL;
             raw = raw.substring(0, raw.length() - 1);
         }
-        return new TypeRef(raw, nullability);
+        return new TypeRef(normalizeListType(raw), nullability);
+    }
+
+    /**
+     * Rewrites Swift-style list types {@code [T]} into {@code java.util.List<T>}, recursively and at
+     * any nesting depth (e.g. {@code Supplier<[Component]>} → {@code Supplier<java.util.List<Component>>}).
+     * Empty {@code []} array suffixes are left untouched.
+     */
+    private String normalizeListType(String type) {
+        StringBuilder out = new StringBuilder();
+        int index = 0;
+        while (index < type.length()) {
+            char current = type.charAt(index);
+            if (current == '[') {
+                if (index + 1 < type.length() && type.charAt(index + 1) == ']') {
+                    out.append("[]");
+                    index += 2;
+                    continue;
+                }
+                int close = matchingBracket(type, index);
+                if (close > index) {
+                    out.append("java.util.List<")
+                            .append(normalizeListType(type.substring(index + 1, close)))
+                            .append('>');
+                    index = close + 1;
+                    continue;
+                }
+            }
+            out.append(current);
+            index++;
+        }
+        return out.toString();
+    }
+
+    private int matchingBracket(String text, int open) {
+        int depth = 0;
+        for (int index = open; index < text.length(); index++) {
+            char current = text.charAt(index);
+            if (current == '[') {
+                depth++;
+            } else if (current == ']') {
+                depth--;
+                if (depth == 0) {
+                    return index;
+                }
+            }
+        }
+        return -1;
     }
 
     private String parameterList(List<ParamDecl> parameters) {
@@ -3618,16 +3675,35 @@ public final class AffogatoTranspiler {
      * trailing closure, preserving full backward compatibility.
      */
     private String mergeTrailingClosure(String exprText, String source,
-                                        AffogatoParser.TrailingClosureContext closure) {
+                                        AffogatoParser.TrailingClosureContext closure,
+                                        MethodContext context) {
         if (closure == null) {
             return exprText;
         }
-        String params = closure.lambdaParameters() == null
-                ? "()"
-                : sourceText(source, closure.lambdaParameters()).trim();
-        String body = sourceText(source, closure.lambdaBody()).trim();
-        String lambda = params + " -> " + body;
+        boolean hasParams = closure.lambdaParameters() != null;
+        String params = hasParams
+                ? sourceText(source, closure.lambdaParameters()).trim()
+                : "()";
+        AffogatoParser.ClosureBodyContext body = closure.closureBody();
 
+        // Type-directed shaping: when the target's last parameter is a Supplier of a list and the
+        // closure has no explicit parameters, each child expression is collected into a list. This is
+        // the SwiftUI/Compose-style result builder used by DSLs such as `Panel { Label(...) ... }`.
+        String elementType = hasParams
+                ? null
+                : supplierListElementType(lastParameterType(trailingCallName(exprText), context));
+
+        String lambda;
+        if (elementType != null && body != null && hasClosureStatements(body)) {
+            lambda = "() -> " + buildListBuilderBody(body, elementType, source, context);
+        } else {
+            lambda = params + " -> " + closureBodyText(body, source, context);
+        }
+        return appendClosureArgument(exprText, lambda);
+    }
+
+    /** Merges {@code lambda} into {@code exprText} as a trailing argument, mirroring Swift trailing-closure calls. */
+    private String appendClosureArgument(String exprText, String lambda) {
         String trimmed = exprText.stripTrailing();
         if (trimmed.endsWith(")")) {
             int open = matchingOpenIndex(trimmed);
@@ -3639,6 +3715,107 @@ public final class AffogatoTranspiler {
             }
         }
         return trimmed + "(" + lambda + ")";
+    }
+
+    /** The call/type name a trailing closure attaches to, e.g. {@code Panel} or {@code Button} from {@code Button(text = ...)}. */
+    private String trailingCallName(String exprText) {
+        String trimmed = exprText.stripTrailing();
+        if (trimmed.endsWith(")")) {
+            int open = matchingOpenIndex(trimmed);
+            return open > 0 ? trimmed.substring(0, open).trim() : "";
+        }
+        return trimmed.trim();
+    }
+
+    /** The declared type of the last parameter of {@code callName}'s Affogato constructor, or {@code null}. */
+    private String lastParameterType(String callName, MethodContext context) {
+        if (callName == null || callName.isBlank()) {
+            return null;
+        }
+        ClassSymbol symbol = classSymbol(callName, context.unit);
+        if (symbol == null) {
+            return null;
+        }
+        for (ConstructorSymbol constructor : symbol.constructors) {
+            List<ParamDecl> parameters = constructor.parameters();
+            if (!parameters.isEmpty()) {
+                return parameters.get(parameters.size() - 1).type().javaType();
+            }
+        }
+        return null;
+    }
+
+    /** Given a {@code Supplier<List<E>>}-shaped type, returns {@code E}; otherwise {@code null}. */
+    private String supplierListElementType(String typeName) {
+        if (typeName == null) {
+            return null;
+        }
+        String type = typeName.replaceAll("\\s+", "");
+        String supplierPrefix = type.startsWith("Supplier<") ? "Supplier<"
+                : type.startsWith("java.util.function.Supplier<") ? "java.util.function.Supplier<"
+                : null;
+        if (supplierPrefix == null || !type.endsWith(">")) {
+            return null;
+        }
+        String inner = type.substring(supplierPrefix.length(), type.length() - 1);
+        for (String listPrefix : List.of("List<", "java.util.List<", "Collection<", "java.util.Collection<")) {
+            if (inner.startsWith(listPrefix) && inner.endsWith(">")) {
+                return inner.substring(listPrefix.length(), inner.length() - 1);
+            }
+        }
+        return null;
+    }
+
+    private boolean hasClosureStatements(AffogatoParser.ClosureBodyContext body) {
+        if (body.lambdaBody() != null) {
+            return false;
+        }
+        return body.statement().stream().anyMatch(statement -> statement.separators() == null);
+    }
+
+    /** Renders a closure body as a Java lambda body: a single expression/block, or a generated statement block. */
+    private String closureBodyText(AffogatoParser.ClosureBodyContext body, String source, MethodContext context) {
+        if (body == null) {
+            return "{}";
+        }
+        if (body.lambdaBody() != null) {
+            return sourceText(source, body.lambdaBody()).trim();
+        }
+        if (!hasClosureStatements(body)) {
+            return "{}";
+        }
+        StringBuilder block = new StringBuilder("{").append(System.lineSeparator());
+        for (AffogatoParser.StatementContext statement : body.statement()) {
+            writeStatement(block, context.unit, statement, context, 0);
+        }
+        block.append("}");
+        return block.toString();
+    }
+
+    /** Builds the {@code () -> { ... return $children; }} list-builder body for a result-builder closure. */
+    private String buildListBuilderBody(AffogatoParser.ClosureBodyContext body, String elementType,
+                                        String source, MethodContext context) {
+        StringBuilder block = new StringBuilder("{").append(System.lineSeparator());
+        block.append("java.util.List<").append(elementType).append("> $children = new java.util.ArrayList<>();")
+                .append(System.lineSeparator());
+        for (AffogatoParser.StatementContext statement : body.statement()) {
+            if (statement.separators() != null) {
+                continue;
+            }
+            if (statement.expressionStatement() != null) {
+                String childExpr = mergeTrailingClosure(
+                        sourceText(source, statement.expressionStatement().expression()),
+                        source,
+                        statement.expressionStatement().trailingClosure(),
+                        context).trim();
+                block.append("$children.add(").append(childExpr).append(");").append(System.lineSeparator());
+            } else {
+                writeStatement(block, context.unit, statement, context, 0);
+            }
+        }
+        block.append("return $children;").append(System.lineSeparator());
+        block.append("}");
+        return block.toString();
     }
 
     /** Index of the '(' opening the final top-level group of {@code text} (which ends in ')'). */
@@ -3687,6 +3864,7 @@ public final class AffogatoTranspiler {
         int angle = 0;
         int paren = 0;
         int bracket = 0;
+        int brace = 0;
         boolean inString = false;
         for (int index = 0; index < text.length(); index++) {
             char current = text.charAt(index);
@@ -3709,7 +3887,11 @@ public final class AffogatoTranspiler {
                 bracket++;
             } else if (current == ']') {
                 bracket = Math.max(0, bracket - 1);
-            } else if (current == delimiter && angle == 0 && paren == 0 && bracket == 0) {
+            } else if (current == '{') {
+                brace++;
+            } else if (current == '}') {
+                brace = Math.max(0, brace - 1);
+            } else if (current == delimiter && angle == 0 && paren == 0 && bracket == 0 && brace == 0) {
                 result.add(text.substring(start, index));
                 start = index + 1;
             }

@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+class Switches {
+    describe(width: int): String {
+        return switch width {
+            case 0 -> "empty"
+            case 1 -> "thin"
+            default -> "filled"
+        }
+    }
+
+    func draw(width: int) {
+        switch width {
+            case 0 -> println("zero")
+            default -> println("width: " + width)
+        }
+    }
+}

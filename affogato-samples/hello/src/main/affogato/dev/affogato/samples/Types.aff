@@ -23,7 +23,7 @@ class DrinkOrder: Printable {
     let size: DrinkSize
     let shots: int
 
-    constructor(name: String!, size: DrinkSize, shots: int) {
+    init(name: String!, size: DrinkSize, shots: int) {
         this.name = name
         this.size = size
         this.shots = shots

@@ -1,0 +1,198 @@
+---
+import '../styles/global.css';
+
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = 'Affogato — the rich, smooth JVM language that transpiles to Java. Coffee-inspired syntax, Kotlin-style ergonomics, 100% Java interop.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#D4813A" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/hero.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <title>{title}</title>
+  </head>
+  <body class="bg-animated">
+    <!-- Particle canvas -->
+    <canvas id="particles-canvas"></canvas>
+
+    <slot />
+
+    <script>
+      // ── Intersection Observer for reveal animations ──
+      const revealElements = document.querySelectorAll('.reveal');
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+      );
+      revealElements.forEach((el) => observer.observe(el));
+
+      // ── Particle system ──
+      const canvas = document.getElementById('particles-canvas');
+      const ctx = canvas ? canvas.getContext('2d') : null;
+
+      if (canvas && ctx) {
+        let W = (canvas.width = window.innerWidth);
+        let H = (canvas.height = window.innerHeight);
+
+        window.addEventListener('resize', () => {
+          W = canvas.width = window.innerWidth;
+          H = canvas.height = window.innerHeight;
+        });
+
+        const PARTICLE_COUNT = 70;
+        const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          radius: Math.random() * 1.5 + 0.3,
+          opacity: Math.random() * 0.4 + 0.1,
+          pulse: Math.random() * Math.PI * 2,
+          pulseSpeed: (Math.random() * 0.01 + 0.005),
+        }));
+
+        const CONNECTION_DISTANCE = 120;
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+
+          // Update & draw particles
+          for (const p of particles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.pulse += p.pulseSpeed;
+
+            if (p.x < 0) p.x = W;
+            if (p.x > W) p.x = 0;
+            if (p.y < 0) p.y = H;
+            if (p.y > H) p.y = 0;
+
+            const alpha = p.opacity * (0.7 + 0.3 * Math.sin(p.pulse));
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(212, 129, 58, ${alpha})`;
+            ctx.fill();
+          }
+
+          // Draw connections
+          for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+              const dx = particles[i].x - particles[j].x;
+              const dy = particles[i].y - particles[j].y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < CONNECTION_DISTANCE) {
+                const alpha = (1 - dist / CONNECTION_DISTANCE) * 0.12;
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(212, 129, 58, ${alpha})`;
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+              }
+            }
+          }
+
+          requestAnimationFrame(draw);
+        }
+
+        draw();
+      }
+
+      // ── Mobile nav toggle ──
+      const hamburger = document.getElementById('hamburger');
+      const mobileMenu = document.getElementById('mobile-menu');
+      hamburger?.addEventListener('click', () => {
+        mobileMenu?.classList.toggle('open');
+        document.body.style.overflow = mobileMenu?.classList.contains('open') ? 'hidden' : '';
+      });
+
+      document.querySelectorAll('.mobile-menu a').forEach((link) => {
+        link.addEventListener('click', () => {
+          mobileMenu?.classList.remove('open');
+          document.body.style.overflow = '';
+        });
+      });
+
+      // ── Navbar scroll effect ──
+      const navbar = document.getElementById('navbar');
+      window.addEventListener('scroll', () => {
+        if (navbar) {
+          if (window.scrollY > 50) {
+            navbar.style.background = 'rgba(8, 8, 16, 0.9)';
+            navbar.style.backdropFilter = 'blur(20px)';
+          } else {
+            navbar.style.background = 'transparent';
+            navbar.style.backdropFilter = 'none';
+          }
+        }
+      });
+
+      // ── Typewriter effect ──
+      const typeEl = document.getElementById('typewriter');
+      if (typeEl) {
+        const phrases = [
+          'expressive.',
+          'JVM-native.',
+          'Java-compatible.',
+          'type-safe.',
+          'delightful.',
+        ];
+        let phraseIdx = 0;
+        let charIdx = 0;
+        let deleting = false;
+
+        function typeLoop() {
+          const current = phrases[phraseIdx];
+          if (!deleting) {
+            typeEl.textContent = current.slice(0, charIdx + 1);
+            charIdx++;
+            if (charIdx === current.length) {
+              setTimeout(() => { deleting = true; typeLoop(); }, 1800);
+              return;
+            }
+          } else {
+            typeEl.textContent = current.slice(0, charIdx - 1);
+            charIdx--;
+            if (charIdx === 0) {
+              deleting = false;
+              phraseIdx = (phraseIdx + 1) % phrases.length;
+            }
+          }
+          setTimeout(typeLoop, deleting ? 60 : 90);
+        }
+
+        typeLoop();
+      }
+    </script>
+  </body>
+</html>
