@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import java.util.List
+import java.util.Optional
+
+class CollectionsOptionalList {
+    run(): String {
+        let maybe = Optional.of(List.of("af", "fogato"))
+        let values = maybe.orElse(List.of("empty"))
+        let first = values.get(0)
+        let size = values.size()
+        return first + ":" + size
+    }
+}

@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.CollectionWildcardFixtures
+
+class CollectionsWildcardValues {
+    run(): String {
+        let numbers = CollectionWildcardFixtures.numberMap()
+        let value = CollectionWildcardFixtures.firstNumber(numbers)
+        println(value)
+        let empty = numbers.isEmpty()
+        return empty ? "empty" : "present"
+    }
+}

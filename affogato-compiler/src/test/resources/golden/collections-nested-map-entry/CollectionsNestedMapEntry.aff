@@ -1,0 +1,26 @@
+package dev.affogato.golden
+
+import java.util.HashMap
+import java.util.List
+import java.util.Map
+
+class CollectionsNestedMapEntry {
+    run(): String {
+        let outer = HashMap<String, Map<String, List<Integer>>>()
+        let inner = HashMap<String, List<Integer>>()
+        inner.put("counts", List.of(Integer.valueOf(1), Integer.valueOf(2)))
+        outer.put("first", inner)
+        var text = ""
+        for outerEntry in outer.entrySet() {
+            let outerKey = outerEntry.getKey()
+            let nested = outerEntry.getValue()
+            for innerEntry in nested.entrySet() {
+                let innerKey = innerEntry.getKey()
+                let values = innerEntry.getValue()
+                let size = values.size()
+                text = text + outerKey + ":" + innerKey + ":" + size
+            }
+        }
+        return text
+    }
+}

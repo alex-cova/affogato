@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class CollectionsStreamBasic {
+    run(): String {
+        let values = List.of("af", "fogato")
+        let mapped: java.util.List = values.stream().map(value -> value.toUpperCase()).toList()
+        let first = mapped.get(0)
+        let size = mapped.size()
+        return first + ":" + size
+    }
+}

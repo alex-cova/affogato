@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class CollectionsListOf {
+    run(): String {
+        let values = List.of("af", "fogato", "latte")
+        let first = values.get(0)
+        let size = values.size()
+        return first + ":" + size
+    }
+}

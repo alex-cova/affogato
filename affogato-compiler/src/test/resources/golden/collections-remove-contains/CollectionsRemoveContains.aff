@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import java.util.ArrayList
+
+class CollectionsRemoveContains {
+    run(): String {
+        let values = ArrayList<String>()
+        values.add("af")
+        values.add("fogato")
+        let before = values.contains("af")
+        values.remove("af")
+        let after = values.contains("af")
+        let empty = values.isEmpty()
+        return before + ":" + after + ":" + empty
+    }
+}

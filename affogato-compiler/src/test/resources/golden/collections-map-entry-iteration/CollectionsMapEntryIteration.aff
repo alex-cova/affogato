@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+import java.util.HashMap
+
+class CollectionsMapEntryIteration {
+    run(): String {
+        let values = HashMap<String, Integer>()
+        values.put("a", 1)
+        values.put("b", 2)
+        var text = ""
+        for entry in values.entrySet() {
+            let key = entry.getKey()
+            let value = entry.getValue()
+            text = text + key + value
+        }
+        return text
+    }
+}
