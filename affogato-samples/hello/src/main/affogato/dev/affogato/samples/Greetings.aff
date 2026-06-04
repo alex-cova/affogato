@@ -1,0 +1,17 @@
+package dev.affogato.samples
+
+func String.shout(): String {
+    return this + "!"
+}
+
+func String.twice(): String {
+    return this + this
+}
+
+func Person.greeting(prefix: String!): String {
+    return prefix + " " + this.name
+}
+
+func Person.describe(): String {
+    return name + " is " + age
+}

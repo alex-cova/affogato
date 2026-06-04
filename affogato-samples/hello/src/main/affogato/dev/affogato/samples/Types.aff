@@ -1,0 +1,50 @@
+package dev.affogato.samples
+
+enum DrinkSize {
+    SMALL, MEDIUM, LARGE
+}
+
+record Point(x: int, y: int) {
+    sum(): int {
+        return x + y
+    }
+}
+
+interface Printable {
+    text(): String
+
+    default func print() {
+        println(text())
+    }
+}
+
+class DrinkOrder: Printable {
+    let name: String!
+    let size: DrinkSize
+    let shots: int
+
+    constructor(name: String!, size: DrinkSize, shots: int) {
+        this.name = name
+        this.size = size
+        this.shots = shots
+    }
+
+    override text(): String {
+        return size.toString() + " " + name + " with " + shots + " shots"
+    }
+
+    intensity(): String {
+        switch shots {
+            case 0 -> println("decaf")
+            case 1 -> println("single")
+            default -> println("strong")
+        }
+
+        return shots > 1 ? "strong" : "regular"
+    }
+
+    origin(): int {
+        let point = new Point(shots, name.length())
+        return point.sum()
+    }
+}

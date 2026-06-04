@@ -1,0 +1,37 @@
+package dev.affogato.samples
+
+class CollectionsSample {
+    static func run() {
+        var names = List<String>()
+        names.add("espresso")
+        names.add("latte")
+        names.add("cortado")
+
+        for name in names {
+            println(name.shout())
+        }
+
+        let numbers: int[] = [1, 2, 3, 4]
+        println("numbers: " + numbers.length)
+
+        var total = 0
+        var index = 0
+        while index < numbers.length {
+            index = index + 1
+            total = total + index
+        }
+        println("total: " + total)
+
+        let label = total > 8 ? "large" : "small"
+        println(label)
+
+        try {
+            let parsed = Integer.parseInt("42")
+            println(parsed)
+        } catch (NumberFormatException e) {
+            println(e.getMessage())
+        } finally {
+            println("parsed sample finished")
+        }
+    }
+}

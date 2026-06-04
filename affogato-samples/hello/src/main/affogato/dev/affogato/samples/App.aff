@@ -4,6 +4,9 @@ class App {
     static func main(args: String[]) {
         let person = Person(name = "Affogato", age = 1)
         println(person.name)
+        println(person.greeting(prefix = "Hola"))
+        println("sample".shout().twice())
+        println(person.describe())
 
         if not(person.name.isBlank()) {
             println("ready")
@@ -17,5 +20,13 @@ class App {
         if value is String {
             println(value as String)
         }
+
+        CollectionsSample.run()
+        LambdasSample.run()
+
+        let order = DrinkOrder(name = "macchiato", size = DrinkSize.SMALL, shots = 2)
+        order.print()
+        println(order.intensity())
+        println(order.origin())
     }
 }

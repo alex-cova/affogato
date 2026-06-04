@@ -1,0 +1,36 @@
+package dev.affogato.samples
+
+import java.util.function.Function
+import java.util.function.Supplier
+
+class LambdasSample {
+    static func run() {
+        var names = List<String>()
+        names.add("affogato")
+        names.add("mocha")
+        names.add("flat white")
+
+        for name in names {
+            let display = LambdasSample.map(value = name, mapper = item -> item + "!")
+            println(display)
+        }
+
+        let ready = LambdasSample.supply(factory = () -> "lambda ready")
+        println(ready)
+
+        var counter = 0
+        while counter < 3 {
+            let label = LambdasSample.map(value = "step " + counter, mapper = text -> text + text)
+            println(label)
+            counter = counter + 1
+        }
+    }
+
+    static String map(value: String, mapper: Function<String, String>) {
+        return mapper.apply(value)
+    }
+
+    static String supply(factory: Supplier<String>) {
+        return factory.get()
+    }
+}
