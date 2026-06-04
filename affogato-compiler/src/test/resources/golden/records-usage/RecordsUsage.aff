@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+record Point2D(x: int, y: int) {
+    sum(): int {
+        return x + y
+    }
+}
+
+class RecordUser {
+    run(): int {
+        let point = new Point2D(3, 4)
+        return point.x + point.y + point.sum()
+    }
+}

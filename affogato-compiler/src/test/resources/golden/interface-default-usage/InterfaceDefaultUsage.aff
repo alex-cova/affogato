@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+interface NamedThing {
+    name(): String
+
+    default label(): String {
+        return "thing:" + name()
+    }
+}
+
+class NamedWidget: NamedThing {
+    override name(): String {
+        return "widget"
+    }
+}
+
+class InterfaceDefaultUsage {
+    run(): String {
+        let widget = NamedWidget()
+        return widget.label()
+    }
+}

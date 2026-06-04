@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+class Unsupported {
+    func run() {
+        var text: String? = null
+        println(text?.length())
+        println(text ?: "fallback")
+        println(text!!)
+    }
+}

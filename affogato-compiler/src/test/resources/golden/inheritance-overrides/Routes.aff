@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class BaseRoute {
+    label(value: String): String {
+        return "base" + value
+    }
+}
+
+class DerivedRoute: BaseRoute {
+    override label(value: String): String {
+        return "derived" + value
+    }
+}
+
+class RouteApp {
+    run(): String {
+        let route = DerivedRoute()
+        return route.label(value = "x")
+    }
+}

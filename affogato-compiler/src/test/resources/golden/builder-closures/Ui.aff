@@ -1,0 +1,54 @@
+package dev.affogato.golden
+
+import java.util.function.Supplier
+
+interface Component {
+    render(): String
+}
+
+class Label: Component {
+    let text: String
+
+    init(text: String) {
+        this.text = text
+    }
+
+    override render(): String {
+        return text
+    }
+}
+
+class Button: Component {
+    let text: String
+    let action: Runnable
+
+    init(text: String, action: Runnable) {
+        this.text = text
+        this.action = action
+    }
+
+    override render(): String {
+        return text
+    }
+}
+
+class Panel: Component {
+    init(supplier: Supplier<[Component]>) {
+        println(supplier.get())
+    }
+
+    override render(): String {
+        return "panel"
+    }
+}
+
+class UiApp {
+    build(): String {
+        let panel = Panel {
+            Label(text = "Hello")
+            Button(text = "Run") {
+            }
+        }
+        return panel.render()
+    }
+}

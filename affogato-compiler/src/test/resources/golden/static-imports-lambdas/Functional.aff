@@ -1,0 +1,23 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+import java.util.function.Supplier
+import static java.lang.Math.max
+
+class Functional {
+    static apply(value: String, fn: Function<String, String>): String {
+        return fn.apply(value)
+    }
+
+    static supply(fn: Supplier<String>): String {
+        return fn.get()
+    }
+
+    run(): String {
+        let lambdaValue = Functional.apply("x", value -> value)
+        let methodRefValue = Functional.apply(" trim ", String::trim)
+        let supplied = Functional.supply(() -> "ready")
+        let bigger = max(2, 3)
+        return lambdaValue + methodRefValue + supplied + bigger
+    }
+}

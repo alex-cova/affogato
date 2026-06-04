@@ -1,0 +1,25 @@
+package dev.affogato.negative
+
+class BadNamedArgs {
+    func badAmbiguousOverload() {
+        let value = JavaApi.ambiguous(value = null)
+        println(value)
+    }
+
+    func badLambdaArity() {
+        let value = JavaApi.lambdaResult(fn = () -> "nullary")
+        println(value)
+    }
+
+    func badIntersectionBound() {
+        let partial = JavaApi.onlyTagged()
+        let value = JavaApi.describe(value = partial)
+        println(value)
+    }
+
+    func badWildcardBound() {
+        var numbers = List<Integer>()
+        let value = JavaApi.wildcardOnly(values = numbers)
+        println(value)
+    }
+}

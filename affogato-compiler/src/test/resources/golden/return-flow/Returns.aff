@@ -1,0 +1,27 @@
+package dev.affogato.golden
+
+class Returns {
+    branch(value: int): String {
+        if value > 0 {
+            return "positive"
+        } else if value == 0 {
+            return "zero"
+        } else {
+            return "negative"
+        }
+    }
+
+    fromTry(value: String): String {
+        try {
+            return Integer.parseInt(value) + ""
+        } catch (NumberFormatException e) {
+            return "nan"
+        }
+    }
+
+    fromBlock(): String {
+        {
+            return "block"
+        }
+    }
+}

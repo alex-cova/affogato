@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+class Account(var owner: String, let id: int) {
+    var balance: int = 0
+
+    deposit(amount: int): int {
+        balance = balance + amount
+        return balance
+    }
+}
+
+class PropertiesApp {
+    run(): String {
+        let account = Account(owner = "Ada", id = 7)
+        account.balance = account.deposit(amount = 5)
+        return account.owner + account.id + account.balance
+    }
+}

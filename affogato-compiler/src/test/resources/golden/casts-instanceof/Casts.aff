@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+class Casts {
+    describe(value: Object): String {
+        if value is String {
+            return value as String
+        }
+        return "other"
+    }
+}

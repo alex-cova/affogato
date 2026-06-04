@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class NumberBox<T: Number>(var value: T) {
+    get(): T {
+        return value
+    }
+}
+
+class GenericsBounds {
+    run(): Integer {
+        let box = NumberBox<Integer>(7)
+        return box.get()
+    }
+}

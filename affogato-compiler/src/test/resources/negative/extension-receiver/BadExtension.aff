@@ -1,0 +1,12 @@
+package dev.affogato.negative
+
+func String.shout(): String {
+    return this + "!"
+}
+
+class BadExtension {
+    func run() {
+        let count = 5
+        count.shout()
+    }
+}

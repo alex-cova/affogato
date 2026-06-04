@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+@Deprecated
+enum LegacyState {
+    OLD, NEW
+}
+
+@SuppressWarnings("unused")
+record Marker(name: String) {}
+
+class Annotated {
+    @Deprecated
+    label(): String {
+        return "legacy"
+    }
+}

@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+class BooleanExpressions {
+    check(name: String, count: int): String {
+        if not(name.isBlank()) && count > 0 {
+            return "ready"
+        }
+        return count == 0 ? "empty" : "blocked"
+    }
+}

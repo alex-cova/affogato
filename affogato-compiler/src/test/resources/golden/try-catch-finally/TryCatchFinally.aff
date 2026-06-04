@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+class TryCatchFinally {
+    parse(value: String): String {
+        try {
+            return Integer.parseInt(value) + ""
+        } catch (NumberFormatException e) {
+            return "nan"
+        }
+    }
+
+    cleanup(): String {
+        try {
+            println("attempt")
+        } catch (RuntimeException e) {
+            println(e.getMessage())
+        } finally {
+            println("cleanup")
+        }
+        return "done"
+    }
+}

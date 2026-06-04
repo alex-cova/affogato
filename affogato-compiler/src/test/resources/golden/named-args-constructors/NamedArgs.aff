@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class NamedArgs {
+    build(): String {
+        let person = NamedPerson(age = 42, name = "Ada")
+        let label = NamedArgs.join(second = "B", first = "A")
+        return person.name + person.age + label
+    }
+
+    static join(first: String, second: String): String {
+        return first + second
+    }
+}
+
+class NamedPerson(var name: String, let age: int) {}

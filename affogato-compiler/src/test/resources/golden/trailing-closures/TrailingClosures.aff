@@ -1,0 +1,25 @@
+package dev.affogato.golden
+
+import java.util.function.Function
+import java.util.function.Supplier
+
+class TrailingClosures {
+    run(): String {
+        let mapped = TrailingClosures.map(value = "seed") { item -> item + "!" }
+        let supplied = TrailingClosures.supply { "ready" }
+        let shouted = TrailingClosures.shout(word = "hi")
+        return mapped + supplied + shouted
+    }
+
+    static String map(value: String, mapper: Function<String, String>) {
+        return mapper.apply(value)
+    }
+
+    static String supply(factory: Supplier<String>) {
+        return factory.get()
+    }
+
+    static String shout(word: String) {
+        return TrailingClosures.map(value = word) { item -> item + "???" }
+    }
+}

@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+import java.time.LocalDate
+import java.util.ArrayList
+import java.util.HashMap
+
+class JavaImports {
+    run(): String {
+        let today = LocalDate.of(2026, 6, 4)
+        var names = ArrayList<String>()
+        names.add("affogato")
+        var counts = HashMap<String, Integer>()
+        counts.put("shots", 2)
+        println(names)
+        println(counts)
+        return today.toString()
+    }
+}

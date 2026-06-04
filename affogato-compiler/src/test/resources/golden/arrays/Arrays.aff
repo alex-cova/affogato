@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class Arrays {
+    sum(): int {
+        let numbers: int[] = [1, 2, 3]
+        var total = 0
+        for number in numbers {
+            total = total + number
+        }
+        return total + numbers.length
+    }
+
+    labels(): String[] {
+        return ["a", "b"]
+    }
+}

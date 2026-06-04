@@ -1,0 +1,25 @@
+package dev.affogato.golden
+
+class ReceiverPerson(var name: String, let age: int) {}
+
+func ReceiverPerson.greeting(prefix: String): String {
+    return prefix + " " + this.name
+}
+
+func ReceiverPerson.describe(): String {
+    return name + " is " + age
+}
+
+func CharSequence.lengthPlus(): int {
+    return this.length() + 1
+}
+
+class ReceiverApp {
+    run(): String {
+        let person = ReceiverPerson(name = "Ada", age = 42)
+        let greeting = person.greeting(prefix = "Hi")
+        let described = person.describe()
+        let length = "abc".lengthPlus()
+        return greeting + described + length
+    }
+}

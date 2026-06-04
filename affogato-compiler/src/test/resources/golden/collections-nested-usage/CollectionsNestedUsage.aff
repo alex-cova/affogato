@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+class CollectionsNestedUsage {
+    func run() {
+        var names = List<String>()
+        names.add("espresso")
+        var rows = List<java.util.List<String>>()
+        rows.add(names)
+        var lookup = Map<String, java.util.List<Integer>>()
+        println(rows)
+        println(lookup)
+    }
+}

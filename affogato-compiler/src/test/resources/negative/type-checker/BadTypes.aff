@@ -1,0 +1,299 @@
+package dev.affogato.negative
+
+class BadTypes {
+    var badField: int = "field"
+    var missingFieldType: MissingThing
+
+    String badReturn() {
+        return 1
+    }
+
+    String missingReturn() {
+        println("missing")
+    }
+
+    func badLocal() {
+        let typed: int = "local"
+    }
+
+    func badLocalType() {
+        let typed: MissingThing = null
+        println(typed)
+    }
+
+    func badGenericTypeArgument() {
+        let values: List<MissingThing> = List<MissingThing>()
+        println(values)
+    }
+
+    func badLet() {
+        let value: int = 1
+        value = 2
+    }
+
+    func badNull() {
+        let value: String! = null
+    }
+
+    func badNullReassignment() {
+        var value: String! = "x"
+        value = null
+        println(value)
+    }
+
+    func badNullableLocal() {
+        let maybe: String? = null
+        let value: String! = maybe
+        println(value)
+    }
+
+    func badNullableParameter(maybe: String?) {
+        let value: String! = maybe
+        println(value)
+    }
+
+    func badNullableTernary(flag: boolean) {
+        let maybe: String? = null
+        let value: String! = flag ? "ok" : maybe
+        println(value)
+    }
+
+    func badCast() {
+        var value: String = "x"
+        println(value as Integer)
+    }
+
+    func badExpressionCast() {
+        println((1 + 2) as String)
+    }
+
+    func badCastTarget() {
+        var value: Object = "x"
+        println(value as MissingThing)
+    }
+
+    func badCondition() {
+        if 1 {
+            println("bad")
+        }
+    }
+
+    func badInstanceOfSource() {
+        if 1 is String {
+            println("bad")
+        }
+    }
+
+    func badInstanceOfTarget() {
+        var value: Object = "x"
+        if value is MissingThing {
+            println("bad")
+        }
+    }
+
+    func badCompoundCondition() {
+        if 1 && true {
+            println("bad")
+        }
+    }
+
+    func badRelationalCondition() {
+        if "left" < "right" {
+            println("bad")
+        }
+    }
+
+    func badTernaryAssignment(flag: boolean) {
+        let value: String = flag ? "ok" : 1
+        println(value)
+    }
+
+    func badUntypedTernary(flag: boolean) {
+        let value = flag ? "ok" : 1
+        println(value)
+    }
+
+    func badTernaryCondition(flag: boolean) {
+        if flag ? true : 1 {
+            println("bad")
+        }
+    }
+
+    func badBooleanInitializer() {
+        let value: boolean = !1
+        println(value)
+    }
+
+    func badRelationalInitializer() {
+        let value: boolean = "left" < "right"
+        println(value)
+    }
+
+    func badArithmeticInitializer() {
+        let value = true + 1
+        println(value)
+    }
+
+    func badEqualityInitializer() {
+        let value = 1 == "one"
+        println(value)
+    }
+
+    func badArrayAssignment() {
+        let values: int[] = ["bad"]
+        println(values.length)
+    }
+
+    func badArrayElementExpression() {
+        let values: boolean[] = [!1]
+        println(values.length)
+    }
+
+    func badUnknownIdentifier() {
+        println(missingValue)
+    }
+
+    func badThrow() {
+        throw "bad"
+    }
+
+    func badCatchType() {
+        try {
+            println("try")
+        } catch (String e) {
+            println(e)
+        }
+    }
+
+    func badUntargetedLambda() {
+        let fn = value -> value
+        println(fn)
+    }
+
+    func badUntargetedMethodReference() {
+        let fn = String::trim
+        println(fn)
+    }
+
+    func badForIterable() {
+        for value in 1 {
+            println(value)
+        }
+    }
+
+    func badSwitchLocal(width: int) {
+        let label: String = switch width {
+            case 0 -> "zero"
+            default -> 1
+        }
+        println(label)
+    }
+
+    func badSwitchLabel(width: int) {
+        switch width {
+            case "zero" -> println("bad")
+            default -> println("ok")
+        }
+    }
+
+    func badSwitchExpressionLabel(width: int) {
+        let label = switch width {
+            case "zero" -> "bad"
+            default -> "ok"
+        }
+        println(label)
+    }
+
+    func badSwitchSelector() {
+        let selector: long = 1L
+        switch selector {
+            case 1L -> println("bad")
+            default -> println("ok")
+        }
+    }
+
+    badSwitchReturn(width: int): String {
+        return switch width {
+            case 0 -> "zero"
+            default -> 1
+        }
+    }
+
+    func badCall() {
+        var value: String = "x"
+        value.noSuchMethod()
+    }
+
+    func badChainedCall() {
+        var value: String = "x"
+        value.trim().noSuchMethod()
+    }
+
+    func badTernaryJavaCall(flag: boolean) {
+        let value = JavaApi.stringOnly(flag ? "ok" : 1)
+        println(value)
+    }
+
+    func badBooleanJavaCall() {
+        let value = JavaApi.booleanOnly(!1)
+        println(value)
+    }
+
+    func badTernaryAffogatoCall(flag: boolean) {
+        let value = acceptString(flag ? "ok" : 1)
+        println(value)
+    }
+
+    acceptString(value: String): String {
+        return value
+    }
+
+    func badProperty() {
+        var value: String = "x"
+        println(value.noSuchProperty)
+    }
+
+    func badPropertyChain() {
+        let api = JavaApi("interop")
+        println(api.nested.noSuchProperty)
+    }
+
+    func badType() {
+        let value = MissingThing()
+        println(value)
+    }
+
+    func badConstructor() {
+        let shorthand = NeedsInt("bad")
+        let explicit = new NeedsInt("bad")
+        let badBoolShorthand = NeedsBoolean(!1)
+        let badBoolExplicit = new NeedsBoolean(!1)
+        println(shorthand)
+        println(explicit)
+        println(badBoolShorthand)
+        println(badBoolExplicit)
+    }
+
+    func badGenericAssignment() {
+        let names: List<String> = List<Integer>()
+        println(names)
+    }
+
+    func badJavaFieldAssignments() {
+        let api = JavaApi("interop")
+        api.mutableCount = "bad"
+        api.direct = "bad"
+    }
+}
+
+class NeedsInt {
+    init(value: int) {
+        println(value)
+    }
+}
+
+class NeedsBoolean {
+    init(value: boolean) {
+        println(value)
+    }
+}

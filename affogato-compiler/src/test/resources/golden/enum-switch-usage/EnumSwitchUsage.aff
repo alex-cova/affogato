@@ -1,0 +1,21 @@
+package dev.affogato.golden
+
+enum OrderState {
+    NEW, PAID, SHIPPED
+}
+
+class OrderStateLabels {
+    label(state: OrderState): String {
+        if state == OrderState.NEW {
+            return "new"
+        } else if state == OrderState.PAID {
+            return "paid"
+        } else {
+            return "done"
+        }
+    }
+
+    func print(state: OrderState) {
+        println(state.toString())
+    }
+}

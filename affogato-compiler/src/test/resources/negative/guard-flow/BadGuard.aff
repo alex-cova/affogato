@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+class BadGuard {
+    func run() {
+        guard true else {
+            println("bad")
+        }
+    }
+}
