@@ -1,0 +1,28 @@
+package dev.affogato.golden
+
+class NamedInitChoice {
+    let label: String
+    let count: int
+
+    init(label: String, count: int) {
+        this.label = label
+        this.count = count
+    }
+
+    init(count: int, suffix: String) {
+        this.label = suffix
+        this.count = count
+    }
+
+    describe(): String {
+        return label + ":" + count
+    }
+}
+
+class ConstructorNamedArgsOverload {
+    run(): String {
+        let first = NamedInitChoice(count = 1, label = "name")
+        let second = NamedInitChoice(suffix = "suffix", count = 2)
+        return first.describe() + "|" + (second.describe())
+    }
+}

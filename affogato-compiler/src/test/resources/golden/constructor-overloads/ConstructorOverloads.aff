@@ -1,0 +1,28 @@
+package dev.affogato.golden
+
+class OverloadedInitBox {
+    let label: String
+    let count: int
+
+    init(label: String) {
+        this.label = label
+        this.count = 0
+    }
+
+    init(label: String, count: int) {
+        this.label = label
+        this.count = count
+    }
+
+    describe(): String {
+        return label + ":" + count
+    }
+}
+
+class ConstructorOverloads {
+    run(): String {
+        let defaulted = OverloadedInitBox("plain")
+        let counted = OverloadedInitBox("counted", 3)
+        return defaulted.describe() + "|" + (counted.describe())
+    }
+}

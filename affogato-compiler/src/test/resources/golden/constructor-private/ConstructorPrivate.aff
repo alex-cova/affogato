@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class PrivateInitToken {
+    let value: String
+
+    private init(value: String) {
+        this.value = value
+    }
+
+    static create(value: String): PrivateInitToken {
+        return PrivateInitToken(value)
+    }
+}
+
+class ConstructorPrivate {
+    run(): String {
+        let token = PrivateInitToken.create("secret")
+        return token.value
+    }
+}

@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+class OrderedInitBox {
+    var label: String = "field"
+    var count: int = 1
+
+    init(label: String) {
+        this.count = this.count + 1
+        this.label = label + ":" + this.count
+    }
+
+    describe(): String {
+        return label + ":" + count
+    }
+}
+
+class ConstructorFieldInitOrder {
+    run(): String {
+        let box = OrderedInitBox("ctor")
+        return box.describe()
+    }
+}

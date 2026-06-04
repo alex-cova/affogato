@@ -1,0 +1,24 @@
+package dev.affogato.golden
+
+class ShadowedInitBox {
+    var name: String = "field"
+    var count: int = 0
+
+    init(name: String, count: int) {
+        this.name = name
+        this.count = count
+    }
+
+    rename(name: String): String {
+        let before: String = this.name
+        this.name = name
+        return before + ":" + this.name + ":" + name
+    }
+}
+
+class ConstructorThisPropertyShadowing {
+    run(): String {
+        let box = ShadowedInitBox(name = "ctor", count = 2)
+        return box.rename(name = "method")
+    }
+}
