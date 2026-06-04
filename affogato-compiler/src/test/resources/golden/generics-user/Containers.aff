@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class Box<T>(var value: T) {
+    get(): T {
+        return value
+    }
+}
+
+interface Wrapper<T> {
+    wrap(): T
+}
+
+record Pair<A, B>(first: A, second: B) {}
+
+class Utils {
+    identity<T>(x: T): T {
+        return x
+    }
+}

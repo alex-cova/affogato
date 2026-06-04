@@ -31,6 +31,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -111,6 +112,7 @@ public final class AffogatoTranspiler {
     private final FlowAnalyzer flow;
     private final Map<String, ClassSymbol> classSymbols = new LinkedHashMap<>();
     private final Map<String, List<ExtensionSymbol>> extensionSymbols = new LinkedHashMap<>();
+    private Set<String> activeTypeParams = new HashSet<>();
 
     public AffogatoTranspiler(List<AffogatoDiagnostic> diagnostics, List<Path> classpath) {
         this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
@@ -172,7 +174,8 @@ public final class AffogatoTranspiler {
         CompilationUnit unit = parsedUnit.unit();
         for (ParsedClass clazz : unit.classes()) {
             String extendsType = clazz.superTypes().isEmpty() ? "" : clazz.superTypes().get(0);
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), clazz.name(), extendsType, false);
+            ClassSymbol symbol = new ClassSymbol(unit.packageName(), clazz.name(), extendsType, false,
+                    clazz.typeParameters().stream().map(TypeParamDecl::name).toList());
             for (FieldDecl field : clazz.fields()) {
                 symbol.fields.put(field.name(), new FieldSymbol(field.name(), field.type(), field.mutable()));
             }
@@ -195,7 +198,7 @@ public final class AffogatoTranspiler {
             }
         }
         for (ParsedEnum parsedEnum : unit.enums()) {
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false);
+            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
             symbol.constructors.add(new ConstructorSymbol(List.of()));
             classSymbols.put(symbol.name(), symbol);
             if (!unit.packageName().isBlank()) {
@@ -203,7 +206,8 @@ public final class AffogatoTranspiler {
             }
         }
         for (ParsedInterface parsedInterface : unit.interfaces()) {
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedInterface.name(), "", true);
+            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedInterface.name(), "", true,
+                    parsedInterface.typeParameters().stream().map(TypeParamDecl::name).toList());
             for (InterfaceMethod method : parsedInterface.methods()) {
                 symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
                         .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), false));
@@ -214,7 +218,8 @@ public final class AffogatoTranspiler {
             }
         }
         for (ParsedRecord parsedRecord : unit.records()) {
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedRecord.name(), "", false);
+            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedRecord.name(), "", false,
+                    parsedRecord.typeParameters().stream().map(TypeParamDecl::name).toList());
             symbol.isRecord = true;
             for (ParamDecl component : parsedRecord.components()) {
                 symbol.fields.put(component.name(), new FieldSymbol(component.name(), component.type(), false));
@@ -234,7 +239,7 @@ public final class AffogatoTranspiler {
             // The generated holder is also exposed as a synthetic class symbol holding the extensions as
             // static methods (receiver as the first parameter). This lets the rewritten call
             // Holder.method(receiver, args) resolve through the regular static-method machinery.
-            ClassSymbol holderSymbol = new ClassSymbol(unit.packageName(), holderSimpleName, "", false);
+            ClassSymbol holderSymbol = new ClassSymbol(unit.packageName(), holderSimpleName, "", false, List.of());
             for (ExtensionFuncDecl extension : unit.extensions()) {
                 String receiverKey = simpleTypeName(extension.receiverType().javaType());
                 extensionSymbols.computeIfAbsent(receiverKey, ignored -> new ArrayList<>())
@@ -395,7 +400,7 @@ public final class AffogatoTranspiler {
             }
         }
 
-        return new ParsedClass(access, name, superTypes, compactParameters, fields, constructors, methods, annotations(classDecl.annotation()));
+        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(classDecl.annotation()));
     }
 
     private FieldDecl buildField(Path sourceFile, String source, AffogatoParser.FieldDeclContext fieldDecl) {
@@ -447,6 +452,7 @@ public final class AffogatoTranspiler {
                 modifiers.access(),
                 modifiers.isStatic(),
                 modifiers.isOverride(),
+                buildTypeParams(signature.typeParamList()),
                 returnType,
                 name,
                 parameters,
@@ -488,7 +494,7 @@ public final class AffogatoTranspiler {
                 ));
             }
         }
-        return new ParsedRecord(access, name, components, superTypes, methods, annotations(recordDecl.annotation()));
+        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(recordDecl.annotation()));
     }
 
     private ParsedInterface buildInterface(Path sourceFile, AffogatoParser.InterfaceDeclContext interfaceDecl) {
@@ -519,7 +525,17 @@ public final class AffogatoTranspiler {
             AffogatoParser.BlockContext body = isDefault ? member.block() : null;
             methods.add(new InterfaceMethod(isDefault, returnType, methodName, parameters, body, member.getStart().getLine()));
         }
-        return new ParsedInterface(access, name, methods, annotations(interfaceDecl.annotation()));
+        return new ParsedInterface(access, name, buildTypeParams(interfaceDecl.typeParamList()), methods, annotations(interfaceDecl.annotation()));
+    }
+
+    private List<TypeParamDecl> buildTypeParams(AffogatoParser.TypeParamListContext ctx) {
+        if (ctx == null) return List.of();
+        return ctx.typeParam().stream()
+                .map(tp -> new TypeParamDecl(
+                        tp.Identifier().getText(),
+                        tp.typeRef() == null ? "" : typeRef(tp.typeRef()).javaType()
+                ))
+                .toList();
     }
 
     private List<ParamDecl> buildParameters(Path sourceFile, AffogatoParser.ParameterListContext parameterList, boolean compact) {
@@ -570,6 +586,11 @@ public final class AffogatoTranspiler {
 
         writeAnnotations(out, clazz.annotations(), 0);
         out.append(clazz.access()).append(" class ").append(clazz.name());
+        if (!clazz.typeParameters().isEmpty()) {
+            out.append('<').append(clazz.typeParameters().stream()
+                    .map(TypeParamDecl::declaration)
+                    .collect(java.util.stream.Collectors.joining(", "))).append('>');
+        }
         String extendsType = "";
         List<String> implementsTypes = new ArrayList<>();
         for (String superType : clazz.superTypes()) {
@@ -587,11 +608,15 @@ public final class AffogatoTranspiler {
         }
         out.append(" {").append(System.lineSeparator());
 
+        Set<String> prevTypeParams = activeTypeParams;
+        activeTypeParams = new HashSet<>(prevTypeParams);
+        clazz.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
         writeFields(out, unit, clazz);
         writeCompactConstructor(out, unit, clazz);
         writeConstructors(out, unit, clazz);
         writeAccessors(out, clazz);
         writeMethods(out, unit, clazz);
+        activeTypeParams = prevTypeParams;
 
         out.append("}").append(System.lineSeparator());
         return new GeneratedJava(unit.packageName(), clazz.name(), out.toString());
@@ -604,10 +629,10 @@ public final class AffogatoTranspiler {
         // parameter) so the existing import/null-check helpers can be reused unchanged.
         List<MethodDecl> shapeMethods = new ArrayList<>();
         for (ExtensionFuncDecl extension : unit.extensions()) {
-            shapeMethods.add(new MethodDecl("public", true, false, extension.returnType(), extension.name(),
+            shapeMethods.add(new MethodDecl("public", true, false, List.of(), extension.returnType(), extension.name(),
                     holderParameters(extension), extension.body(), extension.line(), extension.annotations()));
         }
-        ParsedClass shape = new ParsedClass("public", holderName, List.of(), List.of(), List.of(), List.of(), shapeMethods, List.of());
+        ParsedClass shape = new ParsedClass("public", holderName, List.of(), List.of(), List.of(), List.of(), List.of(), shapeMethods, List.of());
 
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
@@ -709,9 +734,18 @@ public final class AffogatoTranspiler {
             out.append(System.lineSeparator());
         }
         writeAnnotations(out, parsedInterface.annotations(), 0);
-        out.append(parsedInterface.access()).append(" interface ").append(parsedInterface.name()).append(" {").append(System.lineSeparator());
+        out.append(parsedInterface.access()).append(" interface ").append(parsedInterface.name());
+        if (!parsedInterface.typeParameters().isEmpty()) {
+            out.append('<').append(parsedInterface.typeParameters().stream()
+                    .map(TypeParamDecl::declaration)
+                    .collect(java.util.stream.Collectors.joining(", "))).append('>');
+        }
+        out.append(" {").append(System.lineSeparator());
 
-        ParsedClass dummyClass = new ParsedClass(parsedInterface.access(), parsedInterface.name(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        Set<String> prevTypeParams = activeTypeParams;
+        activeTypeParams = new HashSet<>(prevTypeParams);
+        parsedInterface.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
+        ParsedClass dummyClass = new ParsedClass(parsedInterface.access(), parsedInterface.name(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
         for (InterfaceMethod method : parsedInterface.methods()) {
             if (method.isDefault()) {
                 out.append("    default ").append(method.returnType().declaration()).append(' ')
@@ -729,13 +763,14 @@ public final class AffogatoTranspiler {
                         .append(System.lineSeparator());
             }
         }
+        activeTypeParams = prevTypeParams;
         out.append("}").append(System.lineSeparator());
         return new GeneratedJava(unit.packageName(), parsedInterface.name(), out.toString());
     }
 
     private GeneratedJava generateRecord(CompilationUnit unit, ParsedRecord parsedRecord) {
-        ParsedClass shape = new ParsedClass(parsedRecord.access(), parsedRecord.name(), parsedRecord.superTypes(),
-                parsedRecord.components(), List.of(), List.of(), parsedRecord.methods(), List.of());
+        ParsedClass shape = new ParsedClass(parsedRecord.access(), parsedRecord.name(), parsedRecord.typeParameters(),
+                parsedRecord.superTypes(), parsedRecord.components(), List.of(), List.of(), parsedRecord.methods(), List.of());
 
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
@@ -760,12 +795,21 @@ public final class AffogatoTranspiler {
         }
 
         writeAnnotations(out, parsedRecord.annotations(), 0);
-        out.append(parsedRecord.access()).append(" record ").append(parsedRecord.name())
-                .append('(').append(parameterList(parsedRecord.components())).append(')');
+        out.append(parsedRecord.access()).append(" record ").append(parsedRecord.name());
+        if (!parsedRecord.typeParameters().isEmpty()) {
+            out.append('<').append(parsedRecord.typeParameters().stream()
+                    .map(TypeParamDecl::declaration)
+                    .collect(java.util.stream.Collectors.joining(", "))).append('>');
+        }
+        out.append('(').append(parameterList(parsedRecord.components())).append(')');
         if (!parsedRecord.superTypes().isEmpty()) {
             out.append(" implements ").append(String.join(", ", parsedRecord.superTypes()));
         }
         out.append(" {").append(System.lineSeparator());
+
+        Set<String> prevTypeParams = activeTypeParams;
+        activeTypeParams = new HashSet<>(prevTypeParams);
+        parsedRecord.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
 
         // Emit a compact canonical constructor only to enforce non-null components.
         boolean needsNullChecks = parsedRecord.components().stream().anyMatch(c -> c.type().requiresRuntimeCheck());
@@ -778,6 +822,7 @@ public final class AffogatoTranspiler {
         }
 
         writeMethods(out, unit, shape);
+        activeTypeParams = prevTypeParams;
 
         out.append("}").append(System.lineSeparator());
         return new GeneratedJava(unit.packageName(), parsedRecord.name(), out.toString());
@@ -913,6 +958,12 @@ public final class AffogatoTranspiler {
 
     private void writeMethods(StringBuilder out, CompilationUnit unit, ParsedClass clazz) {
         for (MethodDecl method : clazz.methods()) {
+            Set<String> prevTypeParams = activeTypeParams;
+            if (!method.typeParameters().isEmpty()) {
+                activeTypeParams = new HashSet<>(prevTypeParams);
+                method.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
+            }
+
             MethodContext context = MethodContext.forExecutable(unit, clazz, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver);
             validateTypeRef(method.returnType(), unit, method.line(), 1);
             for (ParamDecl parameter : method.parameters()) {
@@ -926,8 +977,13 @@ public final class AffogatoTranspiler {
             }
             out.append("    ")
                     .append(method.access())
-                    .append(method.isStatic() ? " static " : " ")
-                    .append(method.returnType().declaration())
+                    .append(method.isStatic() ? " static " : " ");
+            if (!method.typeParameters().isEmpty()) {
+                out.append('<').append(method.typeParameters().stream()
+                        .map(TypeParamDecl::declaration)
+                        .collect(java.util.stream.Collectors.joining(", "))).append("> ");
+            }
+            out.append(method.returnType().declaration())
                     .append(' ')
                     .append(method.name())
                     .append('(')
@@ -948,6 +1004,8 @@ public final class AffogatoTranspiler {
             }
             writeBlockStatements(out, unit, method.body(), context, 2);
             out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
+
+            activeTypeParams = prevTypeParams;
         }
     }
 
@@ -1430,7 +1488,7 @@ public final class AffogatoTranspiler {
             }
             raw = raw.substring(0, generic);
         }
-        if (PRIMITIVES.contains(raw) || classSymbol(raw, unit) != null || javaResolver.typeExists(raw, unit)) {
+        if (PRIMITIVES.contains(raw) || activeTypeParams.contains(raw) || classSymbol(raw, unit) != null || javaResolver.typeExists(raw, unit)) {
             return;
         }
         diagnostics.add(error(
@@ -4117,6 +4175,7 @@ public final class AffogatoTranspiler {
     private record ParsedClass(
             String access,
             String name,
+            List<TypeParamDecl> typeParameters,
             List<String> superTypes,
             List<ParamDecl> compactParameters,
             List<FieldDecl> fields,
@@ -4132,6 +4191,7 @@ public final class AffogatoTranspiler {
     private record ParsedRecord(
             String access,
             String name,
+            List<TypeParamDecl> typeParameters,
             List<ParamDecl> components,
             List<String> superTypes,
             List<MethodDecl> methods,
@@ -4149,7 +4209,7 @@ public final class AffogatoTranspiler {
     ) {
     }
 
-    private record ParsedInterface(String access, String name, List<InterfaceMethod> methods, List<String> annotations) {
+    private record ParsedInterface(String access, String name, List<TypeParamDecl> typeParameters, List<InterfaceMethod> methods, List<String> annotations) {
     }
 
     private record FieldDecl(String access, boolean isStatic, boolean mutable, String name, TypeRef type, String initializer, int line, List<String> annotations) {
@@ -4162,6 +4222,7 @@ public final class AffogatoTranspiler {
             String access,
             boolean isStatic,
             boolean isOverride,
+            List<TypeParamDecl> typeParameters,
             TypeRef returnType,
             String name,
             List<ParamDecl> parameters,
@@ -4192,6 +4253,12 @@ public final class AffogatoTranspiler {
     ) {
         String holderJavaName() {
             return holderPackage.isBlank() ? holderSimpleName : holderPackage + "." + holderSimpleName;
+        }
+    }
+
+    private record TypeParamDecl(String name, String bound) {
+        String declaration() {
+            return bound.isBlank() ? name : name + " extends " + bound;
         }
     }
 
@@ -4333,6 +4400,10 @@ public final class AffogatoTranspiler {
             int dot = simpleName.lastIndexOf('.');
             if (dot >= 0) {
                 simpleName = simpleName.substring(dot + 1);
+            }
+            int generic = simpleName.indexOf('<');
+            if (generic >= 0) {
+                simpleName = simpleName.substring(0, generic);
             }
 
             ClassSymbol constructorTarget = classSymbols.get(simpleName);
@@ -4829,15 +4900,17 @@ public final class AffogatoTranspiler {
         private final String extendsType;
         private final boolean isInterface;
         private boolean isRecord;
+        private final List<String> typeParamNames;
         private final Map<String, FieldSymbol> fields = new LinkedHashMap<>();
         private final Map<String, List<MethodSymbol>> methods = new LinkedHashMap<>();
         private final List<ConstructorSymbol> constructors = new ArrayList<>();
 
-        private ClassSymbol(String packageName, String name, String extendsType, boolean isInterface) {
+        private ClassSymbol(String packageName, String name, String extendsType, boolean isInterface, List<String> typeParamNames) {
             this.packageName = packageName;
             this.name = name;
             this.extendsType = extendsType;
             this.isInterface = isInterface;
+            this.typeParamNames = typeParamNames;
         }
 
         private String name() {

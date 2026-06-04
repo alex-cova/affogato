@@ -42,7 +42,7 @@ annotationArg
     ;
 
 classDecl
-    : annotation* classModifier* CLASS Identifier compactConstructor? extendsClause? classBody
+    : annotation* classModifier* CLASS Identifier typeParamList? compactConstructor? extendsClause? classBody
     ;
 
 classModifier
@@ -83,9 +83,9 @@ methodDecl
     ;
 
 methodSignature
-    : FUNC Identifier LPAREN parameterList? RPAREN
-    | typeRef Identifier LPAREN parameterList? RPAREN
-    | Identifier LPAREN parameterList? RPAREN COLON typeRef
+    : FUNC Identifier typeParamList? LPAREN parameterList? RPAREN
+    | typeRef Identifier typeParamList? LPAREN parameterList? RPAREN
+    | Identifier typeParamList? LPAREN parameterList? RPAREN COLON typeRef
     ;
 
 memberModifier
@@ -117,6 +117,14 @@ typeRef
 
 typeArguments
     : LT typeRef (COMMA typeRef)* GT
+    ;
+
+typeParamList
+    : LT typeParam (COMMA typeParam)* GT
+    ;
+
+typeParam
+    : Identifier (COLON typeRef)?
     ;
 
 arraySuffix
@@ -184,7 +192,7 @@ finallyClause
     ;
 
 recordDecl
-    : annotation* classModifier* RECORD Identifier recordHeader implementsClause? classBody
+    : annotation* classModifier* RECORD Identifier typeParamList? recordHeader implementsClause? classBody
     ;
 
 recordHeader
@@ -208,7 +216,7 @@ enumConstant
     ;
 
 interfaceDecl
-    : annotation* classModifier* INTERFACE Identifier interfaceBody
+    : annotation* classModifier* INTERFACE Identifier typeParamList? interfaceBody
     ;
 
 interfaceBody

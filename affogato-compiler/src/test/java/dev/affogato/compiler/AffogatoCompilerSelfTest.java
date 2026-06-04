@@ -619,6 +619,78 @@ public final class AffogatoCompilerSelfTest {
         requireContains(appJava, "return $children;");
     }
 
+    @Test
+    public void userDefinedGenerics() throws Exception {
+        Path workDir = newWorkDir();
+        Path sourceRoot = workDir.resolve("src/main/affogato/dev/affogato/test");
+        Files.createDirectories(sourceRoot);
+        Path generatedRoot = workDir.resolve("generated");
+
+        Files.writeString(sourceRoot.resolve("Generics.aff"), """
+                package dev.affogato.test
+
+                class Box<T>(var value: T) {
+                    get(): T {
+                        return value
+                    }
+                }
+
+                interface Wrapper<T> {
+                    wrap(): T
+                }
+
+                record Pair<A, B>(first: A, second: B) {}
+
+                class NumBox<T: Number>(var value: T) {
+                    get(): T {
+                        return value
+                    }
+                }
+
+                class Utils {
+                    identity<T>(x: T): T {
+                        return x
+                    }
+                }
+
+                class App {
+                    func run() {
+                        let box = Box<String>("hello")
+                        let value = box.get()
+                        let pair = Pair<String, Integer>("key", 42)
+                        let id = Utils().identity("world")
+                        println(value)
+                        println(id)
+                    }
+                }
+                """, StandardCharsets.UTF_8);
+
+        AffogatoCompilationResult result = new AffogatoCompiler().compile(AffogatoCompilerOptions.builder()
+                .addSourceRoot(workDir.resolve("src/main/affogato"))
+                .outputDirectory(generatedRoot)
+                .build());
+
+        require(result.diagnostics().isEmpty(), "User-defined generics should compile without diagnostics: " + result.diagnostics());
+
+        String boxJava = Files.readString(generatedRoot.resolve("dev/affogato/test/Box.java"));
+        requireContains(boxJava, "public class Box<T>");
+        requireContains(boxJava, "private T value;");
+        requireContains(boxJava, "public T get()");
+
+        String wrapperJava = Files.readString(generatedRoot.resolve("dev/affogato/test/Wrapper.java"));
+        requireContains(wrapperJava, "public interface Wrapper<T>");
+        requireContains(wrapperJava, "T wrap();");
+
+        String pairJava = Files.readString(generatedRoot.resolve("dev/affogato/test/Pair.java"));
+        requireContains(pairJava, "public record Pair<A, B>(A first, B second)");
+
+        String numBoxJava = Files.readString(generatedRoot.resolve("dev/affogato/test/NumBox.java"));
+        requireContains(numBoxJava, "public class NumBox<T extends Number>");
+
+        String utilsJava = Files.readString(generatedRoot.resolve("dev/affogato/test/Utils.java"));
+        requireContains(utilsJava, "public <T> T identity(T x)");
+    }
+
     private static Path newWorkDir() throws Exception {
         return Files.createTempDirectory("affogato-compiler-test");
     }
