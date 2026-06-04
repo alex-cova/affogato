@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+class BlockThisCounter(var value: int) {
+    update(value: int): int {
+        {
+            let local = value + 1
+            this.value = this.value + local
+        }
+        return this.value
+    }
+}
+
+class BlockThisResolution {
+    run(): int {
+        let counter = BlockThisCounter(value = 10)
+        return counter.update(value = 5)
+    }
+}

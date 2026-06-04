@@ -1,0 +1,30 @@
+package dev.affogato.golden
+
+class BlockShadowBox(var label: String) {
+    paramShadow(label: String): String {
+        return this.label + ":" + label
+    }
+
+    describe(input: String): String {
+        let before = this.label + ":" + input
+        {
+            let label = "local-field"
+            {
+                let nestedLabel = "nested-local"
+                let inside = label + ":" + nestedLabel + ":" + this.label
+                println(inside)
+            }
+            println(label)
+        }
+        return before + ":" + this.label + ":" + input
+    }
+}
+
+class BlockLocalShadowing {
+    run(): String {
+        let box = BlockShadowBox(label = "field")
+        let param = box.paramShadow(label = "param")
+        let local = box.describe(input = "input")
+        return param + ":" + local
+    }
+}

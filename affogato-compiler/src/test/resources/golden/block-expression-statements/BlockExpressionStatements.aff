@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+class BlockExpressionCounter(var count: int) {
+    inc(): int {
+        count = count + 1
+        return count
+    }
+}
+
+class BlockExpressionStatements {
+    run(): int {
+        let counter = BlockExpressionCounter(count = 0)
+        {
+            counter.inc()
+            {
+                counter.count = counter.count + 2
+                println(counter.count)
+            }
+        }
+        return counter.count
+    }
+}

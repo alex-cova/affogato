@@ -1,0 +1,11 @@
+package dev.affogato.negative
+
+class BadBlockVariableLifetime {
+    run(): String {
+        {
+            let hidden = "inside"
+            println(hidden)
+        }
+        return hidden
+    }
+}

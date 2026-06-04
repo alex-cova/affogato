@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class BlockLabelLikeNames {
+    run(): String {
+        let caseValue = "case"
+        {
+            let defaultValue = "default"
+            let guardValue = "guard"
+            let switchValue = caseValue + ":" + defaultValue + ":" + guardValue
+            println(switchValue)
+        }
+        let returnValue = "return"
+        return caseValue + ":" + returnValue
+    }
+}

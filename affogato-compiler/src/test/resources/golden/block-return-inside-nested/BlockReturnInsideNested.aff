@@ -1,0 +1,34 @@
+package dev.affogato.golden
+
+class BlockReturnInsideNested {
+    fromIf(value: int): String {
+        {
+            if value > 0 {
+                return "if"
+            }
+        }
+        return "after-if"
+    }
+
+    fromWhile(): String {
+        while true {
+            {
+                return "while"
+            }
+        }
+    }
+
+    fromTry(value: String): String {
+        try {
+            {
+                return Integer.parseInt(value) + ""
+            }
+        } catch (NumberFormatException e) {
+            {
+                return "catch"
+            }
+        } finally {
+            println("finally")
+        }
+    }
+}

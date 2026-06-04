@@ -1011,7 +1011,9 @@ public final class AffogatoTranspiler {
 
     private void writeBlock(StringBuilder out, CompilationUnit unit, AffogatoParser.BlockContext block, MethodContext context, int indent) {
         out.append(indent(indent)).append("{").append(System.lineSeparator());
+        MethodContext.ScopeSnapshot scope = context.snapshotScope();
         writeBlockStatements(out, unit, block, context, indent + 1);
+        context.restoreScope(scope);
         out.append(indent(indent)).append("}").append(System.lineSeparator());
     }
 
@@ -1117,7 +1119,9 @@ public final class AffogatoTranspiler {
         validateCondition(rawCondition, context, guard.getStart().getLine(), guard.getStart().getCharPositionInLine() + 1);
         String condition = transformExpression(rawCondition, context);
         out.append(indent(indent)).append("if (!(").append(stripOuterParens(condition)).append(")) {").append(System.lineSeparator());
+        MethodContext.ScopeSnapshot guardScope = context.snapshotScope();
         writeBlockStatements(out, unit, guard.block(), context, indent + 1);
+        context.restoreScope(guardScope);
         out.append(indent(indent)).append("}").append(System.lineSeparator());
     }
 
@@ -1126,7 +1130,9 @@ public final class AffogatoTranspiler {
         validateCondition(rawCondition, context, ifStatement.getStart().getLine(), ifStatement.getStart().getCharPositionInLine() + 1);
         String condition = transformExpression(rawCondition, context);
         out.append(indent(indent)).append("if (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
+        MethodContext.ScopeSnapshot thenScope = context.snapshotScope();
         writeBlockStatements(out, unit, ifStatement.block(0), context, indent + 1);
+        context.restoreScope(thenScope);
         out.append(indent(indent)).append("}");
         if (ifStatement.ELSE() != null) {
             if (ifStatement.ifStatement() != null) {
@@ -1136,7 +1142,9 @@ public final class AffogatoTranspiler {
                 out.append(nested.toString().stripLeading());
             } else if (ifStatement.block().size() > 1) {
                 out.append(" else {").append(System.lineSeparator());
+                MethodContext.ScopeSnapshot elseScope = context.snapshotScope();
                 writeBlockStatements(out, unit, ifStatement.block(1), context, indent + 1);
+                context.restoreScope(elseScope);
                 out.append(indent(indent)).append("}").append(System.lineSeparator());
             } else {
                 out.append(System.lineSeparator());
@@ -1148,6 +1156,7 @@ public final class AffogatoTranspiler {
 
     private void writeFor(StringBuilder out, CompilationUnit unit, AffogatoParser.ForStatementContext forStatement, MethodContext context, int indent) {
         AffogatoParser.ForContentContext content = forStatement.forCondition().forContent();
+        MethodContext.ScopeSnapshot loopScope = context.snapshotScope();
         if (content.IN() != null) {
             String variable = content.Identifier().getText();
             String rawIterable = sourceText(unit.source(), content.expression());
@@ -1173,6 +1182,7 @@ public final class AffogatoTranspiler {
             out.append(indent(indent)).append("for (").append(stripOuterParens(expression)).append(") {").append(System.lineSeparator());
         }
         writeBlockStatements(out, unit, forStatement.block(), context, indent + 1);
+        context.restoreScope(loopScope);
         out.append(indent(indent)).append("}").append(System.lineSeparator());
     }
 
@@ -1181,13 +1191,17 @@ public final class AffogatoTranspiler {
         validateCondition(rawCondition, context, whileStatement.getStart().getLine(), whileStatement.getStart().getCharPositionInLine() + 1);
         String condition = transformExpression(rawCondition, context);
         out.append(indent(indent)).append("while (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
+        MethodContext.ScopeSnapshot whileScope = context.snapshotScope();
         writeBlockStatements(out, unit, whileStatement.block(), context, indent + 1);
+        context.restoreScope(whileScope);
         out.append(indent(indent)).append("}").append(System.lineSeparator());
     }
 
     private void writeTry(StringBuilder out, CompilationUnit unit, AffogatoParser.TryStatementContext tryStatement, MethodContext context, int indent) {
         out.append(indent(indent)).append("try {").append(System.lineSeparator());
+        MethodContext.ScopeSnapshot tryScope = context.snapshotScope();
         writeBlockStatements(out, unit, tryStatement.block(), context, indent + 1);
+        context.restoreScope(tryScope);
         out.append(indent(indent)).append("}");
         for (AffogatoParser.CatchClauseContext catchClause : tryStatement.catchClause()) {
             List<TypeRef> caughtTypes = new ArrayList<>();
@@ -1220,7 +1234,9 @@ public final class AffogatoTranspiler {
         }
         if (tryStatement.finallyClause() != null) {
             out.append(" finally {").append(System.lineSeparator());
+            MethodContext.ScopeSnapshot finallyScope = context.snapshotScope();
             writeBlockStatements(out, unit, tryStatement.finallyClause().block(), context, indent + 1);
+            context.restoreScope(finallyScope);
             out.append(indent(indent)).append("}");
         }
         out.append(System.lineSeparator());
@@ -1249,7 +1265,9 @@ public final class AffogatoTranspiler {
             AffogatoParser.SwitchArmBodyContext body = arm.switchArmBody();
             if (body.block() != null) {
                 out.append("{").append(System.lineSeparator());
+                MethodContext.ScopeSnapshot armScope = context.snapshotScope();
                 writeBlockStatements(out, unit, body.block(), context, indent + 2);
+                context.restoreScope(armScope);
                 out.append(indent(indent + 1)).append("}").append(System.lineSeparator());
             } else {
                 String armExpr = transformExpression(sourceText(unit.source(), body.expression()), context);
@@ -4419,6 +4437,30 @@ public final class AffogatoTranspiler {
             variableTypes.put(name, type.javaType());
             mutableVariables.put(name, mutable);
             variableNullabilities.put(name, type.nullability());
+        }
+
+        ScopeSnapshot snapshotScope() {
+            return new ScopeSnapshot(
+                    new LinkedHashMap<>(variableTypes),
+                    new LinkedHashMap<>(mutableVariables),
+                    new LinkedHashMap<>(variableNullabilities)
+            );
+        }
+
+        void restoreScope(ScopeSnapshot snapshot) {
+            variableTypes.clear();
+            variableTypes.putAll(snapshot.variableTypes());
+            mutableVariables.clear();
+            mutableVariables.putAll(snapshot.mutableVariables());
+            variableNullabilities.clear();
+            variableNullabilities.putAll(snapshot.variableNullabilities());
+        }
+
+        private record ScopeSnapshot(
+                Map<String, String> variableTypes,
+                Map<String, Boolean> mutableVariables,
+                Map<String, Nullability> variableNullabilities
+        ) {
         }
 
         Optional<ResolvedArguments> resolveArguments(String callName, List<TypedArgument> arguments) {
