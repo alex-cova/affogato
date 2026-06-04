@@ -1,0 +1,26 @@
+package dev.affogato.golden
+
+@Deprecated
+class AnnotatedReflectionTarget {
+    @Deprecated
+    legacy(): String {
+        return "legacy"
+    }
+}
+
+class ReflectionAnnotations {
+    run(): String {
+        try {
+            let classAnnotation = AnnotatedReflectionTarget.class.getAnnotation(Deprecated.class)
+            let method = AnnotatedReflectionTarget.class.getMethod("legacy")
+            let methodAnnotation = method.getAnnotation(Deprecated.class)
+            let classAnnotationType = classAnnotation.annotationType()
+            let methodAnnotationType = methodAnnotation.annotationType()
+            let className = classAnnotationType.getSimpleName()
+            let methodName = methodAnnotationType.getSimpleName()
+            return className + ":" + methodName
+        } catch (Exception e) {
+            return e.getClass().getSimpleName()
+        }
+    }
+}

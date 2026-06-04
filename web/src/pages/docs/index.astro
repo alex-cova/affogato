@@ -385,13 +385,13 @@ const unsupportedCodes = [
           </nav>
           <div class="mt-8 pt-6 border-t border-[var(--color-border)]">
             <a href="/" class="doc-sidebar-link flex items-center gap-1">← Back to Home</a>
-            <a href="https://github.com/alex-cova/affogato" target="_blank" rel="noopener" class="doc-sidebar-link flex items-center gap-1 mt-1">GitHub ↗</a>
+            <a href="https://github.com/alex-cova/affogato" target="_blank" rel="noopener noreferrer" class="doc-sidebar-link flex items-center gap-1 mt-1">GitHub ↗</a>
           </div>
         </div>
       </aside>
 
       <!-- ── Main content ── -->
-      <main class="flex-1 min-w-0 doc-content">
+      <main id="main-content" class="flex-1 min-w-0 doc-content">
 
         <!-- Page header -->
         <div class="mb-12 pb-8 border-b border-[var(--color-border)]">
@@ -402,6 +402,18 @@ const unsupportedCodes = [
             Covers syntax, nullability, Java interop, tooling, and error codes.
           </p>
         </div>
+
+        <!-- Mobile table of contents -->
+        <details class="lg:hidden mb-8 doc-mobile-nav">
+          <summary class="text-sm font-semibold text-[var(--color-amber)] cursor-pointer select-none">
+            On This Page
+          </summary>
+          <nav class="mt-3 space-y-1" aria-label="Page sections">
+            {sections.map((s) => (
+              <a href={`#${s.id}`} class="doc-sidebar-link">{s.label}</a>
+            ))}
+          </nav>
+        </details>
 
         <!-- ═══════════════════════════
              GETTING STARTED
@@ -418,19 +430,19 @@ const unsupportedCodes = [
 
           <h3>Gradle Plugin Setup</h3>
           <p>Add the Affogato Gradle plugin to your <code>build.gradle.kts</code>:</p>
-          <pre><code set:html={code.gradleSetup}></code></pre>
+          <pre translate="no"><code set:html={code.gradleSetup}></code></pre>
 
           <p>Place your <code>.aff</code> source files in <code>src/main/affogato/</code>. The plugin will automatically discover and compile them, wiring the output into <code>compileJava</code>.</p>
 
           <h3>CLI Compiler</h3>
           <p>Run the compiler directly from the project root:</p>
-          <pre><code set:html={code.gradleCli}></code></pre>
+          <pre translate="no"><code set:html={code.gradleCli}></code></pre>
 
           <h3>Running the Hello Sample</h3>
-          <pre><code set:html={code.gradleSample}></code></pre>
+          <pre translate="no"><code set:html={code.gradleSample}></code></pre>
 
           <h3>Building the Project</h3>
-          <pre><code set:html={code.gradleBuild}></code></pre>
+          <pre translate="no"><code set:html={code.gradleBuild}></code></pre>
         </section>
 
         <!-- ═══════════════════════════
@@ -441,20 +453,20 @@ const unsupportedCodes = [
 
           <h3>Package &amp; Imports</h3>
           <p>Package declarations and imports mirror Java syntax. Semicolons are optional everywhere.</p>
-          <pre><code set:html={code.syntaxPackages}></code></pre>
+          <pre translate="no"><code set:html={code.syntaxPackages}></code></pre>
 
           <h3>Variables</h3>
           <p>Affogato uses <code>var</code> for mutable bindings and <code>let</code> for immutable bindings:</p>
-          <pre><code set:html={code.syntaxVars}></code></pre>
+          <pre translate="no"><code set:html={code.syntaxVars}></code></pre>
 
           <h3>Methods &amp; Functions</h3>
           <p>Methods can use Java-style or Affogato-style return type annotation. <code>func</code> is an alias for <code>void</code>:</p>
-          <pre><code set:html={code.syntaxMethods}></code></pre>
+          <pre translate="no"><code set:html={code.syntaxMethods}></code></pre>
 
           <h3>Operators</h3>
           <table>
             <thead>
-              <tr><th>Operator</th><th>Affogato</th><th>Java Equivalent</th></tr>
+              <tr><th scope="col">Operator</th><th scope="col">Affogato</th><th scope="col">Java Equivalent</th></tr>
             </thead>
             <tbody>
               <tr><td><code>is</code></td><td><code>obj is String</code></td><td><code>obj instanceof String</code></td></tr>
@@ -473,20 +485,20 @@ const unsupportedCodes = [
 
           <h3>Classes</h3>
           <p>Classes use familiar syntax with the <code>:</code> operator for inheritance and interface implementation:</p>
-          <pre><code set:html={code.classBasic}></code></pre>
+          <pre translate="no"><code set:html={code.classBasic}></code></pre>
 
           <h3>Compact Record Constructors</h3>
           <p>Records support a compact header syntax that auto-generates accessors:</p>
-          <pre><code set:html={code.classRecord}></code></pre>
+          <pre translate="no"><code set:html={code.classRecord}></code></pre>
 
           <h3>Enums</h3>
-          <pre><code set:html={code.classEnum}></code></pre>
+          <pre translate="no"><code set:html={code.classEnum}></code></pre>
 
           <h3>Interfaces with Default Methods</h3>
-          <pre><code set:html={code.classInterface}></code></pre>
+          <pre translate="no"><code set:html={code.classInterface}></code></pre>
 
           <h3>Annotations</h3>
-          <pre><code set:html={code.classAnnotation}></code></pre>
+          <pre translate="no"><code set:html={code.classAnnotation}></code></pre>
         </section>
 
         <!-- ═══════════════════════════
@@ -500,7 +512,7 @@ const unsupportedCodes = [
           <h3>Type Markers</h3>
           <table>
             <thead>
-              <tr><th>Syntax</th><th>Meaning</th><th>Java output</th></tr>
+              <tr><th scope="col">Syntax</th><th scope="col">Meaning</th><th scope="col">Java output</th></tr>
             </thead>
             <tbody>
               <tr><td><code>String!</code></td><td>Non-null reference — compile error if assigned null</td><td><code>@NotNull String</code></td></tr>
@@ -510,7 +522,7 @@ const unsupportedCodes = [
           </table>
 
           <h3>Examples</h3>
-          <pre><code set:html={code.nullabilityEx}></code></pre>
+          <pre translate="no"><code set:html={code.nullabilityEx}></code></pre>
 
           <h3>Unsupported (Production Subset)</h3>
           <p>The following operators are <em>not</em> in the current production subset and will emit explicit diagnostics:</p>
@@ -529,23 +541,23 @@ const unsupportedCodes = [
 
           <h3>If / Else</h3>
           <p>Standard if/else with optional parentheses around the condition:</p>
-          <pre><code set:html={code.controlIf}></code></pre>
+          <pre translate="no"><code set:html={code.controlIf}></code></pre>
 
           <h3>Guard Clause</h3>
           <p>Swift-inspired early exit — the <code>else</code> block <strong>must</strong> exit (return, throw, or break):</p>
-          <pre><code set:html={code.controlGuard}></code></pre>
+          <pre translate="no"><code set:html={code.controlGuard}></code></pre>
 
           <h3>For-In Loops</h3>
-          <pre><code set:html={code.controlFor}></code></pre>
+          <pre translate="no"><code set:html={code.controlFor}></code></pre>
 
           <h3>While</h3>
-          <pre><code set:html={code.controlWhile}></code></pre>
+          <pre translate="no"><code set:html={code.controlWhile}></code></pre>
 
           <h3>Switch Statements &amp; Expressions</h3>
-          <pre><code set:html={code.controlSwitch}></code></pre>
+          <pre translate="no"><code set:html={code.controlSwitch}></code></pre>
 
           <h3>Try / Catch / Finally</h3>
-          <pre><code set:html={code.controlTry}></code></pre>
+          <pre translate="no"><code set:html={code.controlTry}></code></pre>
         </section>
 
         <!-- ═══════════════════════════
@@ -557,24 +569,24 @@ const unsupportedCodes = [
           <p>Affogato is designed for seamless Java integration. You can call any Java library from <code>.aff</code> code with no adapters or wrappers needed.</p>
 
           <h3>Calling Java Methods</h3>
-          <pre><code set:html={code.javaBasic}></code></pre>
+          <pre translate="no"><code set:html={code.javaBasic}></code></pre>
 
           <h3>Collection Aliases</h3>
           <p>Affogato provides short-hand aliases for common Java collections:</p>
-          <pre><code set:html={code.javaCollections}></code></pre>
+          <pre translate="no"><code set:html={code.javaCollections}></code></pre>
 
           <h3>Static Imports</h3>
-          <pre><code set:html={code.javaStatic}></code></pre>
+          <pre translate="no"><code set:html={code.javaStatic}></code></pre>
 
           <h3>Lambdas &amp; Method References</h3>
-          <pre><code set:html={code.javaLambda}></code></pre>
+          <pre translate="no"><code set:html={code.javaLambda}></code></pre>
 
           <h3>Named Arguments for Java</h3>
           <p>Named arguments work for Java calls when the Java code was compiled with <code>-parameters</code>:</p>
-          <pre><code set:html={code.javaNamedArgs}></code></pre>
+          <pre translate="no"><code set:html={code.javaNamedArgs}></code></pre>
 
           <h3>Generics &amp; Wildcards</h3>
-          <pre><code set:html={code.javaGenerics}></code></pre>
+          <pre translate="no"><code set:html={code.javaGenerics}></code></pre>
         </section>
 
         <!-- ═══════════════════════════
@@ -593,11 +605,11 @@ const unsupportedCodes = [
 
           <h3>Named Arguments</h3>
           <p>Name your arguments to improve readability. The compiler reorders them after overload resolution:</p>
-          <pre><code set:html={code.overloadArgs}></code></pre>
+          <pre translate="no"><code set:html={code.overloadArgs}></code></pre>
 
           <h3>Ambiguous Overloads</h3>
           <p>When no single best candidate can be selected, the compiler fails with a diagnostic rather than producing ambiguous Java:</p>
-          <pre><code set:html={code.overloadAmbig}></code></pre>
+          <pre translate="no"><code set:html={code.overloadAmbig}></code></pre>
         </section>
 
         <!-- ═══════════════════════════
@@ -607,7 +619,7 @@ const unsupportedCodes = [
           <h2>Gradle Plugin</h2>
 
           <h3>Basic Configuration</h3>
-          <pre><code set:html={code.gradleBasic}></code></pre>
+          <pre translate="no"><code set:html={code.gradleBasic}></code></pre>
 
           <h3>How It Works</h3>
           <ul>
@@ -618,10 +630,10 @@ const unsupportedCodes = [
           </ul>
 
           <h3>Multiple Source Sets</h3>
-          <pre><code set:html={code.gradleSourceSets}></code></pre>
+          <pre translate="no"><code set:html={code.gradleSourceSets}></code></pre>
 
           <h3>Compiler Options</h3>
-          <pre><code set:html={code.gradleOptions}></code></pre>
+          <pre translate="no"><code set:html={code.gradleOptions}></code></pre>
 
           <h3>Gradle TestKit Integration</h3>
           <p>The plugin ships with Gradle TestKit coverage for single-project builds and compiler failure scenarios. Errors produce clear diagnostics and <em>no partial generated Java</em> on failure.</p>
@@ -646,7 +658,7 @@ const unsupportedCodes = [
 
           <h3>Installation</h3>
           <p>Build the plugin from source using the IntelliJ Platform Gradle Plugin:</p>
-          <pre><code set:html={code.intellijBuild}></code></pre>
+          <pre translate="no"><code set:html={code.intellijBuild}></code></pre>
           <p>Then install the generated <code>.zip</code> from <code>affogato-intellij-plugin/build/distributions/</code> via <strong>Settings → Plugins → Install from disk</strong>.</p>
 
           <h3>Grammar Synchronization</h3>
@@ -672,7 +684,7 @@ const unsupportedCodes = [
           <h3>Stable Error Codes</h3>
           <table>
             <thead>
-              <tr><th>Code</th><th>Description</th></tr>
+              <tr><th scope="col">Code</th><th scope="col">Description</th></tr>
             </thead>
             <tbody>
               {diagnosticCodes.map((d) => (
@@ -688,7 +700,7 @@ const unsupportedCodes = [
           <p>These codes indicate features that are outside the current production subset:</p>
           <table>
             <thead>
-              <tr><th>Code</th><th>Feature</th></tr>
+              <tr><th scope="col">Code</th><th scope="col">Feature</th></tr>
             </thead>
             <tbody>
               {unsupportedCodes.map((u) => (
@@ -702,7 +714,7 @@ const unsupportedCodes = [
 
           <h3>Reading Diagnostics</h3>
           <p>The compiler outputs diagnostics in the following format:</p>
-          <pre><code set:html={code.diagFormat}></code></pre>
+          <pre translate="no"><code set:html={code.diagFormat}></code></pre>
         </section>
 
       </main>

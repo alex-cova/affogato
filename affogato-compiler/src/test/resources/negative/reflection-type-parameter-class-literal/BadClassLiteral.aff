@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadClassLiteral {
+    erased<T>(value: T): String {
+        return T.class.getName()
+    }
+}

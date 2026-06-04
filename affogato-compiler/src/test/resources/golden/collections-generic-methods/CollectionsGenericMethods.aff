@@ -1,0 +1,22 @@
+package dev.affogato.golden
+
+class CollectionPicker {
+    first<T>(values: java.util.List<T>): T {
+        return values.get(0)
+    }
+
+    append<T>(values: java.util.List<T>, value: T): java.util.List<T> {
+        values.add(value)
+        return values
+    }
+}
+
+class CollectionsGenericMethods {
+    run(): String {
+        let picker = CollectionPicker()
+        var names = List<String>()
+        picker.append(values = names, value = "ristretto")
+        let first: String = picker.first(names)
+        return first
+    }
+}

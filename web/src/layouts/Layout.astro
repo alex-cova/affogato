@@ -18,7 +18,9 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#D4813A" />
+    <meta name="theme-color" content="#080810" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Open Graph -->
@@ -35,32 +37,40 @@ const {
     <title>{title}</title>
   </head>
   <body class="bg-animated">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- Particle canvas -->
-    <canvas id="particles-canvas"></canvas>
+    <canvas id="particles-canvas" aria-hidden="true"></canvas>
 
     <slot />
 
     <script>
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
       // ── Intersection Observer for reveal animations ──
       const revealElements = document.querySelectorAll('.reveal');
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add('visible');
-              observer.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
-      );
-      revealElements.forEach((el) => observer.observe(el));
+      if (reducedMotion) {
+        revealElements.forEach((el) => el.classList.add('visible'));
+      } else {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+        );
+        revealElements.forEach((el) => observer.observe(el));
+      }
 
       // ── Particle system ──
       const canvas = document.getElementById('particles-canvas');
       const ctx = canvas ? canvas.getContext('2d') : null;
 
-      if (canvas && ctx) {
+      if (canvas && ctx && !reducedMotion) {
         let W = (canvas.width = window.innerWidth);
         let H = (canvas.height = window.innerHeight);
 
@@ -130,17 +140,41 @@ const {
 
       // ── Mobile nav toggle ──
       const hamburger = document.getElementById('hamburger');
+      const closeMenu = document.getElementById('close-menu');
       const mobileMenu = document.getElementById('mobile-menu');
+      const mainContent = document.getElementById('main-content');
+      let menuLastFocus = null;
+
+      function setMenuOpen(open) {
+        mobileMenu?.classList.toggle('open', open);
+        hamburger?.setAttribute('aria-expanded', String(open));
+        hamburger?.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+        document.body.style.overflow = open ? 'hidden' : '';
+        if (mainContent) {
+          if (open) mainContent.setAttribute('inert', '');
+          else mainContent.removeAttribute('inert');
+        }
+        if (open) {
+          menuLastFocus = document.activeElement;
+          closeMenu?.focus();
+        } else if (menuLastFocus instanceof HTMLElement) {
+          menuLastFocus.focus();
+          menuLastFocus = null;
+        }
+      }
+
       hamburger?.addEventListener('click', () => {
-        mobileMenu?.classList.toggle('open');
-        document.body.style.overflow = mobileMenu?.classList.contains('open') ? 'hidden' : '';
+        setMenuOpen(!mobileMenu?.classList.contains('open'));
       });
 
+      closeMenu?.addEventListener('click', () => setMenuOpen(false));
+
       document.querySelectorAll('.mobile-menu a').forEach((link) => {
-        link.addEventListener('click', () => {
-          mobileMenu?.classList.remove('open');
-          document.body.style.overflow = '';
-        });
+        link.addEventListener('click', () => setMenuOpen(false));
+      });
+
+      mobileMenu?.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setMenuOpen(false);
       });
 
       // ── Navbar scroll effect ──
@@ -167,6 +201,10 @@ const {
           'type-safe.',
           'delightful.',
         ];
+
+        if (reducedMotion) {
+          typeEl.textContent = phrases[0];
+        } else {
         let phraseIdx = 0;
         let charIdx = 0;
         let deleting = false;
@@ -192,6 +230,7 @@ const {
         }
 
         typeLoop();
+        }
       }
     </script>
   </body>

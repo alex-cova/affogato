@@ -1,0 +1,21 @@
+package dev.affogato.golden
+
+class ReflectiveGreeter(var name: String) {
+    greet(prefix: String): String {
+        return prefix + " " + name
+    }
+}
+
+class ReflectionConstructorsMethods {
+    run(): String {
+        try {
+            let constructor: java.lang.reflect.Constructor = ReflectiveGreeter.class.getDeclaredConstructor(String.class)
+            let target = constructor.newInstance("Affogato")
+            let method = ReflectiveGreeter.class.getMethod("greet", String.class)
+            let result = method.invoke(target, "Hello")
+            return result.toString()
+        } catch (Exception e) {
+            return e.getClass().getSimpleName()
+        }
+    }
+}

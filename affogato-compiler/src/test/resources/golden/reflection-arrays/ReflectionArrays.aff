@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+import java.lang.reflect.Array
+
+class ReflectionArrays {
+    run(): String {
+        let values = Array.newInstance(String.class, 2)
+        Array.set(values, 0, "af")
+        Array.set(values, 1, "fogato")
+        let first = Array.get(values, 0).toString()
+        let second = Array.get(values, 1).toString()
+        let size = Array.getLength(values)
+        return first + second + ":" + size
+    }
+}

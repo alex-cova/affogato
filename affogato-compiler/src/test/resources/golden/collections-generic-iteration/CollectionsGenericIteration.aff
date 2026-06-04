@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+record Counter<T>(value: T) {}
+
+class CollectionsGenericIteration {
+    run(): String {
+        var counters = List<Counter<String>>()
+        counters.add(Counter<String>("a"))
+        counters.add(Counter<String>("b"))
+        var result = ""
+        for counter in counters {
+            result = result + counter.value
+        }
+        return result
+    }
+}

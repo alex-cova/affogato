@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+import java.util.ArrayDeque
+import java.util.Queue
+
+record Task<T>(payload: T) {}
+
+class CollectionsGenericQueue {
+    run(): String {
+        let queue: Queue<Task<String>> = ArrayDeque<Task<String>>()
+        queue.add(Task<String>("steam"))
+        let task: Task<String> = queue.remove()
+        return task.payload
+    }
+}

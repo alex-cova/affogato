@@ -132,6 +132,11 @@ final class ExpressionSemanticChecker {
             return new ArrayAccessExpression(value, receiver, index, arrayElementType(receiver.resolvedType()));
         }
 
+        Matcher classLiteral = Pattern.compile("^([A-Za-z_$][A-Za-z0-9_.$]*(?:<[^>]+>)?(?:\\[\\])*)\\.class$").matcher(value);
+        if (classLiteral.matches()) {
+            return new ClassLiteralExpression(value, support.stripNullableSuffix(classLiteral.group(1)), TypeGuess.of("java.lang.Class"));
+        }
+
         Matcher affogatoCast = Pattern.compile("^(.+)\\s+as\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?\\??)$").matcher(value);
         if (affogatoCast.matches()) {
             String targetType = support.stripNullableSuffix(affogatoCast.group(2));
@@ -445,6 +450,9 @@ final class ExpressionSemanticChecker {
     private AstExpression buildPrimary(AffogatoParser.PrimaryExpressionContext ctx, String whole) {
         if (ctx.literal() != null) {
             return buildLiteral(ctx.literal(), whole);
+        }
+        if (ctx.CLASS() != null) {
+            return new ClassLiteralExpression(src(ctx, whole), support.stripNullableSuffix(ctx.typeRef().getText()), TypeGuess.of("java.lang.Class"));
         }
         if (ctx.genericConstructorExpression() != null) {
             AffogatoParser.GenericConstructorExpressionContext generic = ctx.genericConstructorExpression();

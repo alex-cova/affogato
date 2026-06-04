@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+record MenuItem<T>(name: String, value: T) {}
+
+class CollectionsGenericRecordList {
+    run(): String {
+        var items = List<MenuItem<Integer>>()
+        items.add(MenuItem<Integer>("espresso", 2))
+        items.add(MenuItem<Integer>("latte", 3))
+        let first: MenuItem<Integer> = items.get(0)
+        return first.name + first.value
+    }
+}

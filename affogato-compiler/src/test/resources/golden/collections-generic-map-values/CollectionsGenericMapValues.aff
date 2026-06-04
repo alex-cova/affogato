@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+record Score<T>(label: String, value: T) {}
+
+class CollectionsGenericMapValues {
+    run(): String {
+        var scores = Map<String, Score<Integer>>()
+        scores.put("coffee", Score<Integer>("shots", 2))
+        let score: Score<Integer> = scores.get("coffee")
+        return score.label + score.value
+    }
+}

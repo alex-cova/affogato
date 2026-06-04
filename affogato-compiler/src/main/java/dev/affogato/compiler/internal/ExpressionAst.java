@@ -6,6 +6,7 @@ sealed interface AstExpression permits
         LiteralExpression,
         ArrayLiteralExpression,
         ArrayAccessExpression,
+        ClassLiteralExpression,
         IdentifierExpression,
         CallExpression,
         ConstructorExpression,
@@ -33,6 +34,9 @@ record ArrayLiteralExpression(String source, List<AstExpression> elements, TypeG
 }
 
 record ArrayAccessExpression(String source, AstExpression receiver, AstExpression index, TypeGuess resolvedType) implements AstExpression {
+}
+
+record ClassLiteralExpression(String source, String typeName, TypeGuess resolvedType) implements AstExpression {
 }
 
 record IdentifierExpression(String source, String name, TypeGuess resolvedType) implements AstExpression {

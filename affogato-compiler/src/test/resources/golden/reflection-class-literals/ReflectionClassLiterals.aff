@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+class ReflectionWidget {}
+
+class ReflectionClassLiterals {
+    run(): String {
+        let stringType = String.class
+        let widgetType = ReflectionWidget.class
+        let primitiveType = int.class
+        let stringName = stringType.getName()
+        let widgetName = widgetType.getSimpleName()
+        let primitiveName = primitiveType.getName()
+        return stringName + ":" + widgetName + ":" + primitiveName
+    }
+}

@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class CollectionsGenericSugarMap {
+    run(): java.util.Map<String, [String]> {
+        var names = List<String>()
+        names.add("cappuccino")
+        var lookup = Map<String, java.util.List<String>>()
+        lookup.put("menu", names)
+        return lookup
+    }
+}

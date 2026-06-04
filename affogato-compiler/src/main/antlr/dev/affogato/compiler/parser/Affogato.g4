@@ -385,6 +385,7 @@ postfixPart
 
 primaryExpression
     : literal
+    | typeRef DOT CLASS
     | genericConstructorExpression
     | NEW typeRef LPAREN argumentList? RPAREN
     | THIS

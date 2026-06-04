@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+import java.util.ArrayList
+import java.util.LinkedHashMap
+
+class CollectionsGenericJavaImpls {
+    run(): String {
+        var names = ArrayList<String>()
+        names.add("flat")
+        names.add("white")
+        var lookup = LinkedHashMap<String, java.util.List<String>>()
+        lookup.put("drinks", names)
+        let stored: java.util.List<String> = lookup.get("drinks")
+        let first: String = stored.get(0)
+        let second: String = stored.get(1)
+        return first + second
+    }
+}

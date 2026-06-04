@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+record Tag<T>(value: T) {}
+
+class CollectionsGenericSet {
+    run(): int {
+        var tags = Set<Tag<String>>()
+        tags.add(Tag<String>("hot"))
+        tags.add(Tag<String>("iced"))
+        return tags.size()
+    }
+}

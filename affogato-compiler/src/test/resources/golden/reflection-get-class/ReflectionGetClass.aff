@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class ReflectionGetClass {
+    isString(value: Object): boolean {
+        return value.getClass() == String.class
+    }
+
+    describe(value: Object): String {
+        if value.getClass() != String.class {
+            return "other"
+        }
+        return "string"
+    }
+}

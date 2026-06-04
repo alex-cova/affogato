@@ -1910,6 +1910,28 @@ public final class AffogatoTranspiler {
             }
             return;
         }
+        if (ast instanceof ClassLiteralExpression classLiteral) {
+            String typeName = stripNullableSuffix(classLiteral.typeName());
+            if (activeTypeParams.contains(typeName)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_CLASS_LITERAL_TYPE",
+                        "Class literals cannot use erased type parameter " + typeName + "."
+                ));
+            } else if (classSymbol(typeName, context.unit) == null
+                    && !context.javaResolver.typeExists(typeName, context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + typeName + "."
+                ));
+            }
+            return;
+        }
         if (ast instanceof CallExpression call) {
             call.arguments().forEach(argument -> validateExpressionSemantics(argument, context));
             validateExpressionSemantics(call.receiver(), context);
@@ -2485,13 +2507,13 @@ public final class AffogatoTranspiler {
             List<TypedArgument> arguments = typedArgumentsForInference(expression.substring(open + 1, close), context);
             String receiver = receiverBeforeMethod(expression, open);
             if (!receiver.isBlank()) {
-                String methodName = callName.substring(callName.lastIndexOf('.') + 1);
-                TypeGuess receiverType = inferExpressionType(receiver, context);
-                if (receiverType.isKnown()) {
-                    TypeGuess returnType = context.returnTypeForReceiverType(simpleTypeName(receiverType.javaType()), methodName, arguments);
-                    if (!returnType.isKnown()) {
-                        diagnostics.add(error(
-                                context.unit.sourceFile(),
+                    String methodName = callName.substring(callName.lastIndexOf('.') + 1);
+                    TypeGuess receiverType = inferExpressionType(receiver, context);
+                    if (receiverType.isKnown()) {
+                        TypeGuess returnType = context.returnTypeForReceiverType(receiverType.javaType(), methodName, arguments);
+                        if (!returnType.isKnown()) {
+                            diagnostics.add(error(
+                                    context.unit.sourceFile(),
                                 context.currentLine,
                                 context.currentColumn,
                                 "AFFOGATO_CALL_RESOLUTION",
@@ -3107,6 +3129,11 @@ public final class AffogatoTranspiler {
             return TypeGuess.of("double");
         }
 
+        Matcher classLiteral = Pattern.compile("^([A-Za-z_$][A-Za-z0-9_.$]*(?:<[^>]+>)?(?:\\[\\])*)\\.class$").matcher(value);
+        if (classLiteral.matches()) {
+            return TypeGuess.of("java.lang.Class");
+        }
+
         Matcher affogatoCast = Pattern.compile("^.+\\s+as\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?\\??)$").matcher(value);
         if (affogatoCast.matches()) {
             return TypeGuess.of(stripNullableSuffix(affogatoCast.group(1)));
@@ -3181,7 +3208,7 @@ public final class AffogatoTranspiler {
                     String method = callName.substring(callName.lastIndexOf('.') + 1);
                     TypeGuess receiverType = inferExpressionType(receiver, context);
                     if (receiverType.isKnown()) {
-                        TypeGuess received = context.returnTypeForReceiverType(simpleTypeName(receiverType.javaType()), method, arguments);
+                        TypeGuess received = context.returnTypeForReceiverType(receiverType.javaType(), method, arguments);
                         if (received.isKnown()) {
                             return received;
                         }
