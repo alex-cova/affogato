@@ -1,0 +1,5 @@
+# Verify line, column, and message for each unsupported operator diagnostic.
+# Format: CODE line col message-substring
+AFFOGATO_UNSUPPORTED_SAFE_CALL 6 21 Safe-call expressions are not in the production subset
+AFFOGATO_UNSUPPORTED_ELVIS 7 22 Elvis expressions are not in the production subset
+AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION 8 21 Not-null assertion expressions are not in the production subset

@@ -26,6 +26,8 @@ import org.junit.Test;
 public final class AffogatoNegativeTest {
     private static final Path NEGATIVE_ROOT = Path.of("src/test/resources/negative");
 
+    private record DiagnosticDetail(String code, int line, int col, String messageSubstring) {}
+
     @Test
     public void negativeFixturesFailWithExpectedDiagnostics() throws Exception {
         require(Files.isDirectory(NEGATIVE_ROOT),
@@ -66,12 +68,14 @@ public final class AffogatoNegativeTest {
                 .addClasspathEntry(compileJavaApi(workDir))
                 .outputDirectory(generatedRoot);
 
+        List<AffogatoDiagnostic> actualDiagnostics;
         try {
             new AffogatoCompiler().compile(options.build());
             throw new AssertionError("Fixture compiled successfully but expected failure: " + expected);
         } catch (AffogatoCompilationException exception) {
+            actualDiagnostics = exception.diagnostics();
             Set<String> actual = new TreeSet<>();
-            for (AffogatoDiagnostic diagnostic : exception.diagnostics()) {
+            for (AffogatoDiagnostic diagnostic : actualDiagnostics) {
                 actual.add(diagnostic.code());
             }
             List<String> missing = expected.stream()
@@ -82,6 +86,11 @@ public final class AffogatoNegativeTest {
                             + "  expected: " + expected + System.lineSeparator()
                             + "  actual:   " + actual + System.lineSeparator()
                             + describe(exception));
+        }
+
+        Path detailFile = fixture.resolve("expected-diagnostics-detail.txt");
+        if (Files.isRegularFile(detailFile)) {
+            checkDiagnosticDetails(detailFile, actualDiagnostics);
         }
 
         require(readJavaFiles(generatedRoot).isEmpty(),
@@ -102,6 +111,51 @@ public final class AffogatoNegativeTest {
             Files.createDirectories(target.getParent());
             Files.copy(aff, target);
         }
+    }
+
+    private static void checkDiagnosticDetails(
+            Path detailFile, List<AffogatoDiagnostic> actuals) throws Exception {
+        List<DiagnosticDetail> details = readDiagnosticDetails(detailFile);
+        List<String> unmatched = new ArrayList<>();
+        for (DiagnosticDetail detail : details) {
+            boolean found = actuals.stream().anyMatch(d ->
+                    d.code().equals(detail.code())
+                            && d.line() == detail.line()
+                            && d.column() == detail.col()
+                            && d.message().contains(detail.messageSubstring()));
+            if (!found) {
+                String actualSummary = actuals.stream()
+                        .filter(d -> d.code().equals(detail.code()))
+                        .map(d -> d.code() + ":" + d.line() + ":" + d.column() + " \"" + d.message() + "\"")
+                        .toList()
+                        .toString();
+                unmatched.add("  No match for: " + detail.code() + " line=" + detail.line()
+                        + " col=" + detail.col() + " msg~=\"" + detail.messageSubstring() + "\""
+                        + " (same-code actuals: " + actualSummary + ")");
+            }
+        }
+        require(unmatched.isEmpty(),
+                "Diagnostic detail mismatches:" + System.lineSeparator()
+                        + String.join(System.lineSeparator(), unmatched));
+    }
+
+    private static List<DiagnosticDetail> readDiagnosticDetails(Path path) throws Exception {
+        List<DiagnosticDetail> details = new ArrayList<>();
+        for (String raw : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            String[] parts = line.split(" ", 4);
+            require(parts.length == 4,
+                    "Bad expected-diagnostics-detail.txt line (expected: CODE line col message): " + raw);
+            String code = parts[0];
+            int lineNum = Integer.parseInt(parts[1]);
+            int col = Integer.parseInt(parts[2]);
+            String msg = parts[3];
+            details.add(new DiagnosticDetail(code, lineNum, col, msg));
+        }
+        return details;
     }
 
     private static List<String> readExpectedDiagnostics(Path path) throws Exception {

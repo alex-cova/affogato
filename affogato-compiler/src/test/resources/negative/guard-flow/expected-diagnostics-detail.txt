@@ -1,0 +1,3 @@
+# Verify line, column, and message for the guard-flow diagnostic.
+# Format: CODE line col message-substring
+AFFOGATO_GUARD_FLOW 5 9 guard else blocks must exit

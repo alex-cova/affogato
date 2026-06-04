@@ -1,0 +1,27 @@
+package dev.affogato.golden
+
+class StringEscapes {
+    backslash(): String {
+        return "\\"
+    }
+
+    quote(): String {
+        return "say \"hi\""
+    }
+
+    newline(): String {
+        return "line1\nline2"
+    }
+
+    tab(): String {
+        return "col1\tcol2"
+    }
+
+    terminatedByBackslash(): String {
+        return "ends\\"
+    }
+
+    mixedEscapes(): String {
+        return "a\\b\"c\nd"
+    }
+}

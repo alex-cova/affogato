@@ -1,0 +1,9 @@
+package dev.affogato.exec
+
+class StringOps {
+    static func run() {
+        var s: String = "abc"
+        println(s.length())
+        println(s.toUpperCase())
+    }
+}
