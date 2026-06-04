@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import java.util.ArrayList
+import java.util.HashMap
+
+class QualifiedTypeInference {
+    run(): String {
+        var names = ArrayList<String>()
+        names.add("affogato")
+        var counts = HashMap<String, Integer>()
+        counts.put("shots", 2)
+        let name = names.get(0)
+        let size = counts.size()
+        return name + size
+    }
+}

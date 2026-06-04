@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class BitwiseOperators {
+    andOp(a: int, b: int): int {
+        return a & b
+    }
+
+    orOp(a: int, b: int): int {
+        return a | b
+    }
+
+    xorOp(a: int, b: int): int {
+        return a ^ b
+    }
+
+    complementOp(a: int): int {
+        return ~a
+    }
+}

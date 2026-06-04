@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+class StringLiteralsWithUnsupportedTokens {
+    describe(): String {
+        var safeCallMsg = "Affogato does not support ?. (safe-call operator)"
+        var elvisMsg = "Affogato does not support ?: (Elvis operator)"
+        var assertMsg = "Affogato does not support !! (not-null assertion)"
+        return safeCallMsg + " | " + elvisMsg + " | " + assertMsg
+    }
+}

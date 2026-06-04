@@ -1,0 +1,5 @@
+package dev.affogato.negative
+
+func String.doubled($this: String): String {
+    return $this + $this
+}

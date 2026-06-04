@@ -65,6 +65,15 @@ final class ExpressionSemanticChecker {
             return new UnknownExpression("");
         }
         String value = support.stripOuterParens(expression.trim());
+
+        // Try ANTLR first. A successful parse means the expression is syntactically valid
+        // Affogato — ?. / ?: / !! can only appear inside a string literal or comment and are
+        // not actual unsupported operators.  Only flag them as unsupported when ANTLR also
+        // fails, which is the case for actual usage like `x?.method()`.
+        AstExpression parsed = parseViaAntlr(value);
+        if (parsed != null) {
+            return parsed;
+        }
         if (value.contains("?.")) {
             return new UnsupportedExpression(value, "AFFOGATO_UNSUPPORTED_SAFE_CALL", "Safe-call expressions are not in the production subset; use an explicit null check.");
         }
@@ -74,13 +83,7 @@ final class ExpressionSemanticChecker {
         if (value.contains("!!")) {
             return new UnsupportedExpression(value, "AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION", "Not-null assertion expressions are not in the production subset; use an explicit cast or null check.");
         }
-
-        // Prefer the real ANTLR parser: it handles operator precedence, nested generics, string
-        // literals containing operators and other corner cases that the regex path below mishandles.
-        // Fall back to the regex path only when the string is not a clean Affogato expression
-        // (for example an already-transformed Java fragment), so behavior can never regress.
-        AstExpression parsed = parseViaAntlr(value);
-        return parsed != null ? parsed : parseViaRegex(value);
+        return parseViaRegex(value);
     }
 
     private AstExpression parseViaRegex(String value) {
@@ -329,7 +332,19 @@ final class ExpressionSemanticChecker {
     }
 
     private AstExpression buildLogicalAnd(AffogatoParser.LogicalAndExpressionContext ctx, String whole) {
-        return foldBinary(ctx, whole, child -> buildEquality((AffogatoParser.EqualityExpressionContext) child, whole), true);
+        return foldBinary(ctx, whole, child -> buildBitwiseOr((AffogatoParser.BitwiseOrExpressionContext) child, whole), true);
+    }
+
+    private AstExpression buildBitwiseOr(AffogatoParser.BitwiseOrExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildBitwiseXor((AffogatoParser.BitwiseXorExpressionContext) child, whole), false);
+    }
+
+    private AstExpression buildBitwiseXor(AffogatoParser.BitwiseXorExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildBitwiseAnd((AffogatoParser.BitwiseAndExpressionContext) child, whole), false);
+    }
+
+    private AstExpression buildBitwiseAnd(AffogatoParser.BitwiseAndExpressionContext ctx, String whole) {
+        return foldBinary(ctx, whole, child -> buildEquality((AffogatoParser.EqualityExpressionContext) child, whole), false);
     }
 
     private AstExpression buildEquality(AffogatoParser.EqualityExpressionContext ctx, String whole) {
@@ -403,6 +418,21 @@ final class ExpressionSemanticChecker {
             TypeGuess type = support.isNumericType(operand.resolvedType()) ? operand.resolvedType() : TypeGuess.unknown();
             return new UnaryExpression(src(ctx, whole), "-", operand, type);
         }
+        if (ctx.TILDE() != null) {
+            AstExpression operand = buildUnary(ctx.unaryExpression(), whole);
+            TypeGuess type = support.isNumericType(operand.resolvedType()) ? operand.resolvedType() : TypeGuess.unknown();
+            return new UnaryExpression(src(ctx, whole), "~", operand, type);
+        }
+        if (ctx.PLUS_PLUS() != null) {
+            AstExpression operand = buildUnary(ctx.unaryExpression(), whole);
+            TypeGuess type = support.isNumericType(operand.resolvedType()) ? operand.resolvedType() : TypeGuess.unknown();
+            return new UnaryExpression(src(ctx, whole), "++", operand, type);
+        }
+        if (ctx.MINUS_MINUS() != null) {
+            AstExpression operand = buildUnary(ctx.unaryExpression(), whole);
+            TypeGuess type = support.isNumericType(operand.resolvedType()) ? operand.resolvedType() : TypeGuess.unknown();
+            return new UnaryExpression(src(ctx, whole), "--", operand, type);
+        }
         return buildPostfix(ctx.postfixExpression(), whole);
     }
 
@@ -412,7 +442,15 @@ final class ExpressionSemanticChecker {
         int index = 0;
         while (index < parts.size()) {
             AffogatoParser.PostfixPartContext part = parts.get(index);
-            if (part.LPAREN() != null) {
+            if (part.PLUS_PLUS() != null) {
+                TypeGuess type = support.isNumericType(current.resolvedType()) ? current.resolvedType() : TypeGuess.unknown();
+                current = new UnaryExpression(srcBetween(whole, ctx, part), "++", current, type);
+                index++;
+            } else if (part.MINUS_MINUS() != null) {
+                TypeGuess type = support.isNumericType(current.resolvedType()) ? current.resolvedType() : TypeGuess.unknown();
+                current = new UnaryExpression(srcBetween(whole, ctx, part), "--", current, type);
+                index++;
+            } else if (part.LPAREN() != null) {
                 // A call applied directly to the primary, e.g. `foo(args)` or `Foo(args)`.
                 List<AstExpression> arguments = buildArguments(part.argumentList(), whole);
                 current = makeCall(current.source(), new UnknownExpression(""), arguments, srcBetween(whole, ctx, part));

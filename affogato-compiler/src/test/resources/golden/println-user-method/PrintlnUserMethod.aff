@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class PrintlnUserMethod {
+    func println(message: String) {
+    }
+
+    func run() {
+        println("hello")
+        println("world")
+    }
+}

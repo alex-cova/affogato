@@ -1,0 +1,21 @@
+package dev.affogato.golden
+
+abstract class Shape {
+    abstract area(): double
+
+    describe(): String {
+        return "Shape with area " + area()
+    }
+}
+
+class Circle: Shape {
+    let radius: double
+
+    init(radius: double) {
+        this.radius = radius
+    }
+
+    area(): double {
+        return 3.14 * radius * radius
+    }
+}

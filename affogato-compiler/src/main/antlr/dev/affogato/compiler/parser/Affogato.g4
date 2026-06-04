@@ -55,6 +55,7 @@ classModifier
     : PUBLIC
     | PRIVATE
     | PROTECTED
+    | ABSTRACT
     ;
 
 compactConstructor
@@ -85,7 +86,7 @@ constructorDecl
     ;
 
 methodDecl
-    : annotation* memberModifier* methodSignature block
+    : annotation* memberModifier* methodSignature (block | terminators)
     ;
 
 methodSignature
@@ -100,6 +101,7 @@ memberModifier
     | PROTECTED
     | STATIC
     | OVERRIDE
+    | ABSTRACT
     ;
 
 parameterList
@@ -348,7 +350,7 @@ lambdaBody
     ;
 
 assignmentExpression
-    : ternaryExpression ((ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN | STAR_ASSIGN | SLASH_ASSIGN) assignmentExpression)?
+    : ternaryExpression ((ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN | STAR_ASSIGN | SLASH_ASSIGN | PERCENT_ASSIGN) assignmentExpression)?
     ;
 
 ternaryExpression
@@ -360,7 +362,19 @@ logicalOrExpression
     ;
 
 logicalAndExpression
-    : equalityExpression (AND equalityExpression)*
+    : bitwiseOrExpression (AND bitwiseOrExpression)*
+    ;
+
+bitwiseOrExpression
+    : bitwiseXorExpression (PIPE bitwiseXorExpression)*
+    ;
+
+bitwiseXorExpression
+    : bitwiseAndExpression (CARET bitwiseAndExpression)*
+    ;
+
+bitwiseAndExpression
+    : equalityExpression (AMPERSAND equalityExpression)*
     ;
 
 equalityExpression
@@ -387,6 +401,9 @@ unaryExpression
     : NOT LPAREN expression RPAREN
     | BANG unaryExpression
     | MINUS unaryExpression
+    | TILDE unaryExpression
+    | PLUS_PLUS unaryExpression
+    | MINUS_MINUS unaryExpression
     | postfixExpression
     ;
 
@@ -397,6 +414,8 @@ postfixExpression
 postfixPart
     : DOT Identifier
     | LPAREN argumentList? RPAREN
+    | PLUS_PLUS
+    | MINUS_MINUS
     ;
 
 primaryExpression
@@ -448,6 +467,7 @@ separators
 PACKAGE: 'package';
 IMPORT: 'import';
 STATIC: 'static';
+ABSTRACT: 'abstract';
 CLASS: 'class';
 ENUM: 'enum';
 RECORD: 'record';
@@ -499,16 +519,22 @@ PLUS_ASSIGN: '+=';
 MINUS_ASSIGN: '-=';
 STAR_ASSIGN: '*=';
 SLASH_ASSIGN: '/=';
+PERCENT_ASSIGN: '%=';
 ASSIGN: '=';
 LT: '<';
 GT: '>';
+PLUS_PLUS: '++';
 PLUS: '+';
+MINUS_MINUS: '--';
 MINUS: '-';
 STAR: '*';
 SLASH: '/';
 PERCENT: '%';
 BANG: '!';
 QUESTION: '?';
+AMPERSAND: '&';
+CARET: '^';
+TILDE: '~';
 DOT: '.';
 COMMA: ',';
 COLON: ':';
