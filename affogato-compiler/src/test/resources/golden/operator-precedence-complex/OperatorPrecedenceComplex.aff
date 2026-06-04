@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class OperatorPrecedenceComplex {
+    check(a: int, b: int, c: int, flag: boolean): boolean {
+        return a + b * c > 20 && not(flag) || a - b / 2 == c % 3
+    }
+
+    score(a: int, b: int, c: int): int {
+        return (a + b) * (c - 1) / 2 + a % 3
+    }
+}

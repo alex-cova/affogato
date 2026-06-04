@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class TernaryGenerics {
+    choose(flag: boolean, first: List<String>, second: List<String>): List<String> {
+        return flag ? first : second
+    }
+
+    chooseValue<T>(flag: boolean, first: T, second: T): T {
+        return flag ? first : second
+    }
+}

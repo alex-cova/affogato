@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class InstanceofGenerics {
+    describe(value: Object): String {
+        if value is List<String> {
+            let values: List<String> = value as List<String>
+            return "list:" + (values.size())
+        }
+        if value is List {
+            return "raw"
+        }
+        return "other"
+    }
+}

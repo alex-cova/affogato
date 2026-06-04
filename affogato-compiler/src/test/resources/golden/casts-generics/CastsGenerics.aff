@@ -1,0 +1,10 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class CastsGenerics {
+    first(value: Object): String {
+        let values: List<String> = value as List<String>
+        return values.get(0)
+    }
+}

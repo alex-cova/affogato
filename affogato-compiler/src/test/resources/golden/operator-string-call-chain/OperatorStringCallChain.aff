@@ -1,0 +1,7 @@
+package dev.affogato.golden
+
+class OperatorStringCallChain {
+    render(value: StringBuilder): String {
+        return "value=" + (value.append("!").toString().toUpperCase())
+    }
+}

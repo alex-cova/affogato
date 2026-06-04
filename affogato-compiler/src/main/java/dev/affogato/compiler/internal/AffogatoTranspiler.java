@@ -2787,10 +2787,15 @@ public final class AffogatoTranspiler {
         Matcher matcher = INSTANCEOF_ALIAS.matcher(expression);
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement(matcher.group(1) + " instanceof " + matcher.group(2)));
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(matcher.group(1) + " instanceof " + eraseTypeArguments(matcher.group(2))));
         }
         matcher.appendTail(buffer);
         return buffer.toString();
+    }
+
+    private String eraseTypeArguments(String type) {
+        int generic = type.indexOf('<');
+        return generic < 0 ? type : type.substring(0, generic);
     }
 
     private String transformCast(String expression) {
