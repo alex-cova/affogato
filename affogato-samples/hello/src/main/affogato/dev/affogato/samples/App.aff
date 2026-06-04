@@ -1,0 +1,21 @@
+package dev.affogato.samples
+
+class App {
+    static func main(args: String[]) {
+        let person = Person(name = "Affogato", age = 1)
+        println(person.name)
+
+        if not(person.name.isBlank()) {
+            println("ready")
+        }
+
+        guard person.name.length() > 0 else {
+            return
+        }
+
+        var value: Object = "42"
+        if value is String {
+            println(value as String)
+        }
+    }
+}

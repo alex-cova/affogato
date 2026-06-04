@@ -1,0 +1,226 @@
+{
+  parserClass="dev.affogato.intellij.parser.AffogatoParser"
+  psiPackage="dev.affogato.intellij.psi"
+  psiImplPackage="dev.affogato.intellij.psi.impl"
+  elementTypeHolderClass="dev.affogato.intellij.psi.AffogatoTypes"
+  tokenTypeClass="dev.affogato.intellij.psi.AffogatoTokenType"
+  elementTypeClass="dev.affogato.intellij.psi.AffogatoElementType"
+  tokens=[
+    AND='&&'
+    ARROW='->'
+    AS_KEYWORD='as'
+    AT='@'
+    BAD_CHARACTER='regexp:.'
+    BANG='!'
+    BLOCK_COMMENT='regexp:/\\*([^*]|\\*+[^*/])*\\*+/'
+    CASE_KEYWORD='case'
+    CATCH_KEYWORD='catch'
+    CLASS_KEYWORD='class'
+    COLON=':'
+    COMMA=','
+    CONSTRUCTOR_KEYWORD='constructor'
+    DEFAULT_KEYWORD='default'
+    DOT='.'
+    DOUBLE_COLON='::'
+    ELSE_KEYWORD='else'
+    ENUM_KEYWORD='enum'
+    EQ='=='
+    ASSIGN='='
+    FALSE_KEYWORD='false'
+    FINALLY_KEYWORD='finally'
+    FOR_KEYWORD='for'
+    FUNC_KEYWORD='func'
+    GE='>='
+    GT='>'
+    GUARD_KEYWORD='guard'
+    IF_KEYWORD='if'
+    IMPORT_KEYWORD='import'
+    IN_KEYWORD='in'
+    INTERFACE_KEYWORD='interface'
+    IS_KEYWORD='is'
+    LBRACK='['
+    LBRACE='{'
+    LE='<='
+    LET_KEYWORD='let'
+    LINE_COMMENT='regexp://.*'
+    LPAREN='('
+    LT='<'
+    MINUS='-'
+    MINUS_ASSIGN='-='
+    NE='!='
+    NEW_KEYWORD='new'
+    NOT_KEYWORD='not'
+    NULL_KEYWORD='null'
+    NUMBER='regexp:[0-9]+(\\.[0-9]+)?'
+    OR='||'
+    OVERRIDE_KEYWORD='override'
+    PACKAGE_KEYWORD='package'
+    PERCENT='%'
+    PIPE='|'
+    PLUS='+'
+    PLUS_ASSIGN='+='
+    PRIVATE_KEYWORD='private'
+    PROTECTED_KEYWORD='protected'
+    PUBLIC_KEYWORD='public'
+    QUESTION='?'
+    RBRACK=']'
+    RBRACE='}'
+    RECORD_KEYWORD='record'
+    RETURN_KEYWORD='return'
+    RPAREN=')'
+    SEMI=';'
+    SLASH='/'
+    SLASH_ASSIGN='/='
+    STAR='*'
+    STAR_ASSIGN='*='
+    STATIC_KEYWORD='static'
+    STRING='regexp:"([^"\\\\]|\\\\.)*"'
+    SUPER_KEYWORD='super'
+    SWITCH_KEYWORD='switch'
+    THIS_KEYWORD='this'
+    THROW_KEYWORD='throw'
+    TRUE_KEYWORD='true'
+    TRY_KEYWORD='try'
+    VAR_KEYWORD='var'
+    WHILE_KEYWORD='while'
+  ]
+}
+
+affogatoFile ::= packageDecl? importDecl* topLevelDecl*
+
+packageDecl ::= 'package' qualifiedName terminator*
+importDecl ::= 'import' 'static'? qualifiedName ('.' '*')? terminator*
+
+topLevelDecl ::= classDecl | recordDecl | enumDecl | interfaceDecl | extensionFuncDecl
+
+annotation ::= '@' qualifiedName ('(' annotationArgs? ')')?
+annotationArgs ::= annotationArg (',' annotationArg)*
+annotationArg ::= identifier '=' expression | expression
+classModifier ::= 'public' | 'private' | 'protected'
+memberModifier ::= 'public' | 'private' | 'protected' | 'static' | 'override'
+
+extensionFuncDecl ::= annotation* memberModifier* 'func' extensionReceiverType '.' identifier '(' parameterList? ')' (':' typeRef)? block
+extensionReceiverType ::= identifier typeArguments? arraySuffix* nullability?
+
+classDecl ::= annotation* classModifier* 'class' identifier compactConstructor? extendsClause? classBody
+recordDecl ::= annotation* classModifier* 'record' identifier recordHeader implementsClause? classBody
+enumDecl ::= annotation* classModifier* 'enum' identifier enumBody
+interfaceDecl ::= annotation* classModifier* 'interface' identifier interfaceBody
+
+compactConstructor ::= '(' parameterList? ')'
+recordHeader ::= '(' parameterList? ')'
+extendsClause ::= ':' typeRef (',' typeRef)*
+implementsClause ::= ':' typeRef (',' typeRef)*
+
+classBody ::= '{' classMember* '}'
+classMember ::= fieldDecl terminator* | constructorDecl | methodDecl | terminator
+fieldDecl ::= annotation* memberModifier* variableKind identifier (':' typeRef)? ('=' expression)?
+constructorDecl ::= annotation* memberModifier* 'constructor' '(' parameterList? ')' block
+methodDecl ::= annotation* memberModifier* methodSignature block
+methodSignature ::= 'func' identifier '(' parameterList? ')' (':' typeRef)?
+  | typeRef identifier '(' parameterList? ')'
+  | identifier '(' parameterList? ')' ':' typeRef
+
+enumBody ::= '{' enumConstantList? '}'
+enumConstantList ::= enumConstant (',' enumConstant)* ','?
+enumConstant ::= identifier
+
+interfaceBody ::= '{' interfaceMember* '}'
+interfaceMember ::= 'default' methodSignature block | methodSignature terminator* | terminator
+
+parameterList ::= parameter (',' parameter)*
+parameter ::= variableKind? identifier ':' typeRef | typeRef identifier
+variableKind ::= 'var' | 'let'
+
+typeRef ::= qualifiedName typeArguments? arraySuffix* nullability?
+typeArguments ::= '<' typeRef (',' typeRef)* '>'
+arraySuffix ::= '[' ']'
+nullability ::= '?' | '!'
+qualifiedName ::= identifier ('.' identifier)*
+
+block ::= '{' statement* '}'
+statement ::= block
+  | guardStatement
+  | ifStatement
+  | forStatement
+  | whileStatement
+  | tryStatement
+  | switchStatement
+  | returnStatement terminator*
+  | throwStatement terminator*
+  | localVarDecl terminator*
+  | expression terminator*
+  | terminator
+
+guardStatement ::= 'guard' expression 'else' block
+ifStatement ::= 'if' condition block ('else' (ifStatement | block))?
+forStatement ::= 'for' forCondition block
+whileStatement ::= 'while' condition block
+tryStatement ::= 'try' block catchClause* finallyClause?
+catchClause ::= 'catch' '(' catchType identifier ')' block
+catchType ::= typeRef ('|' typeRef)*
+finallyClause ::= 'finally' block
+switchStatement ::= 'switch' condition switchBody
+switchExpression ::= 'switch' condition switchBody
+switchBody ::= '{' switchArm* '}'
+switchArm ::= 'case' switchLabel (',' switchLabel)* '->' switchArmBody
+  | 'default' '->' switchArmBody
+switchLabel ::= expression
+switchArmBody ::= block | expression terminator*
+returnStatement ::= 'return' (switchExpression | expression)?
+throwStatement ::= 'throw' expression
+localVarDecl ::= variableKind identifier (':' typeRef)? ('=' (switchExpression | expression))?
+condition ::= '(' expression ')' | expression
+forCondition ::= '(' forContent ')' | forContent
+forContent ::= variableKind? identifier 'in' expression | expression
+
+expression ::= lambdaExpression | expressionAtom+
+lambdaExpression ::= (identifier | callGroup) '->' expression
+private expressionAtom ::= identifier
+  | STRING
+  | NUMBER
+  | callGroup
+  | arrayGroup
+  | AS_KEYWORD
+  | BANG
+  | COLON
+  | COMMA
+  | DOT
+  | DOUBLE_COLON
+  | EQ
+  | ASSIGN
+  | FALSE_KEYWORD
+  | GE
+  | GT
+  | IS_KEYWORD
+  | LE
+  | LT
+  | MINUS
+  | MINUS_ASSIGN
+  | NE
+  | NEW_KEYWORD
+  | NOT_KEYWORD
+  | NULL_KEYWORD
+  | OR
+  | PERCENT
+  | PIPE
+  | PLUS
+  | PLUS_ASSIGN
+  | QUESTION
+  | SLASH
+  | SLASH_ASSIGN
+  | STAR
+  | STAR_ASSIGN
+  | SUPER_KEYWORD
+  | THIS_KEYWORD
+  | TRUE_KEYWORD
+
+callGroup ::= '(' expression? ')'
+arrayGroup ::= '[' expression? ']'
+
+terminator ::= SEMI
+
+identifier ::= ID {
+  mixin="dev.affogato.intellij.psi.impl.AffogatoNamedElementImpl"
+  implements="dev.affogato.intellij.psi.AffogatoNamedElement"
+}

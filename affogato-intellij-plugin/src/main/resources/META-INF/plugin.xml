@@ -1,0 +1,29 @@
+<idea-plugin>
+    <id>dev.affogato.intellij</id>
+    <name>Affogato</name>
+    <vendor email="dev@affogato.local">Affogato</vendor>
+    <description>Language support scaffold for Affogato source files.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+                name="Affogato"
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.AffogatoFileType"
+                fieldName="INSTANCE"
+                extensions="aff"/>
+        <lang.parserDefinition
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.parser.AffogatoParserDefinition"/>
+        <lang.syntaxHighlighterFactory
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.highlighting.AffogatoSyntaxHighlighterFactory"/>
+        <lang.findUsagesProvider
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.findusages.AffogatoFindUsagesProvider"/>
+        <externalAnnotator
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.annotator.AffogatoExternalAnnotator"/>
+    </extensions>
+</idea-plugin>

@@ -1,0 +1,7 @@
+package dev.affogato.samples
+
+class Person(var name: String!, let age: int) {
+    func birthday() {
+        println(name + " is " + age)
+    }
+}
