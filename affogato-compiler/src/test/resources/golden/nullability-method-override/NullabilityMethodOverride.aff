@@ -1,0 +1,20 @@
+package dev.affogato.golden
+
+class NullableOverrideBase {
+    label(value: String!): String? {
+        return value
+    }
+}
+
+class NullableOverrideChild: NullableOverrideBase {
+    override label(value: String!): String? {
+        return value.trim()
+    }
+}
+
+class NullabilityMethodOverride {
+    run(): String? {
+        let child = NullableOverrideChild()
+        return child.label("affogato")
+    }
+}

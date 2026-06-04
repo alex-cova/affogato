@@ -1,0 +1,17 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class GuardNestedFlow {
+    inspect(values: List<Object>): String {
+        if values.size() > 0 {
+            for value in values {
+                guard value is String else {
+                    continue
+                }
+                return value as String
+            }
+        }
+        return "none"
+    }
+}

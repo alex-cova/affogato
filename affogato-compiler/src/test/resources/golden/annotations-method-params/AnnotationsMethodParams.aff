@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class AnnotationsMethodParams {
+    combine(@Deprecated left: String, @SuppressWarnings("unused") right: String): String {
+        return left + right
+    }
+
+    run(): String {
+        return combine(left = "af", right = "fogato")
+    }
+}

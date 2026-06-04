@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaNullabilityApi
+
+class NullabilityJavaInterop {
+    maybe(flag: boolean): String? {
+        let value: String? = JavaNullabilityApi.maybe(flag)
+        return value
+    }
+
+    require(value: String!): String! {
+        return JavaNullabilityApi.require(value)
+    }
+}

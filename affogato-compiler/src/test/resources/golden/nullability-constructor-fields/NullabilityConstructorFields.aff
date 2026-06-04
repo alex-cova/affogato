@@ -1,0 +1,7 @@
+package dev.affogato.golden
+
+class NullabilityConstructorFields(var name: String!, let alias: String?) {
+    display(): String {
+        return name.trim()
+    }
+}

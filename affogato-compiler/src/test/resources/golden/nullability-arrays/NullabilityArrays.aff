@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+class NullabilityArrays {
+    requiredElements(values: String![]): int {
+        return values.length
+    }
+
+    nullableArray(values: String[]?): int {
+        if values == null {
+            return 0
+        }
+        return values.length
+    }
+}

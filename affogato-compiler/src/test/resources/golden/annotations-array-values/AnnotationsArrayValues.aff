@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.TagList
+
+@TagList(names = {"af", "fogato"}, levels = {1, 2})
+class ArrayAnnotatedType {
+    label(): String {
+        return "array"
+    }
+}
+
+class AnnotationsArrayValues {
+    run(): String {
+        return ArrayAnnotatedType().label()
+    }
+}

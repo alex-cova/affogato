@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.TargetType
+
+@TargetType(String.class)
+class ClassValueAnnotatedType {
+    label(): String {
+        return "class"
+    }
+}
+
+class AnnotationsClassValues {
+    run(): String {
+        return ClassValueAnnotatedType().label()
+    }
+}

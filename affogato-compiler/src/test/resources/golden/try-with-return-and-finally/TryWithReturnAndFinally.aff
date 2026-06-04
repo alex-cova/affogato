@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+class TryWithReturnAndFinally {
+    run(value: String): String {
+        var marker = "start"
+        try {
+            if value.isBlank() {
+                return "blank"
+            }
+            return value
+        } finally {
+            marker = "finished"
+            println(marker)
+        }
+    }
+}

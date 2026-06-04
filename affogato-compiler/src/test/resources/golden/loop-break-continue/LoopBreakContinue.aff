@@ -1,0 +1,28 @@
+package dev.affogato.golden
+
+class LoopBreakContinue {
+    sumOddsUntilLimit(values: int[]): int {
+        var total = 0
+        for value in values {
+            if value % 2 == 0 {
+                continue
+            }
+            if value > 9 {
+                break
+            }
+            total = total + value
+        }
+        return total
+    }
+
+    countUntil(stop: int): int {
+        var index = 0
+        while true {
+            if index >= stop {
+                break
+            }
+            index = index + 1
+        }
+        return index
+    }
+}

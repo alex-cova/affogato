@@ -304,26 +304,26 @@ public final class AffogatoTranspiler {
             if (typeDecl.classDecl() != null) {
                 classes.add(buildClass(sourceFile, source, typeDecl.classDecl()));
             } else if (typeDecl.enumDecl() != null) {
-                enums.add(buildEnum(sourceFile, typeDecl.enumDecl()));
+                enums.add(buildEnum(sourceFile, source, typeDecl.enumDecl()));
             } else if (typeDecl.interfaceDecl() != null) {
-                interfaces.add(buildInterface(sourceFile, typeDecl.interfaceDecl()));
+                interfaces.add(buildInterface(sourceFile, source, typeDecl.interfaceDecl()));
             } else if (typeDecl.recordDecl() != null) {
-                records.add(buildRecord(sourceFile, typeDecl.recordDecl()));
+                records.add(buildRecord(sourceFile, source, typeDecl.recordDecl()));
             } else if (typeDecl.extensionFuncDecl() != null) {
-                extensions.add(buildExtension(sourceFile, typeDecl.extensionFuncDecl()));
+                extensions.add(buildExtension(sourceFile, source, typeDecl.extensionFuncDecl()));
             }
         }
 
         return new CompilationUnit(sourceFile, source, packageName, imports, classes, enums, interfaces, records, extensions);
     }
 
-    private ExtensionFuncDecl buildExtension(Path sourceFile, AffogatoParser.ExtensionFuncDeclContext extensionDecl) {
+    private ExtensionFuncDecl buildExtension(Path sourceFile, String source, AffogatoParser.ExtensionFuncDeclContext extensionDecl) {
         TypeRef receiverType = receiverTypeRef(extensionDecl.extensionReceiverType());
         String name = extensionDecl.Identifier().getText();
         TypeRef returnType = extensionDecl.typeRef() == null ? TypeRef.unspecified("void") : typeRef(extensionDecl.typeRef());
         List<ParamDecl> parameters = extensionDecl.parameterList() == null
                 ? List.of()
-                : buildParameters(sourceFile, extensionDecl.parameterList(), false);
+                : buildParameters(sourceFile, source, extensionDecl.parameterList(), false);
         return new ExtensionFuncDecl(
                 receiverType,
                 name,
@@ -331,7 +331,7 @@ public final class AffogatoTranspiler {
                 parameters,
                 extensionDecl.block(),
                 extensionDecl.getStart().getLine(),
-                annotations(extensionDecl.annotation())
+                annotations(source, extensionDecl.annotation())
         );
     }
 
@@ -362,7 +362,7 @@ public final class AffogatoTranspiler {
                 : classDecl.extendsClause().typeRef().stream().map(tr -> typeRef(tr).javaType()).toList();
         List<ParamDecl> compactParameters = classDecl.compactConstructor() == null || classDecl.compactConstructor().parameterList() == null
                 ? List.of()
-                : buildParameters(sourceFile, classDecl.compactConstructor().parameterList(), true);
+                : buildParameters(sourceFile, source, classDecl.compactConstructor().parameterList(), true);
 
         List<FieldDecl> fields = new ArrayList<>();
         for (ParamDecl parameter : compactParameters) {
@@ -394,13 +394,13 @@ public final class AffogatoTranspiler {
             if (member.fieldDecl() != null) {
                 fields.add(buildField(sourceFile, source, member.fieldDecl()));
             } else if (member.constructorDecl() != null) {
-                constructors.add(buildConstructor(sourceFile, member.constructorDecl()));
+                constructors.add(buildConstructor(sourceFile, source, member.constructorDecl()));
             } else if (member.methodDecl() != null) {
-                methods.add(buildMethod(sourceFile, member.methodDecl()));
+                methods.add(buildMethod(sourceFile, source, member.methodDecl()));
             }
         }
 
-        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(classDecl.annotation()));
+        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(source, classDecl.annotation()));
     }
 
     private FieldDecl buildField(Path sourceFile, String source, AffogatoParser.FieldDeclContext fieldDecl) {
@@ -419,18 +419,18 @@ public final class AffogatoTranspiler {
             ));
             type = TypeRef.unspecified("Object");
         }
-        return new FieldDecl(modifiers.access(), modifiers.isStatic(), mutable, name, type, initializer, fieldDecl.getStart().getLine(), annotations(fieldDecl.annotation()));
+        return new FieldDecl(modifiers.access(), modifiers.isStatic(), mutable, name, type, initializer, fieldDecl.getStart().getLine(), annotations(source, fieldDecl.annotation()));
     }
 
-    private ConstructorDecl buildConstructor(Path sourceFile, AffogatoParser.ConstructorDeclContext constructorDecl) {
+    private ConstructorDecl buildConstructor(Path sourceFile, String source, AffogatoParser.ConstructorDeclContext constructorDecl) {
         Modifiers modifiers = modifiers(constructorDecl.memberModifier());
         List<ParamDecl> parameters = constructorDecl.parameterList() == null
                 ? List.of()
-                : buildParameters(sourceFile, constructorDecl.parameterList(), false);
-        return new ConstructorDecl(modifiers.access(), parameters, constructorDecl.block(), constructorDecl.getStart().getLine(), annotations(constructorDecl.annotation()));
+                : buildParameters(sourceFile, source, constructorDecl.parameterList(), false);
+        return new ConstructorDecl(modifiers.access(), parameters, constructorDecl.block(), constructorDecl.getStart().getLine(), annotations(source, constructorDecl.annotation()));
     }
 
-    private MethodDecl buildMethod(Path sourceFile, AffogatoParser.MethodDeclContext methodDecl) {
+    private MethodDecl buildMethod(Path sourceFile, String source, AffogatoParser.MethodDeclContext methodDecl) {
         Modifiers modifiers = modifiers(methodDecl.memberModifier());
         AffogatoParser.MethodSignatureContext signature = methodDecl.methodSignature();
         String name;
@@ -447,7 +447,7 @@ public final class AffogatoTranspiler {
         }
         List<ParamDecl> parameters = signature.parameterList() == null
                 ? List.of()
-                : buildParameters(sourceFile, signature.parameterList(), false);
+                : buildParameters(sourceFile, source, signature.parameterList(), false);
         return new MethodDecl(
                 modifiers.access(),
                 modifiers.isStatic(),
@@ -458,32 +458,32 @@ public final class AffogatoTranspiler {
                 parameters,
                 methodDecl.block(),
                 methodDecl.getStart().getLine(),
-                annotations(methodDecl.annotation())
+                annotations(source, methodDecl.annotation())
         );
     }
 
-    private ParsedEnum buildEnum(Path sourceFile, AffogatoParser.EnumDeclContext enumDecl) {
+    private ParsedEnum buildEnum(Path sourceFile, String source, AffogatoParser.EnumDeclContext enumDecl) {
         String access = accessFromClassModifiers(enumDecl.classModifier());
         String name = enumDecl.Identifier().getText();
         List<String> constants = enumDecl.enumBody().enumConstant().stream()
                 .map(c -> c.Identifier().getText())
                 .toList();
-        return new ParsedEnum(access, name, constants, annotations(enumDecl.annotation()));
+        return new ParsedEnum(access, name, constants, annotations(source, enumDecl.annotation()));
     }
 
-    private ParsedRecord buildRecord(Path sourceFile, AffogatoParser.RecordDeclContext recordDecl) {
+    private ParsedRecord buildRecord(Path sourceFile, String source, AffogatoParser.RecordDeclContext recordDecl) {
         String access = accessFromClassModifiers(recordDecl.classModifier());
         String name = recordDecl.Identifier().getText();
         List<ParamDecl> components = recordDecl.recordHeader().parameterList() == null
                 ? List.of()
-                : buildParameters(sourceFile, recordDecl.recordHeader().parameterList(), false);
+                : buildParameters(sourceFile, source, recordDecl.recordHeader().parameterList(), false);
         List<String> superTypes = recordDecl.implementsClause() == null ? List.of()
                 : recordDecl.implementsClause().typeRef().stream().map(tr -> typeRef(tr).javaType()).toList();
 
         List<MethodDecl> methods = new ArrayList<>();
         for (AffogatoParser.ClassMemberContext member : recordDecl.classBody().classMember()) {
             if (member.methodDecl() != null) {
-                methods.add(buildMethod(sourceFile, member.methodDecl()));
+                methods.add(buildMethod(sourceFile, source, member.methodDecl()));
             } else if (member.fieldDecl() != null || member.constructorDecl() != null) {
                 diagnostics.add(error(
                         sourceFile,
@@ -494,10 +494,10 @@ public final class AffogatoTranspiler {
                 ));
             }
         }
-        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(recordDecl.annotation()));
+        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(source, recordDecl.annotation()));
     }
 
-    private ParsedInterface buildInterface(Path sourceFile, AffogatoParser.InterfaceDeclContext interfaceDecl) {
+    private ParsedInterface buildInterface(Path sourceFile, String source, AffogatoParser.InterfaceDeclContext interfaceDecl) {
         String access = accessFromClassModifiers(interfaceDecl.classModifier());
         String name = interfaceDecl.Identifier().getText();
         List<InterfaceMethod> methods = new ArrayList<>();
@@ -521,11 +521,11 @@ public final class AffogatoTranspiler {
             }
             List<ParamDecl> parameters = sig.parameterList() == null
                     ? List.of()
-                    : buildParameters(sourceFile, sig.parameterList(), false);
+                    : buildParameters(sourceFile, source, sig.parameterList(), false);
             AffogatoParser.BlockContext body = isDefault ? member.block() : null;
             methods.add(new InterfaceMethod(isDefault, returnType, methodName, parameters, body, member.getStart().getLine()));
         }
-        return new ParsedInterface(access, name, buildTypeParams(interfaceDecl.typeParamList()), methods, annotations(interfaceDecl.annotation()));
+        return new ParsedInterface(access, name, buildTypeParams(interfaceDecl.typeParamList()), methods, annotations(source, interfaceDecl.annotation()));
     }
 
     private List<TypeParamDecl> buildTypeParams(AffogatoParser.TypeParamListContext ctx) {
@@ -538,7 +538,7 @@ public final class AffogatoTranspiler {
                 .toList();
     }
 
-    private List<ParamDecl> buildParameters(Path sourceFile, AffogatoParser.ParameterListContext parameterList, boolean compact) {
+    private List<ParamDecl> buildParameters(Path sourceFile, String source, AffogatoParser.ParameterListContext parameterList, boolean compact) {
         List<ParamDecl> parameters = new ArrayList<>();
         for (AffogatoParser.ParameterContext parameter : parameterList.parameter()) {
             PropertyKind propertyKind = PropertyKind.NONE;
@@ -556,7 +556,7 @@ public final class AffogatoTranspiler {
                         "Compact constructor parameters need var or let."
                 ));
             }
-            parameters.add(new ParamDecl(name, type, propertyKind, annotations(parameter.annotation())));
+            parameters.add(new ParamDecl(name, type, propertyKind, annotations(source, parameter.annotation())));
         }
         return parameters;
     }
@@ -1079,6 +1079,14 @@ public final class AffogatoTranspiler {
             out.append(indent(indent)).append("throw ").append(expression.javaSource()).append(";").append(System.lineSeparator());
             return;
         }
+        if (statement.breakStatement() != null) {
+            out.append(indent(indent)).append("break;").append(System.lineSeparator());
+            return;
+        }
+        if (statement.continueStatement() != null) {
+            out.append(indent(indent)).append("continue;").append(System.lineSeparator());
+            return;
+        }
         if (statement.localVarDecl() != null) {
             out.append(indent(indent)).append(transformLocalDeclaration(unit, statement.localVarDecl(), context, indent)).append(System.lineSeparator());
             return;
@@ -1106,13 +1114,13 @@ public final class AffogatoTranspiler {
     }
 
     private void writeGuard(StringBuilder out, CompilationUnit unit, AffogatoParser.GuardStatementContext guard, MethodContext context, int indent) {
-        if (!blockExits(guard.block())) {
+        if (!flow.blockStopsControl(guard.block())) {
             diagnostics.add(error(
                     unit.sourceFile(),
                     guard.getStart().getLine(),
                     guard.getStart().getCharPositionInLine() + 1,
                     "AFFOGATO_GUARD_FLOW",
-                    "guard else blocks must exit with return or throw."
+                    "guard else blocks must exit with return, throw, break, or continue."
                 ));
         }
         String rawCondition = sourceText(unit.source(), guard.condition());
@@ -3030,8 +3038,22 @@ public final class AffogatoTranspiler {
                     && statement.switchStatement() == null
                     && statement.returnStatement() == null
                     && statement.throwStatement() == null
+                    && statement.breakStatement() == null
+                    && statement.continueStatement() == null
                     && statement.localVarDecl() == null
                     && statement.expressionStatement() == null;
+        }
+
+        boolean blockStopsControl(AffogatoParser.BlockContext block) {
+            List<AffogatoParser.StatementContext> statements = block.statement();
+            for (int index = statements.size() - 1; index >= 0; index--) {
+                AffogatoParser.StatementContext statement = statements.get(index);
+                if (isPureSeparator(statement)) {
+                    continue;
+                }
+                return statementStopsControl(statement);
+            }
+            return false;
         }
 
         boolean statementExits(AffogatoParser.StatementContext statement) {
@@ -3049,6 +3071,25 @@ public final class AffogatoTranspiler {
             }
             if (statement.whileStatement() != null) {
                 return whileExits(statement.whileStatement());
+            }
+            return false;
+        }
+
+        private boolean statementStopsControl(AffogatoParser.StatementContext statement) {
+            if (statement.returnStatement() != null
+                    || statement.throwStatement() != null
+                    || statement.breakStatement() != null
+                    || statement.continueStatement() != null) {
+                return true;
+            }
+            if (statement.block() != null) {
+                return blockStopsControl(statement.block());
+            }
+            if (statement.ifStatement() != null) {
+                return ifStopsControl(statement.ifStatement());
+            }
+            if (statement.tryStatement() != null) {
+                return tryStopsControl(statement.tryStatement());
             }
             return false;
         }
@@ -3085,6 +3126,32 @@ public final class AffogatoTranspiler {
             return thenExits && elseExits;
         }
 
+        private boolean tryStopsControl(AffogatoParser.TryStatementContext tryStatement) {
+            if (tryStatement.finallyClause() != null && blockStopsControl(tryStatement.finallyClause().block())) {
+                return true;
+            }
+            if (!blockStopsControl(tryStatement.block())) {
+                return false;
+            }
+            return tryStatement.catchClause().stream().allMatch(clause -> blockStopsControl(clause.block()));
+        }
+
+        private boolean ifStopsControl(AffogatoParser.IfStatementContext ifStatement) {
+            if (ifStatement.ELSE() == null || ifStatement.block().isEmpty()) {
+                return false;
+            }
+            boolean thenStops = blockStopsControl(ifStatement.block(0));
+            boolean elseStops;
+            if (ifStatement.ifStatement() != null) {
+                elseStops = ifStopsControl(ifStatement.ifStatement());
+            } else if (ifStatement.block().size() > 1) {
+                elseStops = blockStopsControl(ifStatement.block(1));
+            } else {
+                elseStops = false;
+            }
+            return thenStops && elseStops;
+        }
+
         void checkUnreachable(Path sourceFile, AffogatoParser.BlockContext block) {
             boolean exited = false;
             for (AffogatoParser.StatementContext stmt : block.statement()) {
@@ -3101,7 +3168,7 @@ public final class AffogatoTranspiler {
                             stmt.getStart().getCharPositionInLine() + 1
                     ));
                 }
-                if (statementExits(stmt)) {
+                if (statementStopsControl(stmt)) {
                     exited = true;
                 }
             }
@@ -3574,11 +3641,15 @@ public final class AffogatoTranspiler {
     }
 
     private String stripNullableSuffix(String typeName) {
-        String type = typeName.trim();
+        String type = stripTypeUseAnnotations(typeName.trim());
         if (type.endsWith("?") || type.endsWith("!")) {
             return type.substring(0, type.length() - 1);
         }
         return type;
+    }
+
+    private String stripTypeUseAnnotations(String typeName) {
+        return typeName.replaceAll("@(?:[A-Za-z_$][A-Za-z0-9_$]*\\.)*[A-Za-z_$][A-Za-z0-9_$]*\\s+", "");
     }
 
     private TypeRef inferType(String initializer) {
@@ -3622,7 +3693,7 @@ public final class AffogatoTranspiler {
             nullability = Nullability.NOT_NULL;
             raw = raw.substring(0, raw.length() - 1);
         }
-        return new TypeRef(normalizeListType(raw), nullability);
+        return new TypeRef(normalizeTypeUseNullability(normalizeListType(raw)), nullability);
     }
 
     /**
@@ -3654,6 +3725,15 @@ public final class AffogatoTranspiler {
             index++;
         }
         return out.toString();
+    }
+
+    private String normalizeTypeUseNullability(String type) {
+        Matcher matcher = Pattern.compile("(?<![A-Za-z0-9_$.])([A-Za-z_$][A-Za-z0-9_$.]*)([!?])(?=\\s*(?:\\[\\]|[,>\\]]|$))")
+                .matcher(type);
+        return matcher.replaceAll(match -> {
+            String annotation = match.group(2).equals("?") ? "@Nullable " : "@NotNull ";
+            return annotation + match.group(1);
+        });
     }
 
     private int matchingBracket(String text, int open) {
@@ -3695,11 +3775,13 @@ public final class AffogatoTranspiler {
     }
 
     private boolean usesNullable(ParsedClass clazz) {
-        return allTypes(clazz).stream().anyMatch(type -> type.nullability() == Nullability.NULLABLE);
+        return allTypes(clazz).stream()
+                .anyMatch(type -> type.nullability() == Nullability.NULLABLE || type.javaType().contains("@Nullable"));
     }
 
     private boolean usesNotNull(ParsedClass clazz) {
-        return allTypes(clazz).stream().anyMatch(type -> type.nullability() == Nullability.NOT_NULL);
+        return allTypes(clazz).stream()
+                .anyMatch(type -> type.nullability() == Nullability.NOT_NULL || type.javaType().contains("@NotNull"));
     }
 
     private boolean usesObjects(ParsedClass clazz) {
@@ -3718,18 +3800,10 @@ public final class AffogatoTranspiler {
         return types;
     }
 
-    private List<String> annotations(List<AffogatoParser.AnnotationContext> annotationContexts) {
+    private List<String> annotations(String source, List<AffogatoParser.AnnotationContext> annotationContexts) {
         List<String> rendered = new ArrayList<>();
         for (AffogatoParser.AnnotationContext annotation : annotationContexts) {
-            StringBuilder sb = new StringBuilder("@").append(annotation.qualifiedName().getText());
-            if (annotation.LPAREN() != null) {
-                sb.append('(');
-                if (annotation.annotationArgs() != null) {
-                    sb.append(annotation.annotationArgs().getText());
-                }
-                sb.append(')');
-            }
-            rendered.add(sb.toString());
+            rendered.add(sourceText(source, annotation).trim());
         }
         return rendered;
     }
@@ -6286,7 +6360,7 @@ public final class AffogatoTranspiler {
         }
 
         private String rawClassName(String typeName) {
-            String cleaned = typeName.trim();
+            String cleaned = stripTypeUseAnnotations(typeName.trim());
             if (cleaned.endsWith("?") || cleaned.endsWith("!")) {
                 cleaned = cleaned.substring(0, cleaned.length() - 1);
             }

@@ -38,7 +38,13 @@ annotationArgs
 
 annotationArg
     : Identifier ASSIGN expression
+    | Identifier ASSIGN annotationArray
+    | annotationArray
     | expression
+    ;
+
+annotationArray
+    : LBRACE (annotationArg (COMMA annotationArg)*)? RBRACE
     ;
 
 classDecl
@@ -111,7 +117,7 @@ variableKind
     ;
 
 typeRef
-    : qualifiedName typeArguments? arraySuffix* nullability?
+    : qualifiedName typeArguments? nullability? arraySuffix* nullability?
     | LBRACK typeRef RBRACK nullability?
     ;
 
@@ -155,6 +161,8 @@ statement
     | switchStatement separators?
     | returnStatement terminators?
     | throwStatement terminators?
+    | breakStatement terminators?
+    | continueStatement terminators?
     | localVarDecl terminators
     | expressionStatement terminators
     ;
@@ -263,6 +271,14 @@ returnStatement
 
 throwStatement
     : THROW expression
+    ;
+
+breakStatement
+    : BREAK
+    ;
+
+continueStatement
+    : CONTINUE
     ;
 
 localVarDecl
@@ -458,6 +474,8 @@ FINALLY: 'finally';
 IN: 'in';
 RETURN: 'return';
 THROW: 'throw';
+BREAK: 'break';
+CONTINUE: 'continue';
 NOT: 'not';
 IS: 'is';
 AS: 'as';

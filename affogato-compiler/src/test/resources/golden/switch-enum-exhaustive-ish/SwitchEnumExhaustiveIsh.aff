@@ -1,0 +1,17 @@
+package dev.affogato.golden
+
+enum ControlState {
+    NEW,
+    RUNNING,
+    DONE
+}
+
+class SwitchEnumExhaustiveIsh {
+    describe(state: ControlState): String {
+        return switch state {
+            case ControlState.NEW -> "new"
+            case ControlState.RUNNING -> "running"
+            case ControlState.DONE -> "done"
+        }
+    }
+}

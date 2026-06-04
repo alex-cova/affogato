@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+class IfExpressionLikeReturn {
+    label(value: int): CharSequence {
+        if value > 0 {
+            return "positive"
+        } else if value == 0 {
+            return new StringBuilder("zero")
+        } else {
+            return "negative"
+        }
+    }
+}

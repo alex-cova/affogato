@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+import java.util.List
+
+class NullabilityGenerics {
+    describe(required: List<String!>, optional: List<String?>): String {
+        let requiredSize = required.size()
+        let optionalSize = optional.size()
+        return requiredSize + ":" + optionalSize
+    }
+}

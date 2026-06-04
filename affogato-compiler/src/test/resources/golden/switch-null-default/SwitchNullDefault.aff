@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class SwitchNullDefault {
+    describe(value: String?): String {
+        return switch value {
+            case "yes" -> "accepted"
+            case "no" -> "rejected"
+            default -> "unknown"
+        }
+    }
+}

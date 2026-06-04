@@ -1,0 +1,16 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.DefaultLabel
+
+@DefaultLabel
+class DefaultAnnotatedType {
+    name(): String {
+        return "default"
+    }
+}
+
+class AnnotationsDefaultValues {
+    run(): String {
+        return DefaultAnnotatedType().name()
+    }
+}
