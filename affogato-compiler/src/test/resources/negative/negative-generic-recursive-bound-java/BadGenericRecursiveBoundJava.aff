@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+import java.util.Comparator
+
+class BadGenericRecursiveBoundJava {
+    run(): Comparator<Object> {
+        return Comparator.naturalOrder()
+    }
+}

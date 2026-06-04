@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadOverloadAmbiguous {
+    run(): String {
+        return JavaApi.ambiguous(null)
+    }
+}

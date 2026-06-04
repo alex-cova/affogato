@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+import java.util.List
+
+class BadNullabilityGenericMismatch {
+    run(values: List<String?>): List<String!> {
+        return values
+    }
+}

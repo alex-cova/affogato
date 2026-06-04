@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+import java.util.List
+
+class BadWildcardIncompatible {
+    run(): String {
+        let numbers = List.of(Integer.valueOf(1))
+        return JavaApi.wildcardOnly(numbers)
+    }
+}

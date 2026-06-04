@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+class BadBlockScopeLeak {
+    run(flag: boolean): String {
+        if flag {
+            let scoped = "inside"
+        }
+        return scoped
+    }
+}

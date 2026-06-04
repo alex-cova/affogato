@@ -5815,6 +5815,9 @@ public final class AffogatoTranspiler {
         }
 
         private boolean genericTypeArgumentAssignable(String sourceArgument, String targetArgument, CompilationUnit unit) {
+            if (sourceArgument.contains("@Nullable") && targetArgument.contains("@NotNull")) {
+                return false;
+            }
             String source = stripNullableSuffix(sourceArgument.trim());
             String target = stripNullableSuffix(targetArgument.trim());
             if (target.equals("?")) {
@@ -6304,8 +6307,18 @@ public final class AffogatoTranspiler {
         }
 
         private String genericTypeName(Type type, Map<TypeVariable<?>, TypeGuess> bindings, CompilationUnit unit) {
+            return genericTypeName(type, bindings, unit, new HashSet<>());
+        }
+
+        private String genericTypeName(Type type, Map<TypeVariable<?>, TypeGuess> bindings, CompilationUnit unit, Set<Type> visiting) {
             if (type instanceof Class<?> clazz) {
                 return typeName(clazz);
+            }
+            if (!visiting.add(type)) {
+                if (type instanceof TypeVariable<?> typeVariable) {
+                    return typeVariable.getName();
+                }
+                return "java.lang.Object";
             }
             if (type instanceof TypeVariable<?> typeVariable) {
                 TypeGuess bound = bindings.get(typeVariable);
@@ -6313,31 +6326,31 @@ public final class AffogatoTranspiler {
                     return bound.javaType();
                 }
                 Type[] bounds = typeVariable.getBounds();
-                return bounds.length == 0 ? "java.lang.Object" : genericTypeName(bounds[0], bindings, unit);
+                return bounds.length == 0 ? "java.lang.Object" : genericTypeName(bounds[0], bindings, unit, new HashSet<>(visiting));
             }
             if (type instanceof ParameterizedType parameterizedType) {
-                String raw = genericTypeName(parameterizedType.getRawType(), bindings, unit);
+                String raw = genericTypeName(parameterizedType.getRawType(), bindings, unit, new HashSet<>(visiting));
                 Type[] arguments = parameterizedType.getActualTypeArguments();
                 if (arguments.length == 0) {
                     return raw;
                 }
                 List<String> rendered = new ArrayList<>();
                 for (Type argument : arguments) {
-                    rendered.add(genericTypeName(argument, bindings, unit));
+                    rendered.add(genericTypeName(argument, bindings, unit, new HashSet<>(visiting)));
                 }
                 return raw + "<" + String.join(", ", rendered) + ">";
             }
             if (type instanceof GenericArrayType genericArrayType) {
-                return genericTypeName(genericArrayType.getGenericComponentType(), bindings, unit) + "[]";
+                return genericTypeName(genericArrayType.getGenericComponentType(), bindings, unit, new HashSet<>(visiting)) + "[]";
             }
             if (type instanceof WildcardType wildcardType) {
                 Type[] lowerBounds = wildcardType.getLowerBounds();
                 if (lowerBounds.length > 0) {
-                    return "? super " + genericTypeName(lowerBounds[0], bindings, unit);
+                    return "? super " + genericTypeName(lowerBounds[0], bindings, unit, new HashSet<>(visiting));
                 }
                 Type[] upperBounds = wildcardType.getUpperBounds();
                 if (upperBounds.length > 0 && upperBounds[0] != Object.class) {
-                    return "? extends " + genericTypeName(upperBounds[0], bindings, unit);
+                    return "? extends " + genericTypeName(upperBounds[0], bindings, unit, new HashSet<>(visiting));
                 }
                 return "?";
             }

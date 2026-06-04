@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadGenericBoundMemberCall {
+    lengthOf<T: CharSequence>(value: T): int {
+        return value.length()
+    }
+}

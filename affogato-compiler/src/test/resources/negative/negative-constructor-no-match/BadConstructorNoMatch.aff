@@ -1,0 +1,13 @@
+package dev.affogato.negative
+
+class BadConstructorNoMatch {
+    run(): NeedsString {
+        return NeedsString(1)
+    }
+}
+
+class NeedsString {
+    init(value: String) {
+        println(value)
+    }
+}

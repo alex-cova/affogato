@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadReflectionUnknownMember {
+    run(): Object {
+        return String.class.noSuchReflectionMember()
+    }
+}
