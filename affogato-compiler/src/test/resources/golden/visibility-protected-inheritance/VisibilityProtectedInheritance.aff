@@ -1,0 +1,23 @@
+package dev.affogato.golden
+
+class ProtectedBase {
+    protected var prefix: String = "base"
+
+    protected format(value: String): String {
+        return prefix + ":" + value
+    }
+}
+
+class ProtectedChild : ProtectedBase {
+    run(value: String): String {
+        this.prefix = "child"
+        return format(value)
+    }
+}
+
+class VisibilityProtectedInheritance {
+    run(): String {
+        let child = ProtectedChild()
+        return child.run("visible")
+    }
+}

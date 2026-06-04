@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class PrivateFieldBox {
+    private var secret: String = "initial"
+
+    reveal(): String {
+        return secret
+    }
+}
+
+class VisibilityPrivateFieldAccessor {
+    run(): String {
+        let box = PrivateFieldBox()
+        box.secret = "changed"
+        let current: String = box.secret
+        let revealed: String = box.reveal()
+        return current + ":" + revealed
+    }
+}

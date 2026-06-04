@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class VisibilityPrivateMethod {
+    run(value: String): String {
+        return normalize(value)
+    }
+
+    private normalize(value: String): String {
+        return value.trim().toUpperCase()
+    }
+}

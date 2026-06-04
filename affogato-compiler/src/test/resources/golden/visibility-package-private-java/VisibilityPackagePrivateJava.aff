@@ -1,0 +1,9 @@
+package dev.affogato.golden
+
+class VisibilityPackagePrivateJava {
+    run(): String {
+        let box = PackageVisibleJavaBox("java")
+        box.label = box.label + "-field"
+        return box.reveal()
+    }
+}
