@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaWildcardNumbers
+import java.util.List
+
+class JavaWildcardsExtends {
+    run(): String {
+        let numbers = List.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3))
+        let total = JavaWildcardNumbers.sum(numbers)
+        return total.toString()
+    }
+}

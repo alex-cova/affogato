@@ -1,0 +1,13 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaFieldBox
+
+class JavaFieldsStaticInstance {
+    run(): String {
+        JavaFieldBox.staticLabel = "changed"
+        let box = JavaFieldBox(3)
+        box.count = box.count + 4
+        let label: String = JavaFieldBox.staticLabel
+        return label + ":" + box.count + ":" + box.finalLabel
+    }
+}

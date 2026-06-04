@@ -1,0 +1,12 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaBeanBox
+
+class JavaBeanProperties {
+    run(): String {
+        let bean = JavaBeanBox()
+        bean.name = "affogato"
+        bean.active = true
+        return bean.name + ":" + bean.active
+    }
+}

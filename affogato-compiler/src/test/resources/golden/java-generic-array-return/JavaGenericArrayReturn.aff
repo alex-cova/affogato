@@ -1,0 +1,14 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaGenericArrays
+
+class JavaGenericArrayReturn {
+    run(): String {
+        let values = JavaGenericArrays.arrayOf("af", "fogato")
+        var text = ""
+        for value in values {
+            text = text + value
+        }
+        return text + ":" + values.length
+    }
+}

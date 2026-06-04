@@ -1,0 +1,18 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaOuter
+import java.util.HashMap
+import java.util.Map
+
+class JavaInnerClasses {
+    run(): String {
+        let map = HashMap<String, Integer>()
+        map.put("shots", 2)
+        let entry: Map.Entry<String, Integer> = map.entrySet().iterator().next()
+        let inner = new JavaOuter.Inner("inside")
+        let key = entry.getKey()
+        let value = entry.getValue()
+        let label = inner.label()
+        return key + ":" + value + ":" + label
+    }
+}

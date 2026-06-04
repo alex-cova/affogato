@@ -84,13 +84,15 @@ public final class AffogatoGoldenTest {
             Files.copy(aff, target);
         }
 
+        List<Path> fixtureClasspath = compileFixtureJava(fixture, workDir);
         Path generatedRoot = workDir.resolve("generated");
         AffogatoCompilationResult result;
         try {
-            result = new AffogatoCompiler().compile(AffogatoCompilerOptions.builder()
+            AffogatoCompilerOptions.Builder options = AffogatoCompilerOptions.builder()
                     .addSourceRoot(sourceRoot)
-                    .outputDirectory(generatedRoot)
-                    .build());
+                    .outputDirectory(generatedRoot);
+            fixtureClasspath.forEach(options::addClasspathEntry);
+            result = new AffogatoCompiler().compile(options.build());
         } catch (AffogatoCompilationException exception) {
             throw new AssertionError("Fixture failed to compile: " + describe(exception));
         }
@@ -124,7 +126,39 @@ public final class AffogatoGoldenTest {
             }
         }
 
-        compileGeneratedJava(generatedRoot, workDir.resolve("classes"));
+        compileGeneratedJava(generatedRoot, workDir.resolve("classes"), fixtureClasspath);
+    }
+
+    private static List<Path> compileFixtureJava(Path fixture, Path workDir) throws Exception {
+        List<Path> javaSources;
+        try (var stream = Files.walk(fixture)) {
+            javaSources = stream
+                    .filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .filter(path -> !fixture.relativize(path).startsWith("expected"))
+                    .sorted()
+                    .toList();
+        }
+        if (javaSources.isEmpty()) {
+            return List.of();
+        }
+
+        Path classesDir = workDir.resolve("api-classes");
+        Files.createDirectories(classesDir);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        require(compiler != null, "A JDK with javac is required.");
+        try (StandardJavaFileManager fileManager =
+                     compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8)) {
+            List<File> files = javaSources.stream().map(Path::toFile).toList();
+            Iterable<? extends JavaFileObject> units = fileManager.getJavaFileObjectsFromFiles(files);
+            Boolean ok = compiler.getTask(null, fileManager, null, List.of(
+                    "--release", "21",
+                    "-parameters",
+                    "-classpath", System.getProperty("java.class.path"),
+                    "-d", classesDir.toString()
+            ), null, units).call();
+            require(Boolean.TRUE.equals(ok), "Fixture Java API did not compile with javac.");
+        }
+        return List.of(classesDir);
     }
 
     private static Map<String, String> readJavaTree(Path root) throws Exception {
@@ -163,7 +197,7 @@ public final class AffogatoGoldenTest {
         }
     }
 
-    private static void compileGeneratedJava(Path generatedRoot, Path classesDir) throws Exception {
+    private static void compileGeneratedJava(Path generatedRoot, Path classesDir, List<Path> fixtureClasspath) throws Exception {
         Files.createDirectories(classesDir);
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         require(compiler != null, "A JDK with javac is required.");
@@ -178,9 +212,12 @@ public final class AffogatoGoldenTest {
         try (StandardJavaFileManager fileManager =
                      compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8)) {
             Iterable<? extends JavaFileObject> units = fileManager.getJavaFileObjectsFromFiles(javaFiles);
+            List<String> classpathEntries = new ArrayList<>();
+            classpathEntries.add(System.getProperty("java.class.path"));
+            fixtureClasspath.stream().map(Path::toString).forEach(classpathEntries::add);
             List<String> options = List.of(
                     "--release", "21",
-                    "-classpath", System.getProperty("java.class.path"),
+                    "-classpath", String.join(File.pathSeparator, classpathEntries),
                     "-d", classesDir.toString()
             );
             Boolean ok = compiler.getTask(null, fileManager, null, options, null, units).call();

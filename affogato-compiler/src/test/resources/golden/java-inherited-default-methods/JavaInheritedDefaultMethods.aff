@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaNamed
+import dev.affogato.golden.interop.JavaNamedImpl
+
+class JavaInheritedDefaultMethods {
+    run(): String {
+        let named: JavaNamed = JavaNamedImpl("bean")
+        return named.label()
+    }
+}

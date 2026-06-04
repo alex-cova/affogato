@@ -2935,7 +2935,9 @@ public final class AffogatoTranspiler {
             } else if (!methodCall && ownerType != null && isArrayLengthAccess(ownerType, property)) {
                 out.append(expression, ownerStart, propertyEnd);
             } else if (!methodCall && ownerType != null && context.javaResolver.getterExists(ownerType, property, context.unit)) {
-                out.append(owner).append('.').append(getterName(property, TypeRef.unspecified("Object"))).append("()");
+                String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
+                        .orElse(getterName(property, TypeRef.unspecified("Object")));
+                out.append(owner).append('.').append(getter).append("()");
             } else if (!methodCall && ownerType != null && context.javaResolver.fieldExists(ownerType, property, context.unit)) {
                 out.append(expression, ownerStart, propertyEnd);
             } else {
@@ -5090,6 +5092,13 @@ public final class AffogatoTranspiler {
                     .map(method -> TypeGuess.of(typeName(method.getReturnType())));
         }
 
+        private Optional<String> getterInvocationName(String ownerType, String property, CompilationUnit unit) {
+            return loadClass(ownerType, unit)
+                    .flatMap(type -> getterMethod(type, getterName(property, TypeRef.unspecified("Object")))
+                            .or(() -> getterMethod(type, "is" + capitalize(property))))
+                    .map(Method::getName);
+        }
+
         private boolean fieldExists(String ownerType, String fieldName, CompilationUnit unit) {
             return fieldType(ownerType, fieldName, unit).isPresent();
         }
@@ -6291,6 +6300,23 @@ public final class AffogatoTranspiler {
             List<String> candidates = new ArrayList<>();
             if (className.contains(".")) {
                 candidates.add(className);
+                candidates.addAll(innerClassCandidates(className));
+                String outer = className.substring(0, className.indexOf('.'));
+                String inner = className.substring(className.indexOf('.') + 1).replace('.', '$');
+                if (!unit.packageName().isBlank()) {
+                    candidates.add(unit.packageName() + "." + outer + "$" + inner);
+                }
+                for (String importName : unit.imports()) {
+                    String cleaned = importName.replaceFirst("^static\\s+", "");
+                    if (cleaned.endsWith("." + outer)) {
+                        candidates.add(cleaned + "$" + inner);
+                    }
+                    if (cleaned.endsWith(".*")) {
+                        candidates.add(cleaned.substring(0, cleaned.length() - 2) + "." + outer + "$" + inner);
+                    }
+                }
+                candidates.add("java.lang." + outer + "$" + inner);
+                candidates.add("java.util." + outer + "$" + inner);
                 return candidates;
             }
             if (!unit.packageName().isBlank()) {
@@ -6309,6 +6335,14 @@ public final class AffogatoTranspiler {
             candidates.add("java.util." + className);
             candidates.add(className);
             return candidates.stream().distinct().toList();
+        }
+
+        private List<String> innerClassCandidates(String className) {
+            List<String> candidates = new ArrayList<>();
+            for (int index = className.lastIndexOf('.'); index > 0; index = className.lastIndexOf('.', index - 1)) {
+                candidates.add(className.substring(0, index) + "$" + className.substring(index + 1).replace('.', '$'));
+            }
+            return candidates;
         }
     }
 }

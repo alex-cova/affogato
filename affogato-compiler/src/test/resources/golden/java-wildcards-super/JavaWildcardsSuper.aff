@@ -1,0 +1,15 @@
+package dev.affogato.golden
+
+import dev.affogato.golden.interop.JavaWildcardSinks
+import java.util.ArrayList
+import java.util.function.Consumer
+
+class JavaWildcardsSuper {
+    run(): String {
+        let values = ArrayList<Number>()
+        JavaWildcardSinks.addInteger(values)
+        let consumer = JavaWildcardSinks.objectConsumer()
+        JavaWildcardSinks.consumeString(consumer)
+        return values.size() + ""
+    }
+}
