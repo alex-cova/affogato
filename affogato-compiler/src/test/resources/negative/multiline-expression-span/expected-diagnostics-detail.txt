@@ -1,0 +1,5 @@
+# Format: CODE line col message-substring
+# The error is at line 14 col 26 — the '&' operator position.
+# The method parameters span lines 10-13, verifying that the span system
+# counts lines correctly across multiline parameter declarations.
+AFFOGATO_OPERATOR_TYPE 14 26 Bitwise operators require numeric operands.

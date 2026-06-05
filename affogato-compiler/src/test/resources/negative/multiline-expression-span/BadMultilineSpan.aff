@@ -1,0 +1,16 @@
+package dev.affogato.negative
+
+class BadMultilineSpan {
+    // Verifies that AFFOGATO_OPERATOR_TYPE diagnostic spans point to the correct
+    // line and column even when the error is inside a method body with preceding
+    // multiline variable declarations and irregular indentation.
+    //
+    // The bitwise '&' on String operands is ill-typed.
+    // Line 14 col 20 is the position of the '&' operator.
+    helper(
+        a: int,
+        b: int
+    ): String {
+        return "hello" & "world"
+    }
+}
