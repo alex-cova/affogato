@@ -2488,6 +2488,11 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     && !isNumericOperand(unary.expression(), context)) {
                 expressionSemanticError(context, rawExpression, unary, "AFFOGATO_OPERATOR_TYPE",
                         "Increment and decrement require a numeric operand.");
+            } else if ((unary.operator().equals("++") || unary.operator().equals("--"))
+                    && unary.expression() instanceof PropertyAccessExpression property
+                    && isGetterSetterBackedPropertyAccess(property, context)) {
+                expressionSemanticError(context, rawExpression, property, "AFFOGATO_PROPERTY_MUTATION_EXPR",
+                        "Mutating property `" + property.source() + "` with `++`/`--`/`+=` is not supported inside an expression; do it in a separate statement.");
             }
             return;
         }
@@ -2565,6 +2570,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (ast instanceof AssignmentExpression assignment) {
             validateExpressionSemantics(assignment.target(), context, rawExpression);
             validateExpressionSemantics(assignment.value(), context, rawExpression);
+            if (isCompoundAssignmentSource(assignment.source())
+                    && assignment.target() instanceof PropertyAccessExpression property
+                    && isGetterSetterBackedPropertyAccess(property, context)) {
+                expressionSemanticError(context, rawExpression, property, "AFFOGATO_PROPERTY_MUTATION_EXPR",
+                        "Mutating property `" + property.source() + "` with `++`/`--`/`+=` is not supported inside an expression; do it in a separate statement.");
+            }
             return;
         }
         if (ast instanceof CastExpression cast) {
@@ -4408,6 +4419,26 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         PropertyHop hop = resolvePropertyHopOnType(ownerType.javaType(), property, context);
         return hop == null ? TypeGuess.unknown() : hop.resultType();
+    }
+
+    private boolean isGetterSetterBackedPropertyAccess(PropertyAccessExpression property, MethodContext context) {
+        TypeGuess receiverType = property.receiver().resolvedType().isKnown()
+                ? property.receiver().resolvedType()
+                : inferExpressionType(property.receiver().source(), context);
+        if (!receiverType.isKnown() || receiverType.isNullLiteral()) {
+            return false;
+        }
+        PropertyHop hop = resolvePropertyHopOnType(receiverType.javaType(), property.property(), context);
+        return hop != null && hop.call();
+    }
+
+    private boolean isCompoundAssignmentSource(String source) {
+        int operatorStart = topLevelAssignmentStart(source.trim());
+        if (operatorStart < 0) {
+            return false;
+        }
+        char operator = source.charAt(operatorStart);
+        return operator == '+' || operator == '-' || operator == '*' || operator == '/' || operator == '%';
     }
 
     private FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {

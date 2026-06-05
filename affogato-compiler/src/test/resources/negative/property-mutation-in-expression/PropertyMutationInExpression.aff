@@ -1,0 +1,10 @@
+package dev.affogato.negative
+
+class Counter(var n: int) { }
+
+class PropertyMutationInExpression {
+    static func run() {
+        let c = Counter(0)
+        println(c.n++)
+    }
+}

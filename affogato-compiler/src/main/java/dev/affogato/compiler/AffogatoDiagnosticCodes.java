@@ -37,6 +37,7 @@ public final class AffogatoDiagnosticCodes {
             Map.entry("AFFOGATO_OPERATOR_TYPE", "Use operands with compatible types for this operator."),
             Map.entry("AFFOGATO_PARSE", "Fix the syntax near the highlighted token."),
             Map.entry("AFFOGATO_POLY_TARGET_TYPE", "Add an explicit type for lambdas or method references."),
+            Map.entry("AFFOGATO_PROPERTY_MUTATION_EXPR", "Move the property mutation into its own statement."),
             Map.entry("AFFOGATO_PROPERTY_RESOLUTION", "Check the property name and receiver type."),
             Map.entry("AFFOGATO_RECORD_MEMBER", "Records only support declared components and generated members."),
             Map.entry("AFFOGATO_RESERVED_IDENTIFIER", "Rename the declaration; it collides with a Java reserved word and would emit invalid Java."),

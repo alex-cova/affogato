@@ -154,6 +154,7 @@ IntelliJ shows the same hint inline in the annotation tooltip.
 | `AFFOGATO_OPERATOR_TYPE` | Operator applied to incompatible types |
 | `AFFOGATO_PARSE` | Syntax or lexer error |
 | `AFFOGATO_POLY_TARGET_TYPE` | Lambda/method ref needs target type |
+| `AFFOGATO_PROPERTY_MUTATION_EXPR` | Property `++`/`--`/`+=` inside a larger expression |
 | `AFFOGATO_PROPERTY_RESOLUTION` | Unknown property on known receiver |
 | `AFFOGATO_RECORD_MEMBER` | Invalid record member access |
 | `AFFOGATO_RETURN_FLOW` | Non-void method may complete without value |

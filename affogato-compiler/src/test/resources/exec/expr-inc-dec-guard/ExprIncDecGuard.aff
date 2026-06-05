@@ -1,0 +1,18 @@
+package dev.affogato.exec
+
+class ExprIncDecGuard {
+    static func run() {
+        var i = 0
+        println(i++)
+        let arr: int[] = [5]
+        println(arr[0]++)
+        println(arr[0])
+        var j = 10
+        echo((j += 1))
+        println(j)
+    }
+
+    static func echo(x: int) {
+        println(x)
+    }
+}
