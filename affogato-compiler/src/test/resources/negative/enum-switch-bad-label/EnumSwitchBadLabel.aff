@@ -1,0 +1,11 @@
+enum Day { MON, TUE }
+class EnumSwitchBadLabel {
+    static func run() {
+        let d = Day.MON
+        let n = switch (d) {
+            case NOPE -> 1
+            default -> 0
+        }
+        println(n)
+    }
+}

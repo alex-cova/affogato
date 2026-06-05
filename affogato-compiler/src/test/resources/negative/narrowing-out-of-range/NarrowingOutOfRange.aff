@@ -1,0 +1,6 @@
+class NarrowingOutOfRange {
+    static func run() {
+        let b: byte = 200
+        println(b)
+    }
+}

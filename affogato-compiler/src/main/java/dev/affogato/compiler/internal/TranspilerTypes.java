@@ -235,6 +235,8 @@ final class TranspilerTypes {
         final String extendsType;
         final boolean isInterface;
         boolean isRecord;
+        boolean isEnum;
+        final List<String> enumConstants = new ArrayList<>();
         final List<String> typeParamNames;
         final Map<String, FieldSymbol> fields = new LinkedHashMap<>();
         final Map<String, List<MethodSymbol>> methods = new LinkedHashMap<>();

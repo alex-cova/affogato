@@ -1,0 +1,22 @@
+package dev.affogato.exec
+
+enum Day {
+    MON, TUE, WED
+}
+
+class EnumSwitch {
+    static label(d: Day): String {
+        return switch (d) {
+            case MON -> "monday"
+            case Day.TUE -> "tuesday"
+            default -> "other"
+        }
+    }
+    static func run() {
+        let d = Day.TUE
+        println(d.name())
+        println(label(Day.MON))
+        println(label(d))
+        println(label(Day.WED))
+    }
+}

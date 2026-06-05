@@ -1,0 +1,4 @@
+TUE
+monday
+tuesday
+other

@@ -1,0 +1,15 @@
+package dev.affogato.exec
+
+class BoxedNumericOps {
+    static func run() {
+        let xs = List<Integer>()
+        xs.add(10)
+        xs.add(20)
+        let sum = xs.get(0) + xs.get(1)
+        let scaled = xs.get(0) * 2
+        let cmp = xs.get(1) > 15
+        println(sum)
+        println(scaled)
+        println(cmp)
+    }
+}

@@ -1,0 +1,14 @@
+package dev.affogato.exec
+
+class NarrowingConstant {
+    static func run() {
+        let b: byte = 5
+        let s: short = 1000
+        let c: char = 65
+        let n = b + 1
+        println(b)
+        println(s)
+        println(c)
+        println(n)
+    }
+}

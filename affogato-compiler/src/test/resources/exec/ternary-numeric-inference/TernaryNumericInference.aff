@@ -1,0 +1,14 @@
+package dev.affogato.exec
+
+class TernaryNumericInference {
+    static func run() {
+        let a = true ? 1 : 2.0
+        let b = false ? 1 : 2L
+        let c = true ? 1L : 2.0
+        let d = true ? 1 : (false ? 2 : 3.0)
+        println(a)
+        println(b)
+        println(c)
+        println(d)
+    }
+}

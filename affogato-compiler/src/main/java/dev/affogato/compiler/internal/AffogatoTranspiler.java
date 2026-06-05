@@ -423,6 +423,8 @@ public final class AffogatoTranspiler implements AutoCloseable {
         for (ParsedEnum parsedEnum : unit.enums()) {
             registerClassSymbol(unit, parsedEnum.name(), parsedEnum.declarationLine(), parsedEnum.declarationColumn(), () -> {
                 ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
+                symbol.isEnum = true;
+                symbol.enumConstants.addAll(parsedEnum.constants());
                 symbol.constructors.add(new ConstructorSymbol(List.of()));
                 return symbol;
             });
@@ -1654,13 +1656,8 @@ public final class AffogatoTranspiler implements AutoCloseable {
             if (arm.DEFAULT() != null) {
                 out.append(indent(indent + 1)).append("default -> ");
             } else {
-                List<String> labels = new ArrayList<>();
-                for (AffogatoParser.SwitchLabelContext label : arm.switchLabel()) {
-                    TypedExpression typedLabel = transformExpressionTyped(sourceText(unit.source(), label.expression()), context);
-                    validateSwitchLabel(typedCondition.resolvedType(), typedLabel.resolvedType(), unit, context);
-                    labels.add(typedLabel.javaSource());
-                }
-                out.append(indent(indent + 1)).append("case ").append(String.join(", ", labels)).append(" -> ");
+                out.append(indent(indent + 1)).append("case ")
+                        .append(renderSwitchLabels(arm, typedCondition.resolvedType(), unit, context)).append(" -> ");
             }
             AffogatoParser.SwitchArmBodyContext body = arm.switchArmBody();
             if (body.block() != null) {
@@ -1701,13 +1698,8 @@ public final class AffogatoTranspiler implements AutoCloseable {
             if (arm.DEFAULT() != null) {
                 out.append(indent(indent + 1)).append("default -> ");
             } else {
-                List<String> labels = new ArrayList<>();
-                for (AffogatoParser.SwitchLabelContext label : arm.switchLabel()) {
-                    TypedExpression typedLabel = transformExpressionTyped(sourceText(unit.source(), label.expression()), context);
-                    validateSwitchLabel(typedCondition.resolvedType(), typedLabel.resolvedType(), unit, context);
-                    labels.add(typedLabel.javaSource());
-                }
-                out.append(indent(indent + 1)).append("case ").append(String.join(", ", labels)).append(" -> ");
+                out.append(indent(indent + 1)).append("case ")
+                        .append(renderSwitchLabels(arm, typedCondition.resolvedType(), unit, context)).append(" -> ");
             }
             AffogatoParser.SwitchArmBodyContext body = arm.switchArmBody();
             if (body.block() != null) {
@@ -1727,6 +1719,35 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         out.append(indent(indent)).append("}");
         return new TypedExpression(out.toString(), inferredType, new SwitchExpressionNode(out.toString(), inferredType));
+    }
+
+    private String renderSwitchLabels(AffogatoParser.SwitchArmContext arm, TypeGuess selectorType, CompilationUnit unit, MethodContext context) {
+        List<String> labels = new ArrayList<>();
+        for (AffogatoParser.SwitchLabelContext label : arm.switchLabel()) {
+            labels.add(renderSwitchLabel(selectorType, label, unit, context));
+        }
+        return String.join(", ", labels);
+    }
+
+    private String renderSwitchLabel(TypeGuess selectorType, AffogatoParser.SwitchLabelContext label, CompilationUnit unit, MethodContext context) {
+        String rawLabel = sourceText(unit.source(), label.expression()).trim();
+        ClassSymbol enumSymbol = selectorType.isKnown() ? classSymbol(selectorType.javaType(), context.unit) : null;
+        if (enumSymbol != null && enumSymbol.isEnum) {
+            // An enum case label is a constant name, optionally qualified (both `MON` and `Day.MON`
+            // are valid Java 21 enum labels). It is not a general expression, so it bypasses identifier
+            // resolution; the label is emitted verbatim after checking the constant exists.
+            int dot = rawLabel.lastIndexOf('.');
+            String constant = dot >= 0 ? rawLabel.substring(dot + 1).trim() : rawLabel;
+            if (!enumSymbol.enumConstants.contains(constant)) {
+                diagnostics.add(error(unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_SWITCH_LABEL_TYPE",
+                        "'" + rawLabel + "' is not a constant of enum " + enumSymbol.name() + "."));
+            }
+            return rawLabel;
+        }
+        TypedExpression typedLabel = transformExpressionTyped(rawLabel, context);
+        validateSwitchLabel(selectorType, typedLabel.resolvedType(), unit, context);
+        return typedLabel.javaSource();
     }
 
     private void validateSwitchLabel(TypeGuess selectorType, TypeGuess labelType, CompilationUnit unit, MethodContext context) {
@@ -2302,6 +2323,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
             String code,
             String message
     ) {
+        if (narrowConstantAssignable(rawExpression, expected)) {
+            // JLS 5.2: an int constant in range assigns to byte/short/char without a cast.
+            return;
+        }
         AstExpression ast = expressionAst(rawExpression, context);
         if (!isAssignmentAstCompatible(ast, expected, context)) {
             diagnostics.add(error(context.unit.sourceFile(), line, column, code, message));
@@ -2314,6 +2339,48 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (!isAssignable(actual, expected, context)) {
             diagnostics.add(error(context.unit.sourceFile(), line, column, code, message));
         }
+    }
+
+    // A single integer literal that fits the target's range may be assigned to byte/short/char
+    // without a cast (JLS 5.2 narrowing of constant expressions), e.g. `let b: byte = 5`. Only the
+    // single-literal form is handled; wider constant expressions still need a matching declared type.
+    private boolean narrowConstantAssignable(String rawExpression, TypeRef expected) {
+        long min;
+        long max;
+        switch (expected.javaType()) {
+            case "byte" -> { min = Byte.MIN_VALUE; max = Byte.MAX_VALUE; }
+            case "short" -> { min = Short.MIN_VALUE; max = Short.MAX_VALUE; }
+            case "char" -> { min = Character.MIN_VALUE; max = Character.MAX_VALUE; }
+            default -> { return false; }
+        }
+        String text = rawExpression.trim();
+        boolean negative = text.startsWith("-");
+        if (negative) {
+            text = text.substring(1).trim();
+        }
+        if (text.isEmpty()) {
+            return false;
+        }
+        char last = text.charAt(text.length() - 1);
+        if (last == 'l' || last == 'L') {
+            return false; // long constants do not narrow
+        }
+        boolean hex = text.length() > 2 && text.charAt(0) == '0' && (text.charAt(1) == 'x' || text.charAt(1) == 'X');
+        String digits = (hex ? text.substring(2) : text).replace("_", "");
+        int radix = hex ? 16 : 10;
+        if (digits.isEmpty() || digits.chars().anyMatch(ch -> Character.digit(ch, radix) < 0)) {
+            return false;
+        }
+        BigInteger value;
+        try {
+            value = new BigInteger(digits, radix);
+        } catch (NumberFormatException malformed) {
+            return false;
+        }
+        if (negative) {
+            value = value.negate();
+        }
+        return value.compareTo(BigInteger.valueOf(min)) >= 0 && value.compareTo(BigInteger.valueOf(max)) <= 0;
     }
 
     private boolean isAssignmentAstCompatible(AstExpression ast, TypeRef expected, MethodContext context) {
@@ -2421,7 +2488,8 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private boolean isBooleanType(TypeGuess type) {
-        return type.javaType().equals("boolean") || type.javaType().equals("java.lang.Boolean");
+        return type.javaType().equals("boolean") || type.javaType().equals("java.lang.Boolean")
+                || type.javaType().equals("Boolean");
     }
 
     private boolean isArrayIndexType(TypeGuess type) {
@@ -4400,6 +4468,11 @@ public final class AffogatoTranspiler implements AutoCloseable {
             }
         }
 
+        TypeGuess enumConstant = enumConstantAccessType(value, context);
+        if (enumConstant.isKnown()) {
+            return enumConstant;
+        }
+
         TypeGuess propertyType = propertyType(value, context);
         if (propertyType.isKnown()) {
             return propertyType;
@@ -4436,7 +4509,13 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 // (Object), so without the AST short-circuit `let x = 1 << 4` emits invalid Java and
                 // `let m = 0xFF & x` emits an imprecise Object. The known-type guard keeps this to the
                 // numeric cases (boolean operands are rejected earlier and never resolve to a type here).
-                || (ast instanceof BinaryExpression binary && isShiftOrBitwiseOperator(binary.operator()) && ast.resolvedType().isKnown());
+                || (ast instanceof BinaryExpression binary && isShiftOrBitwiseOperator(binary.operator()) && ast.resolvedType().isKnown())
+                // A conditional with mixed numeric branches has the binary-numeric-promoted type
+                // (buildTernary's ternaryType): `cond ? 1 : 2.0` is double, `cond ? 1 : 2L` is long.
+                // The regex inference picks one branch instead, so `let x = cond ? 1 : 2.0` would emit
+                // `final int x = ...` — invalid Java (lossy conversion). The known-type guard means
+                // incompatible branches (unknown type) still fall through to the normal checks.
+                || (ast instanceof TernaryExpression && ast.resolvedType().isKnown());
     }
 
     private static boolean isShiftOrBitwiseOperator(String operator) {
@@ -4564,10 +4643,11 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private boolean isNumericType(TypeGuess type) {
-        return switch (type.javaType()) {
-            case "byte", "short", "int", "long", "float", "double", "char",
-                 "java.lang.Byte", "java.lang.Short", "java.lang.Integer", "java.lang.Long",
-                 "java.lang.Float", "java.lang.Double", "java.lang.Character" -> true;
+        // Delegates to primitiveNumericType so primitives, fully-qualified boxes
+        // (java.lang.Integer) and simple-name boxes (Integer, e.g. the element type returned by
+        // List<Integer>.get) are all recognized — they unbox to a numeric primitive in Java.
+        return switch (primitiveNumericType(type.javaType())) {
+            case "byte", "short", "int", "long", "float", "double", "char" -> true;
             default -> false;
         };
     }
@@ -4589,15 +4669,37 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     private String primitiveNumericType(String type) {
         return switch (type) {
-            case "java.lang.Byte" -> "byte";
-            case "java.lang.Short" -> "short";
-            case "java.lang.Integer" -> "int";
-            case "java.lang.Long" -> "long";
-            case "java.lang.Float" -> "float";
-            case "java.lang.Double" -> "double";
-            case "java.lang.Character" -> "char";
+            case "java.lang.Byte", "Byte" -> "byte";
+            case "java.lang.Short", "Short" -> "short";
+            case "java.lang.Integer", "Integer" -> "int";
+            case "java.lang.Long", "Long" -> "long";
+            case "java.lang.Float", "Float" -> "float";
+            case "java.lang.Double", "Double" -> "double";
+            case "java.lang.Character", "Character" -> "char";
             default -> type;
         };
+    }
+
+    // `EnumType.CONSTANT` has the enum's type. Affogato enum constants are intentionally NOT registered
+    // as fields (so codegen leaves the `EnumType.CONSTANT` access literal rather than lowering it to a
+    // getter), so the type is resolved against the enum symbol's recorded constant list. Without this,
+    // `let d = Day.MON` infers Object and emits `final Object d = Day.MON;`, which breaks later uses like
+    // `d.name()` or passing `d` where a `Day` is expected (invalid Java).
+    private TypeGuess enumConstantAccessType(String value, MethodContext context) {
+        int dot = value.lastIndexOf('.');
+        if (dot <= 0 || dot >= value.length() - 1 || value.indexOf('(') >= 0 || value.indexOf('[') >= 0) {
+            return TypeGuess.unknown();
+        }
+        String member = value.substring(dot + 1).trim();
+        if (member.isEmpty() || !Character.isJavaIdentifierStart(member.charAt(0))
+                || !member.chars().allMatch(Character::isJavaIdentifierPart)) {
+            return TypeGuess.unknown();
+        }
+        ClassSymbol symbol = classSymbol(value.substring(0, dot).trim(), context.unit);
+        if (symbol != null && symbol.isEnum && symbol.enumConstants.contains(member)) {
+            return TypeGuess.of(symbol.name());
+        }
+        return TypeGuess.unknown();
     }
 
     private TypeGuess propertyType(String expression, MethodContext context) {
