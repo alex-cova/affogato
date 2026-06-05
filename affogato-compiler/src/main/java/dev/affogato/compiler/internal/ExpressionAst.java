@@ -20,6 +20,7 @@ sealed interface AstExpression permits
         LambdaExpression,
         MethodReferenceExpression,
         SwitchExpressionNode,
+        NamedArgumentExpression,
         UnknownExpression,
         UnsupportedExpression {
     String source();
@@ -62,7 +63,7 @@ record ConstructorExpression(
 record PropertyAccessExpression(String source, AstExpression receiver, String property, TypeGuess resolvedType) implements AstExpression {
 }
 
-record AssignmentExpression(String source, AstExpression target, AstExpression value, TypeGuess resolvedType) implements AstExpression {
+record AssignmentExpression(String source, String operator, AstExpression target, AstExpression value, TypeGuess resolvedType) implements AstExpression {
 }
 
 record TernaryExpression(String source, AstExpression condition, AstExpression thenExpression, AstExpression elseExpression, TypeGuess resolvedType) implements AstExpression {
@@ -87,6 +88,13 @@ record MethodReferenceExpression(String source, TypeGuess resolvedType) implemen
 }
 
 record SwitchExpressionNode(String source, TypeGuess resolvedType) implements AstExpression {
+}
+
+record NamedArgumentExpression(String name, AstExpression expression, TypeGuess resolvedType) implements AstExpression {
+    @Override
+    public String source() {
+        return name + " = " + expression.source();
+    }
 }
 
 record UnknownExpression(String source) implements AstExpression {

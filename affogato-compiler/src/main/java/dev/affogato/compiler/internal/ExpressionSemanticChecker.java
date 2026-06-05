@@ -149,7 +149,7 @@ final class ExpressionSemanticChecker {
         if (ctx.assignmentExpression() != null) {
             AstExpression target = buildTernary(ctx.ternaryExpression(), whole);
             AstExpression value = buildAssignment(ctx.assignmentExpression(), whole);
-            return new AssignmentExpression(src(ctx, whole), target, value, value.resolvedType());
+            return new AssignmentExpression(src(ctx, whole), ctx.getChild(1).getText(), target, value, value.resolvedType());
         }
         return buildTernary(ctx.ternaryExpression(), whole);
     }
@@ -417,8 +417,12 @@ final class ExpressionSemanticChecker {
         }
         List<AstExpression> arguments = new ArrayList<>();
         for (AffogatoParser.ArgumentContext argument : ctx.argument()) {
-            // Named arguments (`name = value`) and positional arguments both contribute their value.
-            arguments.add(buildExpression(argument.expression(), whole));
+            AstExpression expr = buildExpression(argument.expression(), whole);
+            if (argument.Identifier() != null) {
+                arguments.add(new NamedArgumentExpression(argument.Identifier().getText(), expr, expr.resolvedType()));
+            } else {
+                arguments.add(expr);
+            }
         }
         return arguments;
     }

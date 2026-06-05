@@ -198,10 +198,17 @@ final class MethodContext {
                 }
             }
             Optional<ResolvedArguments> javaMethod = javaResolver.resolveMethodArguments(ownerType, method, arguments, unit);
-            if (javaMethod.isEmpty() && javaResolver.lastResolutionAmbiguous()) {
+            if (javaMethod.isPresent()) {
+                return javaMethod;
+            }
+            Optional<ExtensionMatch> extensionMethod = resolveExtensionCall(ownerType, method, arguments);
+            if (extensionMethod.isPresent()) {
+                return Optional.of(extensionMethod.get().resolved());
+            }
+            if (javaResolver.lastResolutionAmbiguous()) {
                 resolutionFailure = "Ambiguous overload for call " + callName + ".";
             }
-            return javaMethod;
+            return Optional.empty();
         }
 
         Optional<ResolvedArguments> javaConstructor = javaResolver.resolveConstructorArguments(callName, arguments, unit);

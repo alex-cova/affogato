@@ -85,7 +85,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
             "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
             "volatile", "while", "true", "false", "null", "_");
 
-    private final List<AffogatoDiagnostic> diagnostics;
+    final List<AffogatoDiagnostic> diagnostics;
     private final JavaResolver javaResolver;
     private final FlowAnalyzer flow;
     private final ClassSymbolTable classSymbols = new ClassSymbolTable();
@@ -95,6 +95,14 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // type (`let xs: Person[] = [...]`), this holds that element type so the emitted `new T[]{...}` matches
     // the declared type instead of a too-wide `new Object[]`. Null when there is no explicit array target.
     private String expectedArrayElementType = null;
+
+    String getExpectedArrayElementType() {
+        return expectedArrayElementType;
+    }
+
+    void setExpectedArrayElementType(String val) {
+        expectedArrayElementType = val;
+    }
 
     public AffogatoTranspiler(List<AffogatoDiagnostic> diagnostics, List<Path> classpath) {
         this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
@@ -1370,7 +1378,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         out.append(indent(indent)).append("}").append(System.lineSeparator());
     }
 
-    private void writeBlockStatements(StringBuilder out, CompilationUnit unit, AffogatoParser.BlockContext block, MethodContext context, int indent) {
+    void writeBlockStatements(StringBuilder out, CompilationUnit unit, AffogatoParser.BlockContext block, MethodContext context, int indent) {
         flow.checkUnreachable(unit.sourceFile(), block);
         context.pushBlockScope();
         try {
@@ -1407,7 +1415,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return Set.of();
     }
 
-    private void writeStatement(StringBuilder out, CompilationUnit unit, AffogatoParser.StatementContext statement, MethodContext context, int indent) {
+    void writeStatement(StringBuilder out, CompilationUnit unit, AffogatoParser.StatementContext statement, MethodContext context, int indent) {
         context.currentLine = statement.getStart().getLine();
         context.currentColumn = statement.getStart().getCharPositionInLine() + 1;
         if (statement.block() != null) {
@@ -2575,26 +2583,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         AstExpression ast = expressionAst(expression, context);
         validateExpressionSubset(ast, context, expression);
         validateExpressionSemantics(ast, context, expression);
-        String result = expression.trim();
-        result = transformStringInterpolation(result, context);
-        result = transformReceiverThis(result, context);
-        result = transformImplicitReceiver(result, context);
-        result = transformTypedLambda(result);
-        result = transformExtensionCalls(result, context);
-        result = transformNamedArguments(result, context);
-        result = transformArrayConstruction(result);
-        validateExplicitConstructorCalls(result, context);
-        validateMethodCalls(result, context);
-        result = transformNot(result);
-        result = transformInstanceof(result);
-        validateCasts(result, context);
-        result = transformCast(result);
-        result = transformTypeConstruction(result, context);
-        if (!context.hasCurrentMethod("println") && !context.variableTypes.containsKey("println")) {
-            result = result.replaceAll("(?<![A-Za-z0-9_.$])println\\s*\\(", "System.out.println(");
-        }
-        result = transformArrayLiteral(result, context);
-        result = transformPropertyReads(result, context);
+        String result = new ExpressionRenderer(this).render(ast, context);
         TypeGuess resolvedType = ast.resolvedType().isKnown() && astTypeCanShortCircuitInference(ast)
                 ? ast.resolvedType()
                 : inferExpressionType(expression.trim(), context);
@@ -2625,6 +2614,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private void validateExpressionSemantics(AstExpression ast, MethodContext context, String rawExpression) {
+        if (ast instanceof NamedArgumentExpression named) {
+            validateExpressionSemantics(named.expression(), context, rawExpression);
+            return;
+        }
         if (ast instanceof BinaryExpression binary) {
             validateExpressionSemantics(binary.left(), context, rawExpression);
             validateExpressionSemantics(binary.right(), context, rawExpression);
@@ -2743,10 +2736,179 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (ast instanceof CallExpression call) {
             call.arguments().forEach(argument -> validateExpressionSemantics(argument, context, rawExpression));
             validateExpressionSemantics(call.receiver(), context, rawExpression);
+
+            List<TypedArgument> typedArgs = new ArrayList<>();
+            boolean hasNamed = false;
+            for (AstExpression arg : call.arguments()) {
+                if (arg instanceof NamedArgumentExpression named) {
+                    hasNamed = true;
+                    String valStr = new ExpressionRenderer(this).render(named.expression(), context);
+                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : inferExpressionType(valStr, context);
+                    typedArgs.add(new TypedArgument(named.name(), valStr, valType, named.expression()));
+                } else {
+                    String valStr = new ExpressionRenderer(this).render(arg, context);
+                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : inferExpressionType(valStr, context);
+                    typedArgs.add(new TypedArgument("", valStr, valType, arg));
+                }
+            }
+
+            if (hasNamed) {
+                Optional<ResolvedArguments> resolved = context.resolveArguments(call.name(), typedArgs);
+                if (!resolved.isPresent()) {
+                    Optional<String> assignmentTarget = typedArgs.stream()
+                            .map(TypedArgument::name)
+                            .filter(name -> !name.isBlank() && context.variableTypes.containsKey(name))
+                            .findFirst();
+                    if (assignmentTarget.isPresent()) {
+                        String name = assignmentTarget.get();
+                        diagnostics.add(error(
+                                context.unit.sourceFile(),
+                                context.currentLine,
+                                context.currentColumn,
+                                "AFFOGATO_ASSIGNMENT_ARGUMENT",
+                                "'" + name + "' is a variable in scope, so '" + name + " = ...' is read as a named "
+                                        + "argument to " + call.name() + ", not an assignment. Assignment expressions are not "
+                                        + "allowed as call arguments; assign in a separate statement before the call."
+                        ));
+                    } else {
+                        String failure = context.resolutionFailure();
+                        diagnostics.add(error(
+                                context.unit.sourceFile(),
+                                context.currentLine,
+                                context.currentColumn,
+                                "AFFOGATO_NAMED_ARGS",
+                                failure.isBlank()
+                                        ? "Cannot resolve named arguments for call " + call.name() + ". Compile Java dependencies with -parameters or use a Affogato declaration."
+                                        : failure
+                        ));
+                    }
+                }
+            }
+
+            String simpleName = call.name().contains(".") ? call.name().substring(call.name().lastIndexOf('.') + 1) : call.name();
+            boolean isExtension = false;
+            if (call.receiver() != null && !(call.receiver() instanceof UnknownExpression)) {
+                String receiverText = new ExpressionRenderer(this).render(call.receiver(), context);
+                TypeGuess receiverType = call.receiver().resolvedType().isKnown() ? call.receiver().resolvedType() : inferExpressionType(receiverText, context);
+                if (receiverType.isKnown()) {
+                    String rawOwner = receiverType.javaType();
+                    String resolvedOwner = context.activeTypeParams.contains(rawOwner) ? "java.lang.Object" : rawOwner;
+                    Optional<ExtensionMatch> match = context.dispatchExtension(simpleTypeName(resolvedOwner), simpleName, typedArgs);
+                    if (match.isPresent()) {
+                        isExtension = true;
+                    }
+                }
+            }
+
+            if (!isExtension) {
+                if (call.receiver() != null && !(call.receiver() instanceof UnknownExpression)) {
+                    String receiverText = new ExpressionRenderer(this).render(call.receiver(), context);
+                    TypeGuess receiverType = call.receiver().resolvedType().isKnown() ? call.receiver().resolvedType() : inferExpressionType(receiverText, context);
+                    if (receiverType.isKnown()) {
+                        TypeGuess returnType = context.returnTypeForReceiverType(receiverType.javaType(), simpleName, typedArgs);
+                        if (!returnType.isKnown()) {
+                            diagnostics.add(error(
+                                    context.unit.sourceFile(),
+                                    context.currentLine,
+                                    context.currentColumn,
+                                    "AFFOGATO_CALL_RESOLUTION",
+                                    "Cannot resolve call " + simpleName + " on " + receiverType.javaType() + "."
+                            ));
+                        }
+                    }
+                } else {
+                    int openIndex = call.source().indexOf('(');
+                    if (openIndex < call.name().length()) {
+                        openIndex = call.name().length();
+                    }
+                    if (shouldValidateCall(call.name(), call.source(), openIndex, context)) {
+                        TypeGuess returnType = context.returnType(call.name(), typedArgs);
+                        if (!returnType.isKnown()) {
+                            diagnostics.add(error(
+                                    context.unit.sourceFile(),
+                                    context.currentLine,
+                                    context.currentColumn,
+                                    "AFFOGATO_CALL_RESOLUTION",
+                                    "Cannot resolve call " + call.name() + "."
+                            ));
+                        }
+                    }
+                }
+            }
             return;
         }
         if (ast instanceof ConstructorExpression constructor) {
             constructor.arguments().forEach(argument -> validateExpressionSemantics(argument, context, rawExpression));
+
+            List<TypedArgument> typedArgs = new ArrayList<>();
+            boolean hasNamed = false;
+            for (AstExpression arg : constructor.arguments()) {
+                if (arg instanceof NamedArgumentExpression named) {
+                    hasNamed = true;
+                    String valStr = new ExpressionRenderer(this).render(named.expression(), context);
+                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : inferExpressionType(valStr, context);
+                    typedArgs.add(new TypedArgument(named.name(), valStr, valType, named.expression()));
+                } else {
+                    String valStr = new ExpressionRenderer(this).render(arg, context);
+                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : inferExpressionType(valStr, context);
+                    typedArgs.add(new TypedArgument("", valStr, valType, arg));
+                }
+            }
+
+            String displayType = constructor.typeName();
+            String impl = constructorImplementation(displayType);
+            
+            if (classSymbol(displayType, context.unit) == null && !context.javaResolver.typeExists(impl, context.unit)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + displayType + "."
+                ));
+                return;
+            }
+
+            ClassSymbol affogatoTarget = classSymbol(displayType, context.unit);
+            boolean resolvedOk = false;
+            boolean isAmbiguous = false;
+            if (affogatoTarget != null) {
+                Optional<ResolvedArguments> resolved = context.resolveArguments(displayType, typedArgs);
+                if (resolved.isPresent()) {
+                    resolvedOk = true;
+                }
+            } else {
+                Optional<ResolvedArguments> resolved = context.javaResolver.resolveConstructorArguments(impl, typedArgs, context.unit);
+                if (resolved.isPresent()) {
+                    resolvedOk = true;
+                }
+                if (context.javaResolver.lastResolutionAmbiguous()) {
+                    isAmbiguous = true;
+                }
+            }
+
+            if (!resolvedOk) {
+                if (isAmbiguous) {
+                    diagnostics.add(error(
+                            context.unit.sourceFile(),
+                            context.currentLine,
+                            context.currentColumn,
+                            "AFFOGATO_CONSTRUCTOR_RESOLUTION",
+                            "Ambiguous overload for constructor " + displayType + "."
+                    ));
+                } else {
+                    String failure = context.resolutionFailure();
+                    diagnostics.add(error(
+                            context.unit.sourceFile(),
+                            context.currentLine,
+                            context.currentColumn,
+                            "AFFOGATO_CONSTRUCTOR_RESOLUTION",
+                            failure.isBlank()
+                                    ? "Cannot resolve constructor " + displayType + "."
+                                    : failure.replace("call " + impl, "constructor " + displayType)
+                    ));
+                }
+            }
             return;
         }
         if (ast instanceof AssignmentExpression assignment) {
@@ -3151,7 +3313,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // "Hi ${user.name}!" becomes "Hi " + (user.name) + "!"; the embedded expression text is
     // left raw so the rest of the transformExpression pipeline (property reads, etc.) processes it.
     // Supports ${expression} for arbitrary expressions and $identifier as shorthand; \$ is a literal dollar.
-    private String transformStringInterpolation(String expression, MethodContext context) {
+    String transformStringInterpolation(String expression, MethodContext context) {
         if (expression.indexOf('$') < 0 || expression.indexOf('"') < 0) {
             return expression;
         }
@@ -3371,7 +3533,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return out.toString();
     }
 
-    private String inferArrayElementType(List<String> elements, MethodContext context) {
+    String inferArrayElementType(List<String> elements, MethodContext context) {
         if (elements.isEmpty()) {
             return "Object";
         }
@@ -3454,7 +3616,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
     }
 
-    private boolean shouldValidateCall(String callName, String expression, int openIndex, MethodContext context) {
+    boolean shouldValidateCall(String callName, String expression, int openIndex, MethodContext context) {
         if (callName.isBlank() || callName.equals("not") || callName.equals("super") || callName.equals("this")) {
             return false;
         }
@@ -3975,7 +4137,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         ));
     }
 
-    private String constructorImplementation(String typeName) {
+    String constructorImplementation(String typeName) {
         if (typeName.startsWith("Map<")) {
             return "java.util.HashMap" + typeName.substring("Map".length());
         }
@@ -4114,13 +4276,13 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return cursor;
     }
 
-    private record PropertyHop(String accessor, boolean call, TypeGuess resultType) {
+    record PropertyHop(String accessor, boolean call, TypeGuess resultType) {
     }
 
     // Resolves a single `.property` read on a known owner type to its Java accessor, mirroring the
     // four-path order used for the first hop: Affogato field (getter, or direct for records), array
     // `length`, Java getter, then a directly-accessible Java field. Returns null when unresolvable.
-    private PropertyHop resolvePropertyHopOnType(String ownerType, String property, MethodContext context) {
+    PropertyHop resolvePropertyHopOnType(String ownerType, String property, MethodContext context) {
         String resolvedOwnerType = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
         FieldSymbol field = fieldForOwnerType(resolvedOwnerType, property, context);
         if (field != null) {
@@ -4162,7 +4324,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return symbol.fields.get(property);
     }
 
-    private ClassSymbol classSymbol(String type, CompilationUnit unit) {
+    ClassSymbol classSymbol(String type, CompilationUnit unit) {
         return classSymbols.lookup(type, unit);
     }
 
@@ -4359,7 +4521,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
     }
 
-    private TypeGuess inferExpressionType(String expression, MethodContext context) {
+    TypeGuess inferExpressionType(String expression, MethodContext context) {
         if (expression == null || expression.isBlank()) {
             return TypeGuess.unknown();
         }
@@ -4526,8 +4688,16 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return TypeGuess.unknown();
     }
 
-    private AstExpression expressionAst(String expression, MethodContext context) {
+    AstExpression expressionAst(String expression, MethodContext context) {
         return new ExpressionSemanticChecker(new TranspilerExpressionSupport(context)).parse(expression);
+    }
+
+    TypedExpression buildSwitchExpressionNode(String source, MethodContext context) {
+        AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(source));
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        AffogatoParser parser = new AffogatoParser(tokens);
+        AffogatoParser.SwitchExpressionContext switchCtx = parser.switchExpression();
+        return buildSwitchExpression(context.unit, switchCtx, context, 0, TypeRef.unspecified("Object"), "AFFOGATO_SWITCH_TYPE", "Invalid switch expression");
     }
 
     private boolean astTypeCanShortCircuitInference(AstExpression ast) {
@@ -4755,7 +4925,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return hop == null ? TypeGuess.unknown() : hop.resultType();
     }
 
-    private boolean isGetterSetterBackedPropertyAccess(PropertyAccessExpression property, MethodContext context) {
+    boolean isGetterSetterBackedPropertyAccess(PropertyAccessExpression property, MethodContext context) {
         TypeGuess receiverType = property.receiver().resolvedType().isKnown()
                 ? property.receiver().resolvedType()
                 : inferExpressionType(property.receiver().source(), context);
@@ -4775,7 +4945,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return operator == '+' || operator == '-' || operator == '*' || operator == '/' || operator == '%';
     }
 
-    private FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {
+    FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {
         ClassSymbol symbol = classSymbol(ownerType, context.unit);
         if (symbol == null) {
             return null;
@@ -4900,7 +5070,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return -1;
     }
 
-    private String stripNullableSuffix(String typeName) {
+    String stripNullableSuffix(String typeName) {
         String type = stripTypeUseAnnotations(typeName.trim());
         if (type.endsWith("?") || type.endsWith("!")) {
             return type.substring(0, type.length() - 1);
@@ -5162,20 +5332,17 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 ? sourceText(source, closure.lambdaParameters()).trim()
                 : "()";
         AffogatoParser.ClosureBodyContext body = closure.closureBody();
-
-        // Type-directed shaping: when the target's last parameter is a Supplier of a list and the
-        // closure has no explicit parameters, each child expression is collected into a list. This is
-        // the SwiftUI/Compose-style result builder used by DSLs such as `Panel { Label(...) ... }`.
-        String elementType = hasParams
-                ? null
-                : supplierListElementType(lastParameterType(trailingCallName(exprText), context));
-
-        String lambda;
-        if (elementType != null && body != null && hasClosureStatements(body)) {
-            lambda = "() -> " + buildListBuilderBody(body, elementType, source, context);
+        String bodyText = "";
+        if (body != null) {
+            if (body.lambdaBody() != null) {
+                bodyText = sourceText(source, body.lambdaBody()).trim();
+            } else {
+                bodyText = "{" + sourceText(source, body).trim() + "}";
+            }
         } else {
-            lambda = params + " -> " + closureBodyText(body, source, context);
+            bodyText = "{}";
         }
+        String lambda = params + " -> " + bodyText;
         return appendClosureArgument(exprText, lambda);
     }
 
@@ -5205,7 +5372,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     /** The declared type of the last parameter of {@code callName}'s Affogato constructor, or {@code null}. */
-    private String lastParameterType(String callName, MethodContext context) {
+    String lastParameterType(String callName, MethodContext context) {
         if (callName == null || callName.isBlank()) {
             return null;
         }
@@ -5223,7 +5390,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     /** Given a {@code Supplier<List<E>>}-shaped type, returns {@code E}; otherwise {@code null}. */
-    private String supplierListElementType(String typeName) {
+    String supplierListElementType(String typeName) {
         if (typeName == null) {
             return null;
         }
@@ -5321,7 +5488,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return lastTopLevelOpen;
     }
 
-    private String sourceText(String source, ParserRuleContext context) {
+    String sourceText(String source, ParserRuleContext context) {
         Token start = context.getStart();
         Token stop = context.getStop();
         if (start == null || stop == null) {
@@ -5544,7 +5711,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return trimmed;
     }
 
-    private String simpleTypeName(String type) {
+    String simpleTypeName(String type) {
         String cleaned = type;
         int generic = cleaned.indexOf('<');
         if (generic >= 0) {
@@ -5557,12 +5724,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return dot >= 0 ? cleaned.substring(dot + 1) : cleaned;
     }
 
-    private String getterName(String fieldName, TypeRef type) {
+    String getterName(String fieldName, TypeRef type) {
         String prefix = type.javaType().equals("boolean") || type.javaType().equals("Boolean") ? "is" : "get";
         return prefix + capitalize(fieldName);
     }
 
-    private String setterName(String fieldName) {
+    String setterName(String fieldName) {
         return "set" + capitalize(fieldName);
     }
 
@@ -5610,11 +5777,11 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return type.equals("String[]") || type.equals("java.lang.String[]");
     }
 
-    private AffogatoDiagnostic error(Path sourceFile, int line, int column, String code, String message) {
+    AffogatoDiagnostic error(Path sourceFile, int line, int column, String code, String message) {
         return error(sourceFile, line, column, 1, code, message);
     }
 
-    private AffogatoDiagnostic error(Path sourceFile, int line, int column, int length, String code, String message) {
+    AffogatoDiagnostic error(Path sourceFile, int line, int column, int length, String code, String message) {
         return new AffogatoDiagnostic(AffogatoDiagnostic.Severity.ERROR, code, message, sourceFile, line, column, length);
     }
 
