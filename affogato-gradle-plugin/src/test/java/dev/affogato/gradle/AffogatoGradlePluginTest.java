@@ -57,6 +57,29 @@ public final class AffogatoGradlePluginTest {
                 "compileAffogato must not write generated Java after compiler errors.");
     }
 
+    @Test
+    public void compileAffogatoIsUpToDateWhenAffogatoSourcesAreUnchanged() throws Exception {
+        Path projectDir = newProjectDir();
+        writeBasicBuild(projectDir);
+        Path sourceDir = projectDir.resolve("src/main/affogato/dev/affogato/app");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("App.aff"), """
+                package dev.affogato.app
+
+                class App {
+                    run(): String {
+                        return "ok"
+                    }
+                }
+                """, StandardCharsets.UTF_8);
+
+        runner(projectDir, "compileAffogato").build();
+        BuildResult second = runner(projectDir, "compileAffogato").build();
+
+        require(second.task(":compileAffogato").getOutcome() == TaskOutcome.UP_TO_DATE,
+                "compileAffogato should be up-to-date when individual .aff inputs are unchanged.");
+    }
+
     private static GradleRunner runner(Path projectDir, String... arguments) {
         return GradleRunner.create()
                 .withProjectDir(projectDir.toFile())

@@ -10,17 +10,17 @@ import java.util.List;
 import java.util.Optional;
 
 final class ExpressionRenderer {
-    private final AffogatoTranspiler transpiler;
+    private final ExpressionRenderServices services;
 
-    ExpressionRenderer(AffogatoTranspiler transpiler) {
-        this.transpiler = transpiler;
+    ExpressionRenderer(ExpressionRenderServices services) {
+        this.services = services;
     }
 
     String render(AstExpression ast, MethodContext context) {
         if (ast instanceof LiteralExpression literal) {
             String source = literal.source();
             if (source.startsWith("\"")) {
-                return transpiler.transformStringInterpolation(source, context);
+                return services.transformStringInterpolation(source, context);
             }
             return source;
         }
@@ -29,16 +29,16 @@ final class ExpressionRenderer {
             for (AstExpression el : arrayLiteral.elements()) {
                 renderedElements.add(render(el, context));
             }
-            String expected = transpiler.getExpectedArrayElementType();
-            String elementType = expected != null ? expected : transpiler.inferArrayElementType(renderedElements, context);
+            String expected = services.getExpectedArrayElementType();
+            String elementType = expected != null ? expected : services.inferArrayElementType(renderedElements, context);
             // clear expected array type during recursion to match old behavior
-            String savedExpected = transpiler.getExpectedArrayElementType();
-            transpiler.setExpectedArrayElementType(null);
+            String savedExpected = services.getExpectedArrayElementType();
+            services.setExpectedArrayElementType(null);
             List<String> innerRendered = new ArrayList<>();
             for (AstExpression el : arrayLiteral.elements()) {
                 innerRendered.add(render(el, context));
             }
-            transpiler.setExpectedArrayElementType(savedExpected);
+            services.setExpectedArrayElementType(savedExpected);
             return "new " + elementType + "[]{" + String.join(", ", innerRendered) + "}";
         }
         if (ast instanceof ArrayAccessExpression arrayAccess) {
@@ -56,7 +56,7 @@ final class ExpressionRenderer {
                     && !context.variableTypes.containsKey(name) && !name.equals("$this")
                     && context.receiverHasField(name)) {
                 String resolvedReceiverType = context.activeTypeParams.contains(context.receiverType) ? "java.lang.Object" : context.receiverType;
-                AffogatoTranspiler.PropertyHop hop = transpiler.resolvePropertyHopOnType(resolvedReceiverType, name, context);
+                AffogatoSymbolResolver.PropertyHop hop = services.resolvePropertyHopOnType(resolvedReceiverType, name, context);
                 if (hop != null) {
                     return hop.call() ? "$this." + hop.accessor() + "()" : "$this." + hop.accessor();
                 }
@@ -74,11 +74,11 @@ final class ExpressionRenderer {
                 if (arg instanceof NamedArgumentExpression named) {
                     hasNamed = true;
                     String valStr = render(named.expression(), context);
-                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : transpiler.inferExpressionType(valStr, context);
+                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : services.inferExpressionType(valStr, context);
                     typedArgs.add(new TypedArgument(named.name(), valStr, valType, named.expression()));
                 } else {
                     String valStr = render(arg, context);
-                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : transpiler.inferExpressionType(valStr, context);
+                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : services.inferExpressionType(valStr, context);
                     typedArgs.add(new TypedArgument("", valStr, valType, arg));
                 }
             }
@@ -86,10 +86,10 @@ final class ExpressionRenderer {
             // Check if extension call
             if (call.receiver() != null && !(call.receiver() instanceof UnknownExpression)) {
                 String receiverText = render(call.receiver(), context);
-                TypeGuess receiverType = call.receiver().resolvedType().isKnown() ? call.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+                TypeGuess receiverType = call.receiver().resolvedType().isKnown() ? call.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
                 String rawOwner = receiverType.javaType();
                 String resolvedOwner = context.activeTypeParams.contains(rawOwner) ? "java.lang.Object" : rawOwner;
-                Optional<ExtensionMatch> match = context.dispatchExtension(transpiler.simpleTypeName(resolvedOwner), simpleName, typedArgs);
+                Optional<ExtensionMatch> match = context.dispatchExtension(services.simpleTypeName(resolvedOwner), simpleName, typedArgs);
                 if (match.isPresent()) {
                     List<String> matchedArgs = match.get().resolved().expressions();
                     return match.get().symbol().holderJavaName() + "." + simpleName + "(" + receiverText + (matchedArgs.isEmpty() ? "" : ", " + String.join(", ", matchedArgs)) + ")";
@@ -132,7 +132,7 @@ final class ExpressionRenderer {
             return call.name() + "(" + String.join(", ", renderedArgs) + ")";
         }
         if (ast instanceof ConstructorExpression constructor) {
-            String impl = transpiler.constructorImplementation(constructor.typeName());
+            String impl = services.constructorImplementation(constructor.typeName());
             
             // Build arguments
             List<TypedArgument> typedArgs = new ArrayList<>();
@@ -141,18 +141,18 @@ final class ExpressionRenderer {
                 if (arg instanceof NamedArgumentExpression named) {
                     hasNamed = true;
                     String valStr = render(named.expression(), context);
-                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : transpiler.inferExpressionType(valStr, context);
+                    TypeGuess valType = named.expression().resolvedType().isKnown() ? named.expression().resolvedType() : services.inferExpressionType(valStr, context);
                     typedArgs.add(new TypedArgument(named.name(), valStr, valType, named.expression()));
                 } else {
                     String valStr = render(arg, context);
-                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : transpiler.inferExpressionType(valStr, context);
+                    TypeGuess valType = arg.resolvedType().isKnown() ? arg.resolvedType() : services.inferExpressionType(valStr, context);
                     typedArgs.add(new TypedArgument("", valStr, valType, arg));
                 }
             }
 
             List<String> renderedArgs = new ArrayList<>();
             if (hasNamed) {
-                ClassSymbol affogatoTarget = transpiler.classSymbol(constructor.typeName(), context.unit);
+                ClassSymbol affogatoTarget = services.classSymbol(constructor.typeName(), context.unit);
                 Optional<ResolvedArguments> resolved;
                 if (affogatoTarget != null) {
                     resolved = context.resolveArguments(constructor.typeName(), typedArgs);
@@ -169,8 +169,8 @@ final class ExpressionRenderer {
             } else {
                 for (int index = 0; index < constructor.arguments().size(); index++) {
                     AstExpression arg = constructor.arguments().get(index);
-                    String lastParamType = transpiler.lastParameterType(constructor.typeName(), context);
-                    String elementType = transpiler.supplierListElementType(lastParamType);
+                    String lastParamType = services.lastParameterType(constructor.typeName(), context);
+                    String elementType = services.supplierListElementType(lastParamType);
                     if (index == constructor.arguments().size() - 1 && elementType != null) {
                         if (arg instanceof LambdaExpression lambda) {
                             renderedArgs.add(renderListBuilder(lambda, elementType, context));
@@ -187,11 +187,11 @@ final class ExpressionRenderer {
         }
         if (ast instanceof PropertyAccessExpression property) {
             String receiverText = render(property.receiver(), context);
-            TypeGuess receiverType = property.receiver().resolvedType().isKnown() ? property.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+            TypeGuess receiverType = property.receiver().resolvedType().isKnown() ? property.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
             if (receiverType.isKnown()) {
                 String ownerType = receiverType.javaType();
                 String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
-                AffogatoTranspiler.PropertyHop hop = transpiler.resolvePropertyHopOnType(resolvedOwner, property.property(), context);
+                AffogatoSymbolResolver.PropertyHop hop = services.resolvePropertyHopOnType(resolvedOwner, property.property(), context);
                 if (hop != null) {
                     if (hop.call()) {
                         return receiverText + "." + hop.accessor() + "()";
@@ -205,20 +205,20 @@ final class ExpressionRenderer {
             // Check if setter-backed property assignment
             if (assignment.target() instanceof PropertyAccessExpression prop) {
                 String receiverText = render(prop.receiver(), context);
-                TypeGuess receiverType = prop.receiver().resolvedType().isKnown() ? prop.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+                TypeGuess receiverType = prop.receiver().resolvedType().isKnown() ? prop.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
                 if (receiverType.isKnown()) {
                     String ownerType = receiverType.javaType();
                     String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
-                    FieldSymbol field = transpiler.fieldForOwnerType(resolvedOwner, prop.property(), context);
+                    FieldSymbol field = services.fieldForOwnerType(resolvedOwner, prop.property(), context);
                     String valueText = render(assignment.value(), context);
                     
-                    if (transpiler.isGetterSetterBackedPropertyAccess(prop, context)) {
-                        String accessor = field != null ? transpiler.getterName(prop.property(), field.type()) : transpiler.getterName(prop.property(), TypeRef.unspecified("Object"));
+                    if (services.isGetterSetterBackedPropertyAccess(prop, context)) {
+                        String accessor = field != null ? services.getterName(prop.property(), field.type()) : services.getterName(prop.property(), TypeRef.unspecified("Object"));
                         if (accessor == null || accessor.isEmpty()) {
                             accessor = context.javaResolver.getterInvocationName(resolvedOwner, prop.property(), context.unit)
-                                    .orElse(transpiler.getterName(prop.property(), TypeRef.unspecified("Object")));
+                                    .orElse(services.getterName(prop.property(), TypeRef.unspecified("Object")));
                         }
-                        String setter = transpiler.setterName(prop.property());
+                        String setter = services.setterName(prop.property());
                         String type = "Object";
                         if (field != null) {
                             type = mapPrimitive(field.type().javaType());
@@ -246,14 +246,14 @@ final class ExpressionRenderer {
         }
         if (ast instanceof UnaryExpression unary) {
             if (unary.operator().equals("++") || unary.operator().equals("--")) {
-                if (unary.expression() instanceof PropertyAccessExpression prop && transpiler.isGetterSetterBackedPropertyAccess(prop, context)) {
+                if (unary.expression() instanceof PropertyAccessExpression prop && services.isGetterSetterBackedPropertyAccess(prop, context)) {
                     String receiverText = render(prop.receiver(), context);
-                    TypeGuess receiverType = prop.receiver().resolvedType().isKnown() ? prop.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+                    TypeGuess receiverType = prop.receiver().resolvedType().isKnown() ? prop.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
                     String ownerType = receiverType.javaType();
                     String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
-                    FieldSymbol field = transpiler.fieldForOwnerType(resolvedOwner, prop.property(), context);
-                    String accessor = field != null ? transpiler.getterName(prop.property(), field.type()) : transpiler.getterName(prop.property(), TypeRef.unspecified("Object"));
-                    String setter = transpiler.setterName(prop.property());
+                    FieldSymbol field = services.fieldForOwnerType(resolvedOwner, prop.property(), context);
+                    String accessor = field != null ? services.getterName(prop.property(), field.type()) : services.getterName(prop.property(), TypeRef.unspecified("Object"));
+                    String setter = services.setterName(prop.property());
                     String op = unary.operator().substring(0, 1);
                     
                     boolean isPostfix = ast.source().trim().endsWith("++") || ast.source().trim().endsWith("--");
@@ -290,6 +290,9 @@ final class ExpressionRenderer {
             return "((" + cast.targetType() + ") " + render(cast.expression(), context) + ")";
         }
         if (ast instanceof LambdaExpression lambda) {
+            if (!lambda.parametersSource().isBlank() && lambda.expressionBody() != null) {
+                return renderLambdaParameters(lambda.parametersSource()) + " -> " + render(lambda.expressionBody(), context);
+            }
             AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(lambda.source()));
             CommonTokenStream tokens = new CommonTokenStream(lexer);
             AffogatoParser parser = new AffogatoParser(tokens);
@@ -298,12 +301,12 @@ final class ExpressionRenderer {
                 String params = renderLambdaParameters(lambdaCtx.lambdaParameters());
                 AffogatoParser.LambdaBodyContext bodyCtx = lambdaCtx.lambdaBody();
                 if (bodyCtx.expression() != null) {
-                    AstExpression bodyExpr = transpiler.expressionAst(bodyCtx.expression().getText(), context);
+                    AstExpression bodyExpr = services.expressionAst(bodyCtx.expression().getText(), context);
                     return params + " -> " + render(bodyExpr, context);
                 } else if (bodyCtx.block() != null) {
                     StringBuilder blockSb = new StringBuilder();
                     blockSb.append("{\n");
-                    transpiler.writeBlockStatements(blockSb, context.unit, bodyCtx.block(), context, 1);
+                    services.writeBlockStatements(blockSb, context.unit, bodyCtx.block(), context, 1);
                     blockSb.append("}");
                     String blockStr = blockSb.toString();
                     // Collapse empty blocks to `{}`
@@ -319,11 +322,11 @@ final class ExpressionRenderer {
             return methodRef.source();
         }
         if (ast instanceof SwitchExpressionNode switchNode) {
-            return transpiler.buildSwitchExpressionNode(switchNode.source(), context).javaSource();
+            return services.buildSwitchExpressionNode(switchNode.source(), context).javaSource();
         }
         if (ast instanceof SafeCallExpression safeCall) {
             String receiverText = render(safeCall.receiver(), context);
-            TypeGuess receiverType = safeCall.receiver().resolvedType().isKnown() ? safeCall.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+            TypeGuess receiverType = safeCall.receiver().resolvedType().isKnown() ? safeCall.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
             String property = safeCall.property();
             
             // Simple desugaring: (temp = receiver) != null ? temp.property : null
@@ -337,7 +340,7 @@ final class ExpressionRenderer {
             if (!property.contains("(")) {
                  String ownerType = receiverType.javaType();
                  String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
-                 AffogatoTranspiler.PropertyHop hop = transpiler.resolvePropertyHopOnType(resolvedOwner, property, context);
+                 AffogatoSymbolResolver.PropertyHop hop = services.resolvePropertyHopOnType(resolvedOwner, property, context);
                  if (hop != null) {
                      access = "." + hop.accessor() + (hop.call() ? "()" : "");
                  } else {
@@ -374,7 +377,7 @@ final class ExpressionRenderer {
         List<String> params = new ArrayList<>();
         for (AffogatoParser.LambdaParameterContext param : paramsCtx.lambdaParameterList().lambdaParameter()) {
             if (param.typeRef() != null) {
-                String typeName = transpiler.stripNullableSuffix(param.typeRef().getText());
+                String typeName = services.stripNullableSuffix(param.typeRef().getText());
                 typeName = mapPrimitive(typeName);
                 params.add(typeName + " " + param.Identifier().getText());
             } else {
@@ -382,6 +385,67 @@ final class ExpressionRenderer {
             }
         }
         return "(" + String.join(", ", params) + ")";
+    }
+
+    private String renderLambdaParameters(String paramsSource) {
+        String params = paramsSource.trim();
+        if (!params.startsWith("(")) {
+            return params;
+        }
+        if (params.equals("()")) {
+            return params;
+        }
+        String inner = params.substring(1, params.length() - 1).trim();
+        if (inner.isBlank()) {
+            return "()";
+        }
+        List<String> rendered = new ArrayList<>();
+        for (String param : splitTopLevel(inner, ',')) {
+            String trimmed = param.trim();
+            int colon = topLevelColon(trimmed);
+            if (colon < 0) {
+                rendered.add(trimmed);
+                continue;
+            }
+            String name = trimmed.substring(0, colon).trim();
+            String typeName = services.stripNullableSuffix(trimmed.substring(colon + 1).trim());
+            rendered.add(mapPrimitive(typeName) + " " + name);
+        }
+        return "(" + String.join(", ", rendered) + ")";
+    }
+
+    private List<String> splitTopLevel(String text, char delimiter) {
+        List<String> parts = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        for (int index = 0; index < text.length(); index++) {
+            char ch = text.charAt(index);
+            if (ch == '<' || ch == '(' || ch == '[') {
+                depth++;
+            } else if (ch == '>' || ch == ')' || ch == ']') {
+                depth = Math.max(0, depth - 1);
+            } else if (ch == delimiter && depth == 0) {
+                parts.add(text.substring(start, index));
+                start = index + 1;
+            }
+        }
+        parts.add(text.substring(start));
+        return parts;
+    }
+
+    private int topLevelColon(String text) {
+        int depth = 0;
+        for (int index = 0; index < text.length(); index++) {
+            char ch = text.charAt(index);
+            if (ch == '<' || ch == '(' || ch == '[') {
+                depth++;
+            } else if (ch == '>' || ch == ')' || ch == ']') {
+                depth = Math.max(0, depth - 1);
+            } else if (ch == ':' && depth == 0) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private String mapPrimitive(String type) {
@@ -415,14 +479,14 @@ final class ExpressionRenderer {
                         continue;
                     }
                     if (statement.expressionStatement() != null) {
-                        String rawExpr = transpiler.mergeTrailingClosure(
-                                transpiler.sourceText(lambdaSource, statement.expressionStatement().expression()),
+                        String rawExpr = services.mergeTrailingClosure(
+                                services.sourceText(lambdaSource, statement.expressionStatement().expression()),
                                 lambdaSource, statement.expressionStatement().trailingClosure(), context);
-                        AstExpression childExpr = transpiler.expressionAst(rawExpr, context);
+                        AstExpression childExpr = services.expressionAst(rawExpr, context);
                         String renderedChild = render(childExpr, context);
                         blockSb.append("$children.add(").append(renderedChild).append(");\n");
                     } else {
-                        transpiler.writeStatement(blockSb, context.unit, statement, context, 0);
+                        services.writeStatement(blockSb, context.unit, statement, context, 0);
                     }
                 }
                 blockSb.append("return $children;\n");

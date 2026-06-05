@@ -71,6 +71,8 @@
     PRIVATE_KEYWORD='private'
     PROTECTED_KEYWORD='protected'
     PUBLIC_KEYWORD='public'
+    QUESTION_DOT='?.'
+    ELVIS='?:'
     QUESTION='?'
     RBRACK=']'
     RBRACE='}'
@@ -198,6 +200,8 @@ private expressionAtom ::= identifier
   | NUMBER
   | callGroup
   | arrayGroup
+  | QUESTION_DOT
+  | ELVIS
   | AS_KEYWORD
   | BANG
   | COLON

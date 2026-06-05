@@ -14,9 +14,12 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,14 +31,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 
 final class JavaResolver implements AutoCloseable {
     private final URLClassLoader classLoader;
     private final Map<String, Optional<Class<?>>> classCache = new HashMap<>();
+    private final Map<String, Boolean> persistentClassPresence = new HashMap<>();
+    private final Path classPresenceCacheFile;
     private boolean lastResolutionAmbiguous;
 
-    JavaResolver(List<Path> classpath) {
+    JavaResolver(List<Path> classpath, Path metadataCacheDirectory) {
         List<URL> urls = new ArrayList<>();
         for (Path path : classpath) {
             try {
@@ -45,6 +51,8 @@ final class JavaResolver implements AutoCloseable {
             }
         }
         this.classLoader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
+        this.classPresenceCacheFile = metadataCacheDirectory == null ? null : metadataCacheDirectory.resolve("class-presence.properties");
+        loadPersistentClassPresence();
     }
 
     boolean getterExists(String ownerType, String property, CompilationUnit unit) {
@@ -1268,15 +1276,55 @@ final class JavaResolver implements AutoCloseable {
                 if (cached.isPresent()) return cached;
                 continue; // known miss — try next candidate
             }
+            Boolean persistentHit = persistentClassPresence.get(candidate);
+            if (Boolean.FALSE.equals(persistentHit)) {
+                classCache.put(candidate, Optional.empty());
+                continue;
+            }
             try {
                 Optional<Class<?>> result = Optional.of(Class.forName(candidate, false, classLoader));
                 classCache.put(candidate, result);
+                persistentClassPresence.put(candidate, true);
                 return result;
-            } catch (ClassNotFoundException ignored) {
+            } catch (ClassNotFoundException | LinkageError ignored) {
                 classCache.put(candidate, Optional.empty());
+                persistentClassPresence.put(candidate, false);
             }
         }
         return Optional.empty();
+    }
+
+    private void loadPersistentClassPresence() {
+        if (classPresenceCacheFile == null || !Files.isRegularFile(classPresenceCacheFile)) {
+            return;
+        }
+        Properties properties = new Properties();
+        try (InputStream in = Files.newInputStream(classPresenceCacheFile)) {
+            properties.load(in);
+            for (String name : properties.stringPropertyNames()) {
+                persistentClassPresence.put(name, Boolean.parseBoolean(properties.getProperty(name)));
+            }
+        } catch (IOException ignored) {
+            // Cache misses should never affect compilation correctness.
+        }
+    }
+
+    private void savePersistentClassPresence() {
+        if (classPresenceCacheFile == null || persistentClassPresence.isEmpty()) {
+            return;
+        }
+        Properties properties = new Properties();
+        persistentClassPresence.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> properties.setProperty(entry.getKey(), entry.getValue().toString()));
+        try {
+            Files.createDirectories(classPresenceCacheFile.getParent());
+            try (OutputStream out = Files.newOutputStream(classPresenceCacheFile)) {
+                properties.store(out, "Affogato Java resolver class presence cache");
+            }
+        } catch (IOException ignored) {
+            // Cache writes are best-effort.
+        }
     }
 
     /** Simple names of all Java superclasses and (transitively) implemented interfaces of {@code type}. */
@@ -1435,6 +1483,7 @@ final class JavaResolver implements AutoCloseable {
 
     @Override
     public void close() {
+        savePersistentClassPresence();
         try {
             classLoader.close();
         } catch (IOException ignored) {

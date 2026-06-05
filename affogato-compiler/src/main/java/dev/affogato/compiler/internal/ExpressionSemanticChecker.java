@@ -136,8 +136,12 @@ final class ExpressionSemanticChecker {
 
     private AstExpression buildLambda(AffogatoParser.LambdaExpressionContext ctx, String whole) {
         if (ctx.ARROW() != null) {
-            int arity = support.lambdaParameterArity(src(ctx.lambdaParameters(), whole));
-            return new LambdaExpression(src(ctx, whole), arity, TypeGuess.lambda(arity));
+            String parameters = src(ctx.lambdaParameters(), whole);
+            int arity = support.lambdaParameterArity(parameters);
+            AstExpression expressionBody = ctx.lambdaBody().expression() == null
+                    ? null
+                    : buildExpression(ctx.lambdaBody().expression(), whole);
+            return new LambdaExpression(src(ctx, whole), arity, TypeGuess.lambda(arity), parameters, expressionBody);
         }
         if (ctx.methodReferenceExpression() != null) {
             return new MethodReferenceExpression(src(ctx, whole), TypeGuess.lambda());

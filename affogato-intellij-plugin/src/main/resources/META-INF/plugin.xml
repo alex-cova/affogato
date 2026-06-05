@@ -22,6 +22,9 @@
         <lang.findUsagesProvider
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.findusages.AffogatoFindUsagesProvider"/>
+        <lang.formatter
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.formatter.AffogatoFormattingModelBuilder"/>
         <externalAnnotator
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.annotator.AffogatoExternalAnnotator"/>

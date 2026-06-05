@@ -11,6 +11,7 @@ public final class AffogatoCompilerOptions {
     private final List<Path> classpath;
     private final boolean failOnWarnings;
     private final int javaRelease;
+    private final Path javaMetadataCacheDirectory;
 
     private AffogatoCompilerOptions(Builder builder) {
         this.sourceRoots = List.copyOf(builder.sourceRoots);
@@ -18,6 +19,7 @@ public final class AffogatoCompilerOptions {
         this.classpath = List.copyOf(builder.classpath);
         this.failOnWarnings = builder.failOnWarnings;
         this.javaRelease = builder.javaRelease;
+        this.javaMetadataCacheDirectory = builder.javaMetadataCacheDirectory;
     }
 
     public List<Path> sourceRoots() {
@@ -40,6 +42,10 @@ public final class AffogatoCompilerOptions {
         return javaRelease;
     }
 
+    public Path javaMetadataCacheDirectory() {
+        return javaMetadataCacheDirectory;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -48,6 +54,7 @@ public final class AffogatoCompilerOptions {
         private final List<Path> sourceRoots = new ArrayList<>();
         private final List<Path> classpath = new ArrayList<>();
         private Path outputDirectory;
+        private Path javaMetadataCacheDirectory;
         private boolean failOnWarnings;
         private int javaRelease = 21;
 
@@ -73,6 +80,11 @@ public final class AffogatoCompilerOptions {
 
         public Builder javaRelease(int javaRelease) {
             this.javaRelease = javaRelease;
+            return this;
+        }
+
+        public Builder javaMetadataCacheDirectory(Path javaMetadataCacheDirectory) {
+            this.javaMetadataCacheDirectory = Objects.requireNonNull(javaMetadataCacheDirectory, "javaMetadataCacheDirectory");
             return this;
         }
 

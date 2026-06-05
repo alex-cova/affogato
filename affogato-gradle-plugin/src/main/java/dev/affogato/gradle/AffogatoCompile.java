@@ -7,16 +7,20 @@ import dev.affogato.compiler.AffogatoDiagnostic;
 import dev.affogato.compiler.AffogatoDiagnosticPrinter;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.FileTree;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.IgnoreEmptyDirectories;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.api.tasks.SkipWhenEmpty;
 import org.gradle.api.tasks.TaskAction;
 
 import java.nio.file.Path;
@@ -30,10 +34,17 @@ public abstract class AffogatoCompile extends DefaultTask {
     private final Property<Boolean> failOnWarnings = getProject().getObjects().property(Boolean.class).convention(false);
     private final Property<Integer> javaRelease = getProject().getObjects().property(Integer.class).convention(21);
 
-    @InputFiles
-    @PathSensitive(PathSensitivity.RELATIVE)
+    @Internal
     public ConfigurableFileCollection getSourceDirs() {
         return sourceDirs;
+    }
+
+    @InputFiles
+    @SkipWhenEmpty
+    @IgnoreEmptyDirectories
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public FileTree getSourceFiles() {
+        return sourceDirs.getAsFileTree().matching(patterns -> patterns.include("**/*.aff"));
     }
 
     @Classpath

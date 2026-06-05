@@ -17,6 +17,7 @@ public final class AffogatoDiagnostic {
     private final int line;
     private final int column;
     private final int length;
+    private final String hint;
 
     public AffogatoDiagnostic(Severity severity, String code, String message, Path source, int line, int column) {
         this(severity, code, message, source, line, column, 1);
@@ -31,6 +32,19 @@ public final class AffogatoDiagnostic {
             int column,
             int length
     ) {
+        this(severity, code, message, source, line, column, length, null);
+    }
+
+    public AffogatoDiagnostic(
+            Severity severity,
+            String code,
+            String message,
+            Path source,
+            int line,
+            int column,
+            int length,
+            String hint
+    ) {
         this.severity = Objects.requireNonNull(severity, "severity");
         this.code = Objects.requireNonNull(code, "code");
         this.message = Objects.requireNonNull(message, "message");
@@ -38,6 +52,7 @@ public final class AffogatoDiagnostic {
         this.line = line;
         this.column = column;
         this.length = length <= 0 ? 1 : length;
+        this.hint = hint == null || hint.isBlank() ? null : hint;
     }
 
     public Severity severity() {
@@ -67,6 +82,10 @@ public final class AffogatoDiagnostic {
     /** Highlight span length on the diagnostic line (1-based column is the start). */
     public int length() {
         return length;
+    }
+
+    public String hint() {
+        return hint;
     }
 
     public boolean isError() {

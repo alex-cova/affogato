@@ -27,7 +27,11 @@ public final class AffogatoDiagnosticRenderer {
                 lines.add(snippet);
             }
         }
-        AffogatoDiagnosticCodes.hint(diagnostic.code()).ifPresent(hint -> lines.add("Hint: " + hint));
+        if (diagnostic.hint() != null) {
+            lines.add("Hint: " + diagnostic.hint());
+        } else {
+            AffogatoDiagnosticCodes.hint(diagnostic.code()).ifPresent(hint -> lines.add("Hint: " + hint));
+        }
         return String.join(System.lineSeparator(), lines);
     }
 

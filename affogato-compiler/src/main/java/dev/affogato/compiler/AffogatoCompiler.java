@@ -32,7 +32,10 @@ public final class AffogatoCompiler {
         }
 
         List<AffogatoTranspiler.ParsedUnit> units = new ArrayList<>();
-        try (AffogatoTranspiler transpiler = new AffogatoTranspiler(diagnostics, options.classpath())) {
+        Path metadataCache = options.javaMetadataCacheDirectory() == null
+                ? options.outputDirectory().resolve(".affogato-cache/java-metadata")
+                : options.javaMetadataCacheDirectory();
+        try (AffogatoTranspiler transpiler = new AffogatoTranspiler(diagnostics, options.classpath(), metadataCache)) {
             for (Path sourceRoot : options.sourceRoots()) {
                 if (!Files.exists(sourceRoot)) {
                     continue;
@@ -56,6 +59,12 @@ public final class AffogatoCompiler {
 
             for (AffogatoTranspiler.ParsedUnit unit : units) {
                 transpiler.registerSymbols(unit);
+            }
+
+            failIfNeeded(options, diagnostics);
+
+            for (AffogatoTranspiler.ParsedUnit unit : units) {
+                transpiler.typeCheck(unit);
             }
 
             failIfNeeded(options, diagnostics);

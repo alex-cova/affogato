@@ -4,6 +4,7 @@ import static dev.affogato.compiler.internal.TranspilerTypes.ClassSymbol;
 import static dev.affogato.compiler.internal.TranspilerTypes.CompilationUnit;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -15,6 +16,10 @@ final class ClassSymbolTable {
 
     boolean containsFqn(String fqn) {
         return byFqn.containsKey(fqn);
+    }
+
+    List<String> typeNames() {
+        return byFqn.keySet().stream().toList();
     }
 
     void register(String packageName, ClassSymbol symbol) {

@@ -288,4 +288,10 @@ final class TranspilerTypes {
 
     record FieldSymbol(String name, TypeRef type, boolean mutable) {
     }
+
+    record ParsedUnit(Path sourceFile, CompilationUnit unit) {
+        static ParsedUnit empty(Path sourceFile, String source) {
+            return new ParsedUnit(sourceFile, new CompilationUnit(sourceFile, source, "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of()));
+        }
+    }
 }

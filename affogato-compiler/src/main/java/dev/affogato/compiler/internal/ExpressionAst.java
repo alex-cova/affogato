@@ -83,7 +83,16 @@ record UnaryExpression(String source, String operator, AstExpression expression,
 record CastExpression(String source, AstExpression expression, String targetType, TypeGuess resolvedType) implements AstExpression {
 }
 
-record LambdaExpression(String source, int parameterArity, TypeGuess resolvedType) implements AstExpression {
+record LambdaExpression(
+        String source,
+        int parameterArity,
+        TypeGuess resolvedType,
+        String parametersSource,
+        AstExpression expressionBody
+) implements AstExpression {
+    LambdaExpression(String source, int parameterArity, TypeGuess resolvedType) {
+        this(source, parameterArity, resolvedType, "", null);
+    }
 }
 
 record MethodReferenceExpression(String source, TypeGuess resolvedType) implements AstExpression {
@@ -118,4 +127,3 @@ record UnsupportedExpression(String source, String code, String message) impleme
         return TypeGuess.unknown();
     }
 }
-

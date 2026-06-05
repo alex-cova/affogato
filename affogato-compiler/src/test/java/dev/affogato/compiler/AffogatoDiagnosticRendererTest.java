@@ -45,6 +45,23 @@ public final class AffogatoDiagnosticRendererTest {
     }
 
     @Test
+    public void instanceHintOverridesCodeHint() {
+        AffogatoDiagnostic diagnostic = new AffogatoDiagnostic(
+                AffogatoDiagnostic.Severity.ERROR,
+                "AFFOGATO_IDENTIFIER_RESOLUTION",
+                "Cannot resolve identifier cout.",
+                null,
+                1,
+                1,
+                4,
+                "Did you mean 'count'?"
+        );
+        String rendered = AffogatoDiagnosticRenderer.render(diagnostic, "cout");
+        requireContains(rendered, "Hint: Did you mean 'count'?");
+        require(!rendered.contains("Declare the name before use"), "Instance hint should override the generic code hint.");
+    }
+
+    @Test
     public void rendersMultiCharacterCaretSpan() {
         String source = "let duplicate = 1";
         AffogatoDiagnostic diagnostic = new AffogatoDiagnostic(
