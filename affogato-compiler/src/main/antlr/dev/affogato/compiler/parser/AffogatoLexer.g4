@@ -67,6 +67,8 @@ TRUE: 'true';
 FALSE: 'false';
 NULL: 'null';
 
+QUESTION_DOT: '?.';
+ELVIS: '?:';
 ARROW: '->';
 DOUBLE_COLON: '::';
 PIPE: '|';
@@ -172,11 +174,13 @@ fragment FloatTypeSuffix
     ;
 
 fragment JavaLetter
-    : [a-zA-Z$_]
+    : [a-zA-Z$_] // ASCII
+    | ~[\u0000-\u007F] // Non-ASCII (covers Unicode identifiers)
     ;
 
 fragment JavaLetterOrDigit
-    : [a-zA-Z0-9$_]
+    : [a-zA-Z0-9$_] // ASCII
+    | ~[\u0000-\u007F] // Non-ASCII
     ;
 
 fragment StringCharacter

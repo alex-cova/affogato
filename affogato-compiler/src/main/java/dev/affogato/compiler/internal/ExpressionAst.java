@@ -20,6 +20,8 @@ sealed interface AstExpression permits
         LambdaExpression,
         MethodReferenceExpression,
         SwitchExpressionNode,
+        SafeCallExpression,
+        ElvisExpression,
         NamedArgumentExpression,
         UnknownExpression,
         UnsupportedExpression {
@@ -88,6 +90,12 @@ record MethodReferenceExpression(String source, TypeGuess resolvedType) implemen
 }
 
 record SwitchExpressionNode(String source, TypeGuess resolvedType) implements AstExpression {
+}
+
+record SafeCallExpression(String source, AstExpression receiver, String property, TypeGuess resolvedType) implements AstExpression {
+}
+
+record ElvisExpression(String source, AstExpression left, AstExpression right, TypeGuess resolvedType) implements AstExpression {
 }
 
 record NamedArgumentExpression(String name, AstExpression expression, TypeGuess resolvedType) implements AstExpression {

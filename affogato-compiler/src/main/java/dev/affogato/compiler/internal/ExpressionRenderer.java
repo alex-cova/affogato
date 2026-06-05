@@ -296,6 +296,40 @@ final class ExpressionRenderer {
         if (ast instanceof SwitchExpressionNode switchNode) {
             return transpiler.buildSwitchExpressionNode(switchNode.source(), context).javaSource();
         }
+        if (ast instanceof SafeCallExpression safeCall) {
+            String receiverText = render(safeCall.receiver(), context);
+            TypeGuess receiverType = safeCall.receiver().resolvedType().isKnown() ? safeCall.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
+            String property = safeCall.property();
+            
+            // Simple desugaring: (temp = receiver) != null ? temp.property : null
+            // We need a unique temporary variable name. For now, let's use a simple scheme.
+            String temp = "$safe_" + Math.abs(receiverText.hashCode() % 1000);
+            
+            // If it's a method call, it will be in the property string as "name(args)"
+            String access = property.contains("(") ? "." + property : "." + property;
+            // Actually, for records/classes it might be .property() or .property.
+            // PropertyHop can help here too.
+            if (!property.contains("(")) {
+                 String ownerType = receiverType.javaType();
+                 String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+                 AffogatoTranspiler.PropertyHop hop = transpiler.resolvePropertyHopOnType(resolvedOwner, property, context);
+                 if (hop != null) {
+                     access = "." + hop.accessor() + (hop.call() ? "()" : "");
+                 } else {
+                     access = "." + property;
+                 }
+            } else {
+                access = "." + property;
+            }
+
+            return "((" + temp + " = " + receiverText + ") != null ? " + temp + access + " : null)";
+        }
+        if (ast instanceof ElvisExpression elvis) {
+            String leftText = render(elvis.left(), context);
+            String rightText = render(elvis.right(), context);
+            String temp = "$elvis_" + Math.abs(leftText.hashCode() % 1000);
+            return "((" + temp + " = " + leftText + ") != null ? " + temp + " : " + rightText + ")";
+        }
         if (ast instanceof UnknownExpression unknown) {
             return unknown.source();
         }

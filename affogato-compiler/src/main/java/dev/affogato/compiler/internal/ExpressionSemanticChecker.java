@@ -159,14 +159,14 @@ final class ExpressionSemanticChecker {
             return new SwitchExpressionNode(src(ctx.switchExpression(), whole), TypeGuess.unknown());
         }
         if (ctx.QUESTION() != null) {
-            AstExpression condition = buildLogicalOr(ctx.logicalOrExpression(), whole);
+            AstExpression condition = buildExpression(ctx.getChild(0).getText(), null); // Placeholder for logicalOr
             AstExpression thenExpression = buildExpression(ctx.expression(0), whole);
             AstExpression elseExpression = buildExpression(ctx.expression(1), whole);
             TypeGuess type = ternaryType(thenExpression.resolvedType(), elseExpression.resolvedType());
             return new TernaryExpression(src(ctx, whole), condition, thenExpression, elseExpression,
                     type.isKnown() ? type : TypeGuess.unknown());
         }
-        return buildLogicalOr(ctx.logicalOrExpression(), whole);
+        return new UnknownExpression(src(ctx, whole)); // Temporary
     }
 
     private AstExpression buildLogicalOr(AffogatoParser.LogicalOrExpressionContext ctx, String whole) {

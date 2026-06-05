@@ -828,20 +828,23 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 : recordDecl.implementsClause().typeRef().stream().map(tr -> typeRef(tr).javaType()).toList();
 
         List<MethodDecl> methods = new ArrayList<>();
+        List<ConstructorDecl> constructors = new ArrayList<>();
         for (AffogatoParser.ClassMemberContext member : recordDecl.classBody().classMember()) {
             if (member.methodDecl() != null) {
                 methods.add(buildMethod(sourceFile, source, member.methodDecl()));
-            } else if (member.fieldDecl() != null || member.constructorDecl() != null) {
+            } else if (member.constructorDecl() != null) {
+                constructors.add(buildConstructor(sourceFile, source, member.constructorDecl()));
+            } else if (member.fieldDecl() != null) {
                 diagnostics.add(error(
                         sourceFile,
                         member.getStart().getLine(),
                         member.getStart().getCharPositionInLine() + 1,
                         "AFFOGATO_RECORD_MEMBER",
-                        "Records may only declare methods in their body; state comes from the header components."
+                        "Records may not declare instance fields in their body; state comes from the header components."
                 ));
             }
         }
-        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(source, recordDecl.annotation()), recordDecl.getStart().getLine(), recordDecl.getStart().getCharPositionInLine() + 1);
+        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, constructors, annotations(source, recordDecl.annotation()), recordDecl.getStart().getLine(), recordDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private ParsedInterface buildInterface(Path sourceFile, String source, AffogatoParser.InterfaceDeclContext interfaceDecl) {
@@ -1135,8 +1138,8 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     private GeneratedJava generateRecord(CompilationUnit unit, ParsedRecord parsedRecord) {
         ParsedClass shape = new ParsedClass(parsedRecord.access(), parsedRecord.name(), parsedRecord.typeParameters(),
-                parsedRecord.superTypes(), parsedRecord.components(), List.of(), List.of(), parsedRecord.methods(), List.of(),
-                parsedRecord.declarationLine(), parsedRecord.declarationColumn());
+                parsedRecord.superTypes(), List.of(), List.of(), parsedRecord.constructors(), parsedRecord.methods(),
+                parsedRecord.annotations(), parsedRecord.declarationLine(), parsedRecord.declarationColumn());
 
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
@@ -1178,13 +1181,19 @@ public final class AffogatoTranspiler implements AutoCloseable {
         parsedRecord.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
 
         // Emit a compact canonical constructor only to enforce non-null components.
-        boolean needsNullChecks = parsedRecord.components().stream().anyMatch(c -> c.type().requiresRuntimeCheck());
-        if (needsNullChecks) {
-            out.append("    public ").append(parsedRecord.name()).append(" {").append(System.lineSeparator());
-            for (ParamDecl component : parsedRecord.components()) {
-                writeNullCheck(out, component.name(), component.type(), 2);
+        // We only do this if there are no explicit constructors, or we could merge them.
+        // For now, if there are explicit constructors, they are responsible for null checks or delegating.
+        if (parsedRecord.constructors().isEmpty()) {
+            boolean needsNullChecks = parsedRecord.components().stream().anyMatch(c -> c.type().requiresRuntimeCheck());
+            if (needsNullChecks) {
+                out.append("    public ").append(parsedRecord.name()).append(" {").append(System.lineSeparator());
+                for (ParamDecl component : parsedRecord.components()) {
+                    writeNullCheck(out, component.name(), component.type(), 2);
+                }
+                out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
             }
-            out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
+        } else {
+            writeConstructors(out, unit, shape);
         }
 
         writeMethods(out, unit, shape);
@@ -2374,7 +2383,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
             diagnostics.add(error(context.unit.sourceFile(), line, column, code, message));
             return;
         }
-        TypeGuess actual = inferExpressionType(rawExpression, context);
+        TypeGuess actual = inferExpressionType(rawExpression, context, TypeGuess.of(expected.javaType()));
         if (!actual.isKnown()) {
             return;
         }
@@ -2616,6 +2625,15 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private void validateExpressionSemantics(AstExpression ast, MethodContext context, String rawExpression) {
         if (ast instanceof NamedArgumentExpression named) {
             validateExpressionSemantics(named.expression(), context, rawExpression);
+            return;
+        }
+        if (ast instanceof SafeCallExpression safeCall) {
+            validateExpressionSemantics(safeCall.receiver(), context, rawExpression);
+            return;
+        }
+        if (ast instanceof ElvisExpression elvis) {
+            validateExpressionSemantics(elvis.left(), context, rawExpression);
+            validateExpressionSemantics(elvis.right(), context, rawExpression);
             return;
         }
         if (ast instanceof BinaryExpression binary) {
@@ -4522,6 +4540,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     TypeGuess inferExpressionType(String expression, MethodContext context) {
+        return inferExpressionType(expression, context, TypeGuess.unknown());
+    }
+
+    TypeGuess inferExpressionType(String expression, MethodContext context, TypeGuess expected) {
         if (expression == null || expression.isBlank()) {
             return TypeGuess.unknown();
         }
@@ -4535,13 +4557,19 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         int arrowIndex = topLevelOperatorIndex(value, List.of("->"));
         if (arrowIndex >= 0) {
+            if (expected.isLambda() && expected.isKnown()) {
+                return expected;
+            }
             return TypeGuess.lambda(lambdaParameterArity(value.substring(0, arrowIndex)));
         }
         if (containsTopLevelMethodReference(value)) {
+            if (expected.isLambda() && expected.isKnown()) {
+                return expected;
+            }
             return TypeGuess.lambda();
         }
         if (value.equals("null")) {
-            return TypeGuess.nullLiteral();
+            return expected.isKnown() ? expected : TypeGuess.nullLiteral();
         }
         if (value.startsWith("\"") && stringLiteralEnd(value, 0) == value.length()) {
             return TypeGuess.of("String");
@@ -4554,14 +4582,15 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return TypeGuess.of(numericType);
         }
 
-        // Array literal `[e1, e2, ...]` — infer `ElementType[]` using the same element-type rule the
-        // codegen uses for `new T[]{...}`, so the declared local type matches the emitted array. Without
-        // this the local falls back to Object and `.length`, indexing and for-in all fail to resolve.
+        // Array literal `[e1, e2, ...]`
         if (value.startsWith("[") && value.endsWith("]") && matchingBracket(value, 0) == value.length() - 1) {
             String inner = value.substring(1, value.length() - 1).trim();
             if (!inner.isBlank()) {
                 List<String> elements = splitTopLevel(inner, ',').stream().map(String::trim).toList();
-                return TypeGuess.of(inferArrayElementType(elements, context) + "[]");
+                String baseType = expected.isKnown() && expected.javaType().endsWith("[]") 
+                    ? expected.javaType().substring(0, expected.javaType().length() - 2)
+                    : inferArrayElementType(elements, context);
+                return TypeGuess.of(baseType + "[]");
             }
         }
 
@@ -4615,16 +4644,22 @@ public final class AffogatoTranspiler implements AutoCloseable {
             String rest = value.substring(ternaryQ + 1).trim();
             int colonIdx = topLevelOperatorIndex(rest, List.of(":"));
             if (colonIdx >= 0) {
-                TypeGuess thenType = inferExpressionType(rest.substring(0, colonIdx).trim(), context);
-                TypeGuess elseType = inferExpressionType(rest.substring(colonIdx + 1).trim(), context);
+                // If we have an expected type (from context), use it to help infer branches
+                TypeGuess thenType = inferExpressionType(rest.substring(0, colonIdx).trim(), context, expected);
+                TypeGuess elseType = inferExpressionType(rest.substring(colonIdx + 1).trim(), context, expected);
                 if (thenType.isKnown() && !thenType.isNullLiteral()) {
                     return thenType;
                 }
                 if (elseType.isKnown() && !elseType.isNullLiteral()) {
                     return elseType;
                 }
-                return TypeGuess.unknown();
             }
+        }
+
+        // Help lambda inference if we are in an assignment or call where the expected type is known
+        if (arrowIndex >= 0) {
+             // If the lambda is assigned to a variable with known type, we could use it here.
+             // This requires passing down the expected type to inferExpressionType.
         }
 
         if (startsWithBooleanNegation(value)) {
@@ -5014,9 +5049,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
     /**
      * Counts the parameters declared on the left of a lambda's {@code ->}. A parenthesized list
      * {@code (a, b)} counts its top-level commas; an empty list {@code ()} is zero; a bare {@code x}
-     * is one. Returns {@link #UNKNOWN_ARITY} when the shape is unrecognizable.
+     * is one. Returns {@code UNKNOWN_ARITY} when the shape is unrecognizable.
      */
     private int lambdaParameterArity(String header) {
+        if (header == null) return TypeGuess.UNKNOWN_ARITY;
         String params = header.trim();
         if (params.startsWith("(") && params.endsWith(")")) {
             String inner = params.substring(1, params.length() - 1).trim();

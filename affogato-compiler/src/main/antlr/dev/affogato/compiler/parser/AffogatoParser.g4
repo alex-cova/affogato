@@ -374,7 +374,11 @@ assignmentExpression
 
 ternaryExpression
     : switchExpression
-    | logicalOrExpression (QUESTION expression COLON expression)?
+    | elvisExpression (QUESTION expression COLON expression)?
+    ;
+
+elvisExpression
+    : logicalOrExpression (ELVIS elvisExpression)?
     ;
 
 logicalOrExpression
@@ -443,6 +447,7 @@ postfixExpression
 
 postfixPart
     : DOT (Identifier | IN)
+    | QUESTION_DOT (Identifier | IN)
     | LPAREN argumentList? RPAREN
     | LBRACK expression RBRACK
     | PLUS_PLUS

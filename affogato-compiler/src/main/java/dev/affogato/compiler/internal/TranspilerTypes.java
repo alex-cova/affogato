@@ -108,6 +108,7 @@ final class TranspilerTypes {
             List<ParamDecl> components,
             List<String> superTypes,
             List<MethodDecl> methods,
+            List<ConstructorDecl> constructors,
             List<String> annotations,
             int declarationLine,
             int declarationColumn
