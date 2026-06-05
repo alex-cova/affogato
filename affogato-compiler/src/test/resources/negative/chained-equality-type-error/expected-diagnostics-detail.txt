@@ -1,2 +1,2 @@
 # Format: CODE line col message-substring
-AFFOGATO_OPERATOR_TYPE 5 9 Equality operands are not comparable
+AFFOGATO_OPERATOR_TYPE 5 26 Equality operands are not comparable

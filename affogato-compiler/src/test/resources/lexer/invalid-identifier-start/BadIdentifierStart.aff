@@ -1,0 +1,8 @@
+package dev.affogato.lexer
+
+class BadIdentifierStart {
+    run(): int {
+        let 1bad = 1
+        return 1bad
+    }
+}

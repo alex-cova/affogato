@@ -1,0 +1,8 @@
+package dev.affogato.parser
+
+class BadUnclosedBracket {
+    run(): int {
+        let items = [1, 2, 3
+        return items[0]
+    }
+}

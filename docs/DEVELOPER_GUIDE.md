@@ -45,7 +45,11 @@ Three fixture suites live under `affogato-compiler/src/test/resources/`:
 |---|---|---|
 | `golden/` | `AffogatoGoldenTest` | Byte-exact generated Java + `javac --release 21` |
 | `negative/` | `AffogatoNegativeTest` | Expected error codes (`expected-diagnostics.txt`) |
-| `exec/` | `AffogatoExecutionTest` | Compile, run `static func run()`, compare stdout |
+| `lexer/` | `AffogatoLexerFixtureTest` | Lexer/syntax failures (`AFFOGATO_PARSE`, strict optional) |
+| `lexer-valid/` | `AffogatoLexerValidFixtureTest` | Lexer smoke programs that must compile |
+| `parser/` | `AffogatoParserFixtureTest` | Parser failures (`AFFOGATO_PARSE`, strict optional) |
+| `parser-valid/` | `AffogatoParserValidFixtureTest` | Parser smoke programs that must compile |
+| `exec/` | `AffogatoExecutionTest` | E2E: compile, `javac`, run `run()` or `main`, compare stdout/stderr |
 
 ### Updating golden Java
 
@@ -66,6 +70,20 @@ GRADLE_USER_HOME=.gradle ./gradlew :affogato-compiler:test \
   --tests dev.affogato.compiler.AffogatoExecutionTest \
   -Daffogato.exec.update=true
 ```
+
+Execution fixtures may also include:
+
+- `entry-point.txt` — `run` (default) or `main`
+- `expected-stderr.txt` — optional stderr assertion
+- `java/` — optional helper `.java` sources compiled before Affogato (for classpath interop)
+
+### Lexer and parser fixtures
+
+`lexer/`, `parser/`, `lexer-valid/`, and `parser-valid/` use the same layout as negative
+fixtures (`expected-diagnostics.txt`, optional `expected-diagnostics-detail.txt` and
+`expected-diagnostics-strict.txt`). Valid fixtures may include an empty marker file
+`allow-empty-output` when the compiler should succeed without emitting Java (for example an
+empty compilation unit).
 
 ### Negative fixtures
 

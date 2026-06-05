@@ -1,0 +1,7 @@
+package dev.affogato.lexer
+
+class BadUnclosedString {
+    run(): String {
+        return "no closing quote
+    }
+}

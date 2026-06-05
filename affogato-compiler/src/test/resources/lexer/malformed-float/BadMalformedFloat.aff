@@ -1,0 +1,7 @@
+package dev.affogato.lexer
+
+class BadMalformedFloat {
+    run(): double {
+        return 1.2.3
+    }
+}

@@ -1,0 +1,5 @@
+package dev.affogato.lexer
+
+class BadStringAtEof {
+    run(): String {
+        return "oops\

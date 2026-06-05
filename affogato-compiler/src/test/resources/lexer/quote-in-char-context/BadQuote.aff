@@ -1,0 +1,7 @@
+package dev.affogato.lexer
+
+class BadQuote {
+    run(): String {
+        return 'single-quoted'
+    }
+}

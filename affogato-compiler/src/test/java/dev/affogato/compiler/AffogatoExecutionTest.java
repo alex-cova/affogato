@@ -23,12 +23,13 @@ import org.junit.Test;
  * <p>Each fixture lives under {@code src/test/resources/exec/<feature>/} and contains:
  * <ul>
  *   <li>One or more {@code .aff} source files.</li>
- *   <li>{@code main-class.txt} — the fully-qualified class name whose {@code run()} method to invoke.</li>
- *   <li>{@code expected-output.txt} — expected stdout, compared after stripping trailing whitespace.</li>
+ *   <li>{@code main-class.txt} — fully-qualified class name to load.</li>
+ *   <li>{@code entry-point.txt} — optional {@code run} (default) or {@code main} entry method.</li>
+ *   <li>{@code expected-output.txt} — expected stdout (may be empty).</li>
+ *   <li>{@code expected-stderr.txt} — optional expected stderr.</li>
  * </ul>
- * The fixture's class must expose a {@code public static void run()} method with no parameters. The
- * test compiles the Affogato source, compiles the generated Java, loads the classes, captures stdout,
- * and compares against {@code expected-output.txt}.
+ * The fixture class must expose {@code public static void run()} or {@code public static void main(String[])}.
+ * The test compiles Affogato, compiles generated Java with javac, runs the entry point, and compares streams.
  *
  * <p>To create or refresh expected output after an intentional change, run with the update flag:
  * <pre>{@code
@@ -40,6 +41,14 @@ import org.junit.Test;
  */
 public final class AffogatoExecutionTest {
     private static final Path EXEC_ROOT = Path.of("src/test/resources/exec");
+
+    private enum EntryPoint {
+        RUN,
+        MAIN
+    }
+
+    private record CapturedOutput(String stdout, String stderr) {
+    }
 
     private static final boolean UPDATE =
             Boolean.getBoolean("affogato.exec.update")
@@ -75,22 +84,44 @@ public final class AffogatoExecutionTest {
         require(Files.isRegularFile(mainClassFile), "Missing main-class.txt.");
         String mainClass = Files.readString(mainClassFile, StandardCharsets.UTF_8).strip();
 
+        EntryPoint entryPoint = readEntryPoint(fixture);
         Path classesDir = compileFixture(fixture);
-        String actual = normalizeOutput(invokeRun(classesDir, mainClass));
+        CapturedOutput actual = invokeEntryPoint(classesDir, mainClass, entryPoint);
 
         Path expectedOutputFile = fixture.resolve("expected-output.txt");
+        Path expectedStderrFile = fixture.resolve("expected-stderr.txt");
         if (UPDATE) {
-            Files.writeString(expectedOutputFile, actual + System.lineSeparator(), StandardCharsets.UTF_8);
+            Files.writeString(expectedOutputFile, actual.stdout() + System.lineSeparator(), StandardCharsets.UTF_8);
+            if (Files.isRegularFile(expectedStderrFile) || !actual.stderr().isEmpty()) {
+                Files.writeString(expectedStderrFile, actual.stderr() + System.lineSeparator(), StandardCharsets.UTF_8);
+            }
             return;
         }
 
         require(Files.isRegularFile(expectedOutputFile),
                 "Missing expected-output.txt. Run with -Daffogato.exec.update=true to create it.");
         String expectedOutput = normalizeOutput(Files.readString(expectedOutputFile, StandardCharsets.UTF_8));
-        require(expectedOutput.equals(actual),
-                "Output mismatch." + System.lineSeparator()
+        require(expectedOutput.equals(actual.stdout()),
+                "Stdout mismatch." + System.lineSeparator()
                         + "--- expected ---" + System.lineSeparator() + expectedOutput
-                        + System.lineSeparator() + "--- actual ---" + System.lineSeparator() + actual);
+                        + System.lineSeparator() + "--- actual ---" + System.lineSeparator() + actual.stdout());
+
+        if (Files.isRegularFile(expectedStderrFile)) {
+            String expectedStderr = normalizeOutput(Files.readString(expectedStderrFile, StandardCharsets.UTF_8));
+            require(expectedStderr.equals(actual.stderr()),
+                    "Stderr mismatch." + System.lineSeparator()
+                            + "--- expected ---" + System.lineSeparator() + expectedStderr
+                            + System.lineSeparator() + "--- actual ---" + System.lineSeparator() + actual.stderr());
+        }
+    }
+
+    private static EntryPoint readEntryPoint(Path fixture) throws Exception {
+        Path entryPointFile = fixture.resolve("entry-point.txt");
+        if (!Files.isRegularFile(entryPointFile)) {
+            return EntryPoint.RUN;
+        }
+        String value = Files.readString(entryPointFile, StandardCharsets.UTF_8).strip();
+        return "main".equalsIgnoreCase(value) ? EntryPoint.MAIN : EntryPoint.RUN;
     }
 
     private Path compileFixture(Path fixture) throws Exception {
@@ -112,35 +143,61 @@ public final class AffogatoExecutionTest {
             Files.copy(aff, target);
         }
 
+        List<File> helperSources = collectHelperJava(fixture);
+        Path helperClasses = workDir.resolve("helper-classes");
+        if (!helperSources.isEmpty()) {
+            compileJavaFiles(helperSources, helperClasses);
+        }
+
         Path generatedRoot = workDir.resolve("generated");
         try {
-            AffogatoCompilerOptions options = AffogatoCompilerOptions.builder()
+            AffogatoCompilerOptions.Builder options = AffogatoCompilerOptions.builder()
                     .addSourceRoot(sourceRoot)
-                    .outputDirectory(generatedRoot)
-                    .build();
-            AffogatoCompilationResult result = new AffogatoCompiler().compile(options);
+                    .outputDirectory(generatedRoot);
+            if (!helperSources.isEmpty()) {
+                options.addClasspathEntry(helperClasses);
+            }
+            AffogatoCompilationResult result = new AffogatoCompiler().compile(options.build());
             require(!result.hasErrors(), "Fixture produced error diagnostics: " + result.diagnostics());
         } catch (AffogatoCompilationException exception) {
             throw new AssertionError("Fixture failed to compile: " + describe(exception));
         }
 
         Path classesDir = workDir.resolve("classes");
-        compileGeneratedJava(generatedRoot, classesDir);
+        compileJavaSources(generatedRoot, classesDir, collectHelperJava(fixture));
         return classesDir;
     }
 
-    private static void compileGeneratedJava(Path generatedRoot, Path classesDir) throws Exception {
-        Files.createDirectories(classesDir);
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        require(compiler != null, "A JDK with javac is required.");
+    private static List<File> collectHelperJava(Path fixture) throws Exception {
+        List<File> helpers = new ArrayList<>();
+        Path helperRoot = fixture.resolve("java");
+        if (!Files.isDirectory(helperRoot)) {
+            return helpers;
+        }
+        try (var stream = Files.walk(helperRoot)) {
+            stream.filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .map(Path::toFile)
+                    .forEach(helpers::add);
+        }
+        return helpers;
+    }
 
-        List<File> javaFiles = new ArrayList<>();
+    private static void compileJavaSources(Path generatedRoot, Path classesDir, List<File> extraSources) throws Exception {
+        List<File> javaFiles = new ArrayList<>(extraSources);
         try (var stream = Files.walk(generatedRoot)) {
             stream.filter(path -> path.getFileName().toString().endsWith(".java"))
                     .map(Path::toFile)
                     .forEach(javaFiles::add);
         }
         require(!javaFiles.isEmpty(), "Compiler produced no Java output.");
+        compileJavaFiles(javaFiles, classesDir);
+    }
+
+    private static void compileJavaFiles(List<File> javaFiles, Path classesDir) throws Exception {
+        Files.createDirectories(classesDir);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        require(compiler != null, "A JDK with javac is required.");
+        require(!javaFiles.isEmpty(), "No Java sources to compile.");
 
         try (StandardJavaFileManager fileManager =
                      compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8)) {
@@ -150,25 +207,38 @@ public final class AffogatoExecutionTest {
                     "-classpath", System.getProperty("java.class.path"),
                     "-d", classesDir.toString()
             ), null, units).call();
-            require(Boolean.TRUE.equals(ok), "Generated Java did not compile with javac.");
+            require(Boolean.TRUE.equals(ok), "Java sources did not compile with javac.");
         }
     }
 
-    private static String invokeRun(Path classesDir, String mainClass) throws Exception {
+    private static CapturedOutput invokeEntryPoint(Path classesDir, String mainClass, EntryPoint entryPoint) throws Exception {
         URL[] urls = {classesDir.toUri().toURL()};
         try (URLClassLoader loader = new URLClassLoader(urls, ClassLoader.getSystemClassLoader())) {
             Class<?> clazz = loader.loadClass(mainClass);
-            Method run = clazz.getMethod("run");
+            Method method = entryPoint == EntryPoint.MAIN
+                    ? clazz.getMethod("main", String[].class)
+                    : clazz.getMethod("run");
 
-            ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            PrintStream original = System.out;
-            System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            PrintStream originalErr = System.err;
+            System.setOut(new PrintStream(stdout, true, StandardCharsets.UTF_8));
+            System.setErr(new PrintStream(stderr, true, StandardCharsets.UTF_8));
             try {
-                run.invoke(null);
+                if (entryPoint == EntryPoint.MAIN) {
+                    method.invoke(null, (Object) new String[0]);
+                } else {
+                    method.invoke(null);
+                }
             } finally {
-                System.setOut(original);
+                System.setOut(originalOut);
+                System.setErr(originalErr);
             }
-            return buf.toString(StandardCharsets.UTF_8);
+            return new CapturedOutput(
+                    normalizeOutput(stdout.toString(StandardCharsets.UTF_8)),
+                    normalizeOutput(stderr.toString(StandardCharsets.UTF_8))
+            );
         }
     }
 

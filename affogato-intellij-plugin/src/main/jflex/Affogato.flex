@@ -3,15 +3,14 @@ package dev.affogato.intellij.lexer;
 %%
 
 %class _AffogatoLexer
-%unicode
 %public
 %implements com.intellij.lexer.FlexLexer
 %function advance
 %type com.intellij.psi.tree.IElementType
 
 WHITE_SPACE=[\ \n\r\t\f]+
-ID=[:jletter:][:jletterdigit:]*
-NUMBER=[0-9]+(\.[0-9]+)?
+ID=[A-Za-z$_][A-Za-z0-9$_]*
+NUMBER=(0[xX][0-9a-fA-F_]+[lL]?)|([0-9]+(\.[0-9]+)?[fFdDlL]?)
 STRING=\"([^\"\\]|\\.)*\"
 LINE_COMMENT="//".*
 BLOCK_COMMENT="/"\*([^*]|\*+[^*/])*\*+"/"

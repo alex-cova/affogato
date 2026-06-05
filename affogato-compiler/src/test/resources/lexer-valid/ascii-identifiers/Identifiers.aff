@@ -1,0 +1,10 @@
+package dev.affogato.lexer.valid
+
+class Identifiers {
+    run(): int {
+        let snake_case = 1
+        let $dollar = 2
+        let camelCase = snake_case + $dollar
+        return camelCase
+    }
+}

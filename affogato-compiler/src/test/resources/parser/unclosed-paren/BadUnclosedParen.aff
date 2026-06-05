@@ -1,0 +1,7 @@
+package dev.affogato.parser
+
+class BadUnclosedParen {
+    run(): int {
+        return (1 + 2
+    }
+}

@@ -1,0 +1,7 @@
+package dev.affogato.lexer.valid
+
+class StringEscapes {
+    run(): String {
+        return "tab:\there\nquote:\"\\backslash"
+    }
+}

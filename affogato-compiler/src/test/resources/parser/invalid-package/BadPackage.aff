@@ -1,0 +1,7 @@
+package dev..affogato
+
+class BadPackage {
+    run(): int {
+        return 1
+    }
+}

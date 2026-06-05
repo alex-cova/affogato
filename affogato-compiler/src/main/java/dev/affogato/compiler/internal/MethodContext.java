@@ -29,6 +29,10 @@ final class MethodContext {
     private String resolutionFailure = "";
     int currentLine = 1;
     int currentColumn = 1;
+    /** 1-based line of the expression currently being checked; 0 means use {@link #currentLine}. */
+    int expressionLine;
+    /** 1-based column of the expression start; 0 means use {@link #currentColumn}. */
+    int expressionColumn;
     private final Deque<Set<String>> blockLocalNames = new ArrayDeque<>();
     private Set<String> localsDeclaredLaterInBlock = Set.of();
 

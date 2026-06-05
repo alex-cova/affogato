@@ -1155,16 +1155,41 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     : mergeTrailingClosure(sourceText(unit.source(), statement.returnStatement().expression()),
                             unit.source(), statement.returnStatement().trailingClosure(), context);
             validateReturn(rawExpression, context, statement.returnStatement().getStart().getLine(), statement.returnStatement().getStart().getCharPositionInLine() + 1);
-            String expression = rawExpression.isBlank()
-                    ? ""
-                    : " " + transformExpression(rawExpression, context);
-            out.append(indent(indent)).append("return").append(expression).append(";").append(System.lineSeparator());
+            if (rawExpression.isBlank()) {
+                out.append(indent(indent)).append("return;").append(System.lineSeparator());
+            } else {
+                TypedExpression typedReturn = transformExpressionTyped(
+                        rawExpression,
+                        context,
+                        statement.returnStatement().expression());
+                out.append(indent(indent)).append("return ").append(typedReturn.javaSource()).append(";").append(System.lineSeparator());
+            }
             return;
         }
         if (statement.throwStatement() != null) {
-            TypedExpression expression = transformExpressionTyped(sourceText(unit.source(), statement.throwStatement().expression()), context);
+            TypedExpression expression = transformExpressionTyped(
+                    sourceText(unit.source(), statement.throwStatement().expression()),
+                    context,
+                    statement.throwStatement().expression());
             validateThrowExpression(expression, context, statement.throwStatement().getStart().getLine(), statement.throwStatement().getStart().getCharPositionInLine() + 1);
             out.append(indent(indent)).append("throw ").append(expression.javaSource()).append(";").append(System.lineSeparator());
+            return;
+        }
+        if (statement.assertStatement() != null) {
+            AffogatoParser.AssertStatementContext assertCtx = statement.assertStatement();
+            TypedExpression condition = transformExpressionTyped(
+                    sourceText(unit.source(), assertCtx.expression(0)),
+                    context,
+                    assertCtx.expression(0));
+            out.append(indent(indent)).append("assert ").append(condition.javaSource());
+            if (assertCtx.expression().size() > 1) {
+                TypedExpression message = transformExpressionTyped(
+                        sourceText(unit.source(), assertCtx.expression(1)),
+                        context,
+                        assertCtx.expression(1));
+                out.append(" : ").append(message.javaSource());
+            }
+            out.append(";").append(System.lineSeparator());
             return;
         }
         if (statement.breakStatement() != null) {
@@ -1213,7 +1238,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         String rawCondition = sourceText(unit.source(), guard.condition());
         validateCondition(rawCondition, context, guard.getStart().getLine(), guard.getStart().getCharPositionInLine() + 1);
-        String condition = transformExpression(rawCondition, context);
+        String condition = transformExpressionTyped(rawCondition, context, guard.condition()).javaSource();
         out.append(indent(indent)).append("if (!(").append(stripOuterParens(condition)).append(")) {").append(System.lineSeparator());
         MethodContext.ScopeSnapshot guardScope = context.snapshotScope();
         writeBlockStatements(out, unit, guard.block(), context, indent + 1);
@@ -1224,7 +1249,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private void writeIf(StringBuilder out, CompilationUnit unit, AffogatoParser.IfStatementContext ifStatement, MethodContext context, int indent) {
         String rawCondition = sourceText(unit.source(), ifStatement.condition());
         validateCondition(rawCondition, context, ifStatement.getStart().getLine(), ifStatement.getStart().getCharPositionInLine() + 1);
-        String condition = transformExpression(rawCondition, context);
+        String condition = transformExpressionTyped(rawCondition, context, ifStatement.condition()).javaSource();
         out.append(indent(indent)).append("if (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
         MethodContext.ScopeSnapshot thenScope = context.snapshotScope();
         writeBlockStatements(out, unit, ifStatement.block(0), context, indent + 1);
@@ -1256,7 +1281,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (content.IN() != null) {
             String variable = content.Identifier().getText();
             String rawIterable = sourceText(unit.source(), content.expression());
-            TypedExpression typedIterable = transformExpressionTyped(rawIterable, context);
+            TypedExpression typedIterable = transformExpressionTyped(rawIterable, context, content.expression());
             String iterable = typedIterable.javaSource();
             Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
             if (elementType.isPresent()) {
@@ -1285,7 +1310,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private void writeWhile(StringBuilder out, CompilationUnit unit, AffogatoParser.WhileStatementContext whileStatement, MethodContext context, int indent) {
         String rawCondition = sourceText(unit.source(), whileStatement.condition());
         validateCondition(rawCondition, context, whileStatement.getStart().getLine(), whileStatement.getStart().getCharPositionInLine() + 1);
-        String condition = transformExpression(rawCondition, context);
+        String condition = transformExpressionTyped(rawCondition, context, whileStatement.condition()).javaSource();
         out.append(indent(indent)).append("while (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
         MethodContext.ScopeSnapshot whileScope = context.snapshotScope();
         writeBlockStatements(out, unit, whileStatement.block(), context, indent + 1);
@@ -1340,7 +1365,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     private void writeSwitch(StringBuilder out, CompilationUnit unit, AffogatoParser.SwitchStatementContext switchStatement, MethodContext context, int indent) {
         String rawCondition = sourceText(unit.source(), switchStatement.condition());
-        TypedExpression typedCondition = transformExpressionTyped(rawCondition, context);
+        TypedExpression typedCondition = transformExpressionTyped(rawCondition, context, switchStatement.condition());
         validateSwitchSelector(typedCondition.resolvedType(), unit, context);
         String condition = typedCondition.javaSource();
         out.append(indent(indent)).append("switch (").append(stripOuterParens(condition)).append(") {").append(System.lineSeparator());
@@ -1515,7 +1540,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 ? ""
                 : mergeTrailingClosure(sourceText(unit.source(), declaration.expression()),
                         unit.source(), declaration.trailingClosure(), context);
-        TypedExpression typedInit = rawInitializer.isBlank() ? null : transformExpressionTyped(rawInitializer, context);
+        TypedExpression typedInit = rawInitializer.isBlank()
+                ? null
+                : transformExpressionTyped(rawInitializer, context, declaration.expression());
         String initializer = typedInit == null ? "" : typedInit.javaSource();
 
         if (type == null && typedInit != null) {
@@ -1884,9 +1911,31 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private TypedExpression transformExpressionTyped(String expression, MethodContext context) {
+        return transformExpressionTyped(expression, context, null);
+    }
+
+    private TypedExpression transformExpressionTyped(String expression, MethodContext context, ParserRuleContext expressionAnchor) {
+        int savedExpressionLine = context.expressionLine;
+        int savedExpressionColumn = context.expressionColumn;
+        if (expressionAnchor != null && expressionAnchor.getStart() != null) {
+            context.expressionLine = expressionAnchor.getStart().getLine();
+            context.expressionColumn = expressionAnchor.getStart().getCharPositionInLine() + 1;
+        } else {
+            context.expressionLine = context.currentLine;
+            context.expressionColumn = context.currentColumn;
+        }
+        try {
+            return transformExpressionTypedInSpan(expression, context);
+        } finally {
+            context.expressionLine = savedExpressionLine;
+            context.expressionColumn = savedExpressionColumn;
+        }
+    }
+
+    private TypedExpression transformExpressionTypedInSpan(String expression, MethodContext context) {
         AstExpression ast = expressionAst(expression, context);
-        validateExpressionSubset(ast, context);
-        validateExpressionSemantics(ast, context);
+        validateExpressionSubset(ast, context, expression);
+        validateExpressionSemantics(ast, context, expression);
         String result = expression.trim();
         result = transformStringInterpolation(result);
         result = transformReceiverThis(result, context);
@@ -1894,6 +1943,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         result = transformTypedLambda(result);
         result = transformExtensionCalls(result, context);
         result = transformNamedArguments(result, context);
+        result = transformArrayConstruction(result);
         validateExplicitConstructorCalls(result, context);
         validateMethodCalls(result, context);
         result = transformNot(result);
@@ -1912,134 +1962,94 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return new TypedExpression(result, resolvedType, ast);
     }
 
-    private void validateExpressionSubset(AstExpression ast, MethodContext context) {
+    private void expressionSemanticError(MethodContext context, String rawExpression, AstExpression at, String code, String message) {
+        int line = context.expressionLine > 0 ? context.expressionLine : context.currentLine;
+        int baseColumn = expressionBaseColumn(context, rawExpression);
+        int offset = AstSpans.startOffset(at);
+        int length = AstSpans.spanLength(at, offset);
+        diagnostics.add(error(context.unit.sourceFile(), line, baseColumn + offset, length, code, message));
+    }
+
+    private static int expressionBaseColumn(MethodContext context, String rawExpression) {
+        int base = context.expressionColumn > 0 ? context.expressionColumn : context.currentColumn;
+        int index = 0;
+        while (index < rawExpression.length() && Character.isWhitespace(rawExpression.charAt(index))) {
+            index++;
+        }
+        return base + index;
+    }
+
+    private void validateExpressionSubset(AstExpression ast, MethodContext context, String rawExpression) {
         if (ast instanceof UnsupportedExpression unsupported) {
-            diagnostics.add(error(
-                    context.unit.sourceFile(),
-                    context.currentLine,
-                    context.currentColumn,
-                    unsupported.code(),
-                    unsupported.message()
-            ));
+            expressionSemanticError(context, rawExpression, unsupported, unsupported.code(), unsupported.message());
         }
     }
 
-    private void validateExpressionSemantics(AstExpression ast, MethodContext context) {
+    private void validateExpressionSemantics(AstExpression ast, MethodContext context, String rawExpression) {
         if (ast instanceof BinaryExpression binary) {
-            validateExpressionSemantics(binary.left(), context);
-            validateExpressionSemantics(binary.right(), context);
+            validateExpressionSemantics(binary.left(), context, rawExpression);
+            validateExpressionSemantics(binary.right(), context, rawExpression);
             if ((binary.operator().equals("||") || binary.operator().equals("&&"))
                     && (!isBooleanOperand(binary.left(), context) || !isBooleanOperand(binary.right(), context))) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_CONDITION_TYPE",
-                        "Boolean operators require boolean operands."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_CONDITION_TYPE",
+                        "Boolean operators require boolean operands.");
             } else if (List.of("<", "<=", ">", ">=").contains(binary.operator())
                     && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_CONDITION_TYPE",
-                        "Relational operators require numeric operands."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_CONDITION_TYPE",
+                        "Relational operators require numeric operands.");
             } else if (List.of("-", "*", "/", "%").contains(binary.operator())
                     && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Arithmetic operators require numeric operands."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_OPERATOR_TYPE",
+                        "Arithmetic operators require numeric operands.");
             } else if (binary.operator().equals("+") && !isPlusOperandCompatible(binary.left(), binary.right(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Plus operands must be numeric or include a String operand."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_OPERATOR_TYPE",
+                        "Plus operands must be numeric or include a String operand.");
             } else if ((binary.operator().equals("==") || binary.operator().equals("!="))
                     && !isEqualityCompatible(binary.left(), binary.right(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Equality operands are not comparable."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_OPERATOR_TYPE",
+                        "Equality operands are not comparable.");
             } else if (List.of("&", "|", "^").contains(binary.operator())
                     && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Bitwise operators require numeric operands."
-                ));
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_OPERATOR_TYPE",
+                        "Bitwise operators require numeric operands.");
+            } else if (List.of("<<", ">>", ">>>").contains(binary.operator())
+                    && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
+                expressionSemanticError(context, rawExpression, binary, "AFFOGATO_OPERATOR_TYPE",
+                        "Shift operators require numeric operands.");
             }
             return;
         }
         if (ast instanceof UnaryExpression unary) {
-            validateExpressionSemantics(unary.expression(), context);
+            validateExpressionSemantics(unary.expression(), context, rawExpression);
             if (unary.operator().equals("!") && !isBooleanOperand(unary.expression(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_CONDITION_TYPE",
-                        "Boolean negation requires a boolean operand."
-                ));
+                expressionSemanticError(context, rawExpression, unary, "AFFOGATO_CONDITION_TYPE",
+                        "Boolean negation requires a boolean operand.");
             } else if (unary.operator().equals("~") && !isNumericOperand(unary.expression(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Bitwise complement requires a numeric operand."
-                ));
+                expressionSemanticError(context, rawExpression, unary, "AFFOGATO_OPERATOR_TYPE",
+                        "Bitwise complement requires a numeric operand.");
             } else if ((unary.operator().equals("++") || unary.operator().equals("--"))
                     && !isNumericOperand(unary.expression(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_OPERATOR_TYPE",
-                        "Increment and decrement require a numeric operand."
-                ));
+                expressionSemanticError(context, rawExpression, unary, "AFFOGATO_OPERATOR_TYPE",
+                        "Increment and decrement require a numeric operand.");
             }
             return;
         }
         if (ast instanceof TernaryExpression ternary) {
-            validateExpressionSemantics(ternary.condition(), context);
-            validateExpressionSemantics(ternary.thenExpression(), context);
-            validateExpressionSemantics(ternary.elseExpression(), context);
+            validateExpressionSemantics(ternary.condition(), context, rawExpression);
+            validateExpressionSemantics(ternary.thenExpression(), context, rawExpression);
+            validateExpressionSemantics(ternary.elseExpression(), context, rawExpression);
             if (!isBooleanConditionAst(ternary.condition(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_CONDITION_TYPE",
-                        "Ternary conditions must be boolean."
-                ));
+                expressionSemanticError(context, rawExpression, ternary.condition(), "AFFOGATO_CONDITION_TYPE",
+                        "Ternary conditions must be boolean.");
             }
             if (!ternaryBranchesCompatible(ternary.thenExpression(), ternary.elseExpression(), context)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_TERNARY_TYPE",
-                        "Ternary branches must have compatible types."
-                ));
+                expressionSemanticError(context, rawExpression, ternary, "AFFOGATO_TERNARY_TYPE",
+                        "Ternary branches must have compatible types.");
             }
             return;
         }
         if (ast instanceof InstanceOfExpression instanceOf) {
-            validateExpressionSemantics(instanceOf.expression(), context);
+            validateExpressionSemantics(instanceOf.expression(), context, rawExpression);
             TypeGuess source = instanceOf.expression().resolvedType().isKnown()
                     ? instanceOf.expression().resolvedType()
                     : inferExpressionType(instanceOf.expression().source(), context);
@@ -2087,21 +2097,21 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return;
         }
         if (ast instanceof CallExpression call) {
-            call.arguments().forEach(argument -> validateExpressionSemantics(argument, context));
-            validateExpressionSemantics(call.receiver(), context);
+            call.arguments().forEach(argument -> validateExpressionSemantics(argument, context, rawExpression));
+            validateExpressionSemantics(call.receiver(), context, rawExpression);
             return;
         }
         if (ast instanceof ConstructorExpression constructor) {
-            constructor.arguments().forEach(argument -> validateExpressionSemantics(argument, context));
+            constructor.arguments().forEach(argument -> validateExpressionSemantics(argument, context, rawExpression));
             return;
         }
         if (ast instanceof AssignmentExpression assignment) {
-            validateExpressionSemantics(assignment.target(), context);
-            validateExpressionSemantics(assignment.value(), context);
+            validateExpressionSemantics(assignment.target(), context, rawExpression);
+            validateExpressionSemantics(assignment.value(), context, rawExpression);
             return;
         }
         if (ast instanceof CastExpression cast) {
-            validateExpressionSemantics(cast.expression(), context);
+            validateExpressionSemantics(cast.expression(), context, rawExpression);
             TypeGuess source = cast.expression().resolvedType().isKnown()
                     ? cast.expression().resolvedType()
                     : inferExpressionType(cast.expression().source(), context);
@@ -2130,7 +2140,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return;
         }
         if (ast instanceof PropertyAccessExpression property) {
-            validateExpressionSemantics(property.receiver(), context);
+            validateExpressionSemantics(property.receiver(), context, rawExpression);
             TypeGuess receiverType = property.receiver().resolvedType().isKnown()
                     ? property.receiver().resolvedType()
                     : inferExpressionType(property.receiver().source(), context);
@@ -2147,12 +2157,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return;
         }
         if (ast instanceof ArrayLiteralExpression arrayLiteral) {
-            arrayLiteral.elements().forEach(element -> validateExpressionSemantics(element, context));
+            arrayLiteral.elements().forEach(element -> validateExpressionSemantics(element, context, rawExpression));
             return;
         }
         if (ast instanceof ArrayAccessExpression arrayAccess) {
-            validateExpressionSemantics(arrayAccess.receiver(), context);
-            validateExpressionSemantics(arrayAccess.index(), context);
+            validateExpressionSemantics(arrayAccess.receiver(), context, rawExpression);
+            validateExpressionSemantics(arrayAccess.index(), context, rawExpression);
             TypeGuess receiverType = arrayAccess.receiver().resolvedType().isKnown()
                     ? arrayAccess.receiver().resolvedType()
                     : inferExpressionType(arrayAccess.receiver().source(), context);
@@ -2618,6 +2628,33 @@ public final class AffogatoTranspiler implements AutoCloseable {
             i++;
         }
         return -1;
+    }
+
+    /**
+     * Rewrites sized-array allocations {@code new T[](size)} into Java {@code new T[size]}. The size
+     * expression is transformed recursively so nested allocations resolve too. Array literals
+     * ({@code new T[]{...}}) are produced later by {@link #transformArrayLiteral} and are untouched.
+     */
+    private String transformArrayConstruction(String expression) {
+        Matcher matcher = Pattern.compile("new\\s+([A-Za-z_$][\\w$.]*)\\s*\\[\\]\\s*\\(").matcher(expression);
+        StringBuilder out = new StringBuilder();
+        int last = 0;
+        int searchFrom = 0;
+        while (matcher.find(searchFrom)) {
+            int openParen = matcher.end() - 1;
+            int close = findMatching(expression, openParen, '(', ')');
+            if (close < 0) {
+                searchFrom = matcher.end();
+                continue;
+            }
+            String size = transformArrayConstruction(expression.substring(openParen + 1, close));
+            out.append(expression, last, matcher.start());
+            out.append("new ").append(matcher.group(1)).append('[').append(size).append(']');
+            last = close + 1;
+            searchFrom = close + 1;
+        }
+        out.append(expression.substring(last));
+        return out.toString();
     }
 
     private String transformArrayLiteral(String expression) {
@@ -3855,6 +3892,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         if (value.equals("true") || value.equals("false")) {
             return TypeRef.unspecified("boolean");
+        }
+        if (value.matches("-?0[xX][0-9a-fA-F_]+[lL]")) {
+            return TypeRef.unspecified("long");
+        }
+        if (value.matches("-?0[xX][0-9a-fA-F_]+")) {
+            return TypeRef.unspecified("int");
         }
         if (value.matches("-?\\d+[lL]")) {
             return TypeRef.unspecified("long");

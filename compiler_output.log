@@ -1,0 +1,716 @@
+verify-src/Gemma4.aff:81:82: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:81:99: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:81:115: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:81:118: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:81:126: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:195:25: ERROR AFFOGATO_PARSE: no viable alternative at input 'lettmp=array[from'
+verify-src/Gemma4.aff:195:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:196:14: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:196:28: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:197:14: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:206:43: ERROR AFFOGATO_PARSE: missing '{' at '('
+verify-src/Gemma4.aff:206:49: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:206:52: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:206:59: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:206:65: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:209:34: ERROR AFFOGATO_PARSE: missing '{' at '('
+verify-src/Gemma4.aff:209:40: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:209:46: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:209:53: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:209:59: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:212:15: ERROR AFFOGATO_PARSE: mismatched input 'else' expecting {';', NL}
+verify-src/Gemma4.aff:218:5: ERROR AFFOGATO_PARSE: no viable alternative at input '\n\noverride'
+verify-src/Gemma4.aff:218:5: ERROR AFFOGATO_PARSE: extraneous input 'override' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:229:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:232:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:250:62: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:250:70: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:250:73: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:263:40: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:263:48: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:263:51: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:275:38: ERROR AFFOGATO_PARSE: extraneous input 'x46554747' expecting {';', NL}
+verify-src/Gemma4.aff:277:47: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:289:23: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', '{', NL}
+verify-src/Gemma4.aff:290:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {'static', 'abstract', 'public', 'private', 'protected', 'var', 'let', 'init', 'func', 'override', ';', '}', '[', '@', Identifier, NL}
+verify-src/Gemma4.aff:293:5: ERROR AFFOGATO_PARSE: extraneous input 'getTensorDataOffset' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:297:24: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', ';', '@', NL}
+verify-src/Gemma4.aff:298:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:301:28: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {'<', '!', '?', '.', '['}
+verify-src/Gemma4.aff:302:9: ERROR AFFOGATO_PARSE: extraneous input 'let' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:315:12: ERROR AFFOGATO_PARSE: extraneous input 'loadModel' expecting {'static', 'abstract', 'public', 'private', 'protected', 'func', 'override'}
+verify-src/Gemma4.aff:316:9: ERROR AFFOGATO_PARSE: extraneous input 'let' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:324:12: ERROR AFFOGATO_PARSE: extraneous input 'loadModel' expecting {'static', 'abstract', 'public', 'private', 'protected', 'func', 'override'}
+verify-src/Gemma4.aff:325:9: ERROR AFFOGATO_PARSE: extraneous input 'let' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:337:31: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {'<', '!', '?', '.', '['}
+verify-src/Gemma4.aff:338:9: ERROR AFFOGATO_PARSE: extraneous input 'readHeader' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:380:34: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {'<', '!', '?', '.', '['}
+verify-src/Gemma4.aff:381:9: ERROR AFFOGATO_PARSE: extraneous input 'let' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:383:86: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:88: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:105: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:107: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:134: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:136: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:153: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:155: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:187: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:189: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:220: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:383:222: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:393:20: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {'<', '!', '?', '.', '['}
+verify-src/Gemma4.aff:394:9: ERROR AFFOGATO_PARSE: extraneous input 'this' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:505:27: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {'<', '!', '?', '.', '['}
+verify-src/Gemma4.aff:506:9: ERROR AFFOGATO_PARSE: extraneous input 'reader' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:668:40: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:674:37: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:675:35: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:676:36: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:678:34: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:679:33: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:680:35: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:683:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:683:23: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:684:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:687:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:687:23: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:688:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:691:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:691:23: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:692:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:695:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:695:23: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:696:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:700:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:700:21: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:701:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:703:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:703:21: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:704:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:706:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:706:21: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:707:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:716:50: ERROR AFFOGATO_PARSE: extraneous input 'ffnRaw' expecting ')'
+verify-src/Gemma4.aff:733:26: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:733:53: ERROR AFFOGATO_PARSE: extraneous input 'headSizeSWA' expecting ')'
+verify-src/Gemma4.aff:735:26: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:746:34: ERROR AFFOGATO_PARSE: no viable alternative at input 'letheadSize=isSWA[i'
+verify-src/Gemma4.aff:746:33: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:748:48: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:749:46: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:751:46: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:758:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:758:21: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:759:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:763:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:763:21: ERROR AFFOGATO_PARSE: mismatched input 'metadata' expecting {';', NL}
+verify-src/Gemma4.aff:764:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:796:33: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:798:33: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:823:15: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:849:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:850:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:903:18: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:913:18: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:984:30: ERROR AFFOGATO_PARSE: no viable alternative at input 'letsubtract=isSWA[layer'
+verify-src/Gemma4.aff:984:29: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1002:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1003:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1146:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1147:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1171:21: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1172:23: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1189:115: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', '{', NL}
+verify-src/Gemma4.aff:1189:140: ERROR AFFOGATO_PARSE: mismatched input '{' expecting {'!', '?', '[', Identifier}
+verify-src/Gemma4.aff:1190:16: ERROR AFFOGATO_PARSE: mismatched input 'headSize' expecting {';', NL}
+verify-src/Gemma4.aff:1199:72: ERROR AFFOGATO_PARSE: no viable alternative at input 'letfreq=(float)(1.0/Math.pow(theta,i/(double)headSize'
+verify-src/Gemma4.aff:1199:36: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1199:72: ERROR AFFOGATO_PARSE: extraneous input 'headSize' expecting ')'
+verify-src/Gemma4.aff:1201:19: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1201:33: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:1202:19: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1202:33: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:1208:16: ERROR AFFOGATO_PARSE: mismatched input 'contextLength' expecting {';', NL}
+verify-src/Gemma4.aff:1212:162: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', '{', NL}
+verify-src/Gemma4.aff:1212:187: ERROR AFFOGATO_PARSE: mismatched input '{' expecting {'!', '?', '[', Identifier}
+verify-src/Gemma4.aff:1214:16: ERROR AFFOGATO_PARSE: mismatched input 'halfHead' expecting {';', NL}
+verify-src/Gemma4.aff:1223:62: ERROR AFFOGATO_PARSE: no viable alternative at input 'letval=(pos*baseFreq)/ropeFreqFactors[i'
+verify-src/Gemma4.aff:1223:61: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1224:19: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1224:33: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:1225:19: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1225:33: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:1231:16: ERROR AFFOGATO_PARSE: mismatched input 'contextLength' expecting {';', NL}
+verify-src/Gemma4.aff:1308:20: ERROR AFFOGATO_PARSE: mismatched input 'd' expecting {';', NL}
+verify-src/Gemma4.aff:1309:56: ERROR AFFOGATO_PARSE: extraneous input 'd' expecting ')'
+verify-src/Gemma4.aff:1340:30: ERROR AFFOGATO_PARSE: mismatched input 'reduceFn' expecting {';', NL}
+verify-src/Gemma4.aff:1359:16: ERROR AFFOGATO_PARSE: mismatched input 'size' expecting {';', NL}
+verify-src/Gemma4.aff:1361:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'varmaxValue=this.getFloat((long)maxIndex'
+verify-src/Gemma4.aff:1361:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1361:45: ERROR AFFOGATO_PARSE: extraneous input 'maxIndex' expecting ')'
+verify-src/Gemma4.aff:1365:42: ERROR AFFOGATO_PARSE: no viable alternative at input 'letf=this.getFloat((long)i'
+verify-src/Gemma4.aff:1365:34: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1365:42: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:1383:33: ERROR AFFOGATO_PARSE: mismatched input 'mapFn' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1383:44: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1383:53: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:1383:61: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:1383:63: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1396:33: ERROR AFFOGATO_PARSE: mismatched input 'mapWithIndexFn' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1396:53: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1396:62: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:1396:70: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:1396:72: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:1396:75: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1423:51: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1423:71: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1463:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:1467:28: ERROR AFFOGATO_PARSE: extraneous input '0' expecting {';', NL}
+verify-src/Gemma4.aff:1470:28: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1470:160: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1470:161: ERROR AFFOGATO_PARSE: mismatched input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1470:164: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1472:28: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1472:236: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1472:237: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1472:251: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1472:252: ERROR AFFOGATO_PARSE: mismatched input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1472:255: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1490:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:1490:68: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:1506:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'letloBytes=wBytes.and((byte)0'
+verify-src/Gemma4.aff:1506:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1506:45: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1506:46: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:1506:48: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1506:53: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1506:61: ERROR AFFOGATO_PARSE: extraneous input '8' expecting ')'
+verify-src/Gemma4.aff:1507:79: ERROR AFFOGATO_PARSE: no viable alternative at input 'lethiBytes=wBytes.lanewise(VectorOperators.LSHR,4).sub((byte)8'
+verify-src/Gemma4.aff:1507:71: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1507:79: ERROR AFFOGATO_PARSE: extraneous input '8' expecting ')'
+verify-src/Gemma4.aff:1575:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:1583:170: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1585:174: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1585:175: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1585:183: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1602:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:1602:68: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:1620:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'letloBytes=wBytes.and((byte)0'
+verify-src/Gemma4.aff:1620:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1620:45: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1620:46: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:1620:48: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1704:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:1718:181: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1719:24: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1719:30: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1719:38: ERROR AFFOGATO_PARSE: extraneous input 'x10' expecting {';', NL}
+verify-src/Gemma4.aff:1722:180: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1722:181: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1722:189: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:1723:23: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1723:38: ERROR AFFOGATO_PARSE: extraneous input 'x10' expecting {';', NL}
+verify-src/Gemma4.aff:1742:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:1742:68: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:1767:37: ERROR AFFOGATO_PARSE: no viable alternative at input 'letx0=(packed&0x0F'
+verify-src/Gemma4.aff:1767:37: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting ')'
+verify-src/Gemma4.aff:1767:52: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1767:58: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1767:66: ERROR AFFOGATO_PARSE: extraneous input 'x10' expecting ')'
+verify-src/Gemma4.aff:1768:36: ERROR AFFOGATO_PARSE: no viable alternative at input 'letx1=((packed>>'
+verify-src/Gemma4.aff:1768:36: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1768:37: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1768:45: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting ')'
+verify-src/Gemma4.aff:1768:58: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1768:73: ERROR AFFOGATO_PARSE: extraneous input 'x10' expecting ')'
+verify-src/Gemma4.aff:1769:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1769:38: ERROR AFFOGATO_PARSE: mismatched input 'x0' expecting {';', NL}
+verify-src/Gemma4.aff:1770:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1770:73: ERROR AFFOGATO_PARSE: mismatched input 'x1' expecting {';', NL}
+verify-src/Gemma4.aff:1786:42: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1786:59: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1803:83: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:1814:26: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1814:38: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1814:51: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1849:87: ERROR AFFOGATO_PARSE: extraneous input 'idx' expecting ')'
+verify-src/Gemma4.aff:1854:17: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1854:38: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:1854:87: ERROR AFFOGATO_PARSE: extraneous input 'lowIdx' expecting ')'
+verify-src/Gemma4.aff:1854:97: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1854:100: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1855:17: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1855:38: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:1855:87: ERROR AFFOGATO_PARSE: extraneous input 'lowIdx' expecting ')'
+verify-src/Gemma4.aff:1855:99: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:1855:101: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1856:92: ERROR AFFOGATO_PARSE: no viable alternative at input 'lethigh=(Byte.toUnsignedInt(FloatTensor.readByte(mem,scalesOffset+(long)highIdx'
+verify-src/Gemma4.aff:1856:43: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:1856:92: ERROR AFFOGATO_PARSE: extraneous input 'highIdx' expecting ')'
+verify-src/Gemma4.aff:1856:103: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1856:106: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1856:111: ERROR AFFOGATO_PARSE: extraneous input 'x3' expecting {';', NL}
+verify-src/Gemma4.aff:1857:33: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1890:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1890:45: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:1890:53: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting ')'
+verify-src/Gemma4.aff:1891:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:1891:46: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting ')'
+verify-src/Gemma4.aff:1893:41: ERROR AFFOGATO_PARSE: mismatched input 'quant' expecting {';', NL}
+verify-src/Gemma4.aff:1893:64: ERROR AFFOGATO_PARSE: extraneous input 'm' expecting {';', NL}
+verify-src/Gemma4.aff:1908:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:1908:50: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:1928:38: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:1929:46: ERROR AFFOGATO_PARSE: no viable alternative at input 'letnegM1=-(dmin*(float)Q4_KFloatTensor'
+verify-src/Gemma4.aff:1929:46: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1929:119: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1930:38: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:1931:46: ERROR AFFOGATO_PARSE: no viable alternative at input 'letnegM2=-(dmin*(float)Q4_KFloatTensor'
+verify-src/Gemma4.aff:1931:46: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1931:123: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:1944:53: ERROR AFFOGATO_PARSE: no viable alternative at input 'letloBytes=wBytes.and((byte)0'
+verify-src/Gemma4.aff:1944:45: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:1944:53: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:1944:54: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:1944:56: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2047:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:2047:45: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2047:53: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting ')'
+verify-src/Gemma4.aff:2048:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:2048:46: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting ')'
+verify-src/Gemma4.aff:2051:95: ERROR AFFOGATO_PARSE: no viable alternative at input 'letqhBit=(Byte.toUnsignedInt(FloatTensor.readByte(memorySegment,qhOffset+(long)l'
+verify-src/Gemma4.aff:2051:40: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2051:95: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2051:100: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2051:110: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2053:38: ERROR AFFOGATO_PARSE: no viable alternative at input 'letquant=nibble|(qhBit<<'
+verify-src/Gemma4.aff:2053:38: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2054:41: ERROR AFFOGATO_PARSE: mismatched input 'quant' expecting {';', NL}
+verify-src/Gemma4.aff:2054:64: ERROR AFFOGATO_PARSE: extraneous input 'm' expecting {';', NL}
+verify-src/Gemma4.aff:2069:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:2069:50: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:2094:38: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2095:41: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2096:38: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2097:41: ERROR AFFOGATO_PARSE: mismatched input 'Q4_KFloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2113:49: ERROR AFFOGATO_PARSE: no viable alternative at input 'varloQ=wBytes.and((byte)0'
+verify-src/Gemma4.aff:2113:41: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2113:49: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2113:50: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2113:52: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2117:33: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2117:171: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2117:179: ERROR AFFOGATO_PARSE: extraneous input '1' expecting ')'
+verify-src/Gemma4.aff:2117:265: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2118:33: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2118:171: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2118:179: ERROR AFFOGATO_PARSE: extraneous input '1' expecting ')'
+verify-src/Gemma4.aff:2118:265: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2214:42: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2214:95: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2214:102: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2217:42: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2217:101: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2217:108: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2220:43: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2220:96: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2220:101: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2220:104: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2220:109: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2223:43: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2223:102: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2223:107: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2223:110: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2223:115: ERROR AFFOGATO_PARSE: extraneous input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2229:94: ERROR AFFOGATO_PARSE: no viable alternative at input 'letqhBits=(Byte.toUnsignedInt(FloatTensor.readByte(memorySegment,qhBase+(long)l'
+verify-src/Gemma4.aff:2229:41: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2229:94: ERROR AFFOGATO_PARSE: extraneous input 'l' expecting ')'
+verify-src/Gemma4.aff:2229:99: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2229:108: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2230:39: ERROR AFFOGATO_PARSE: no viable alternative at input 'letq6=(qlNibble|(qhBits<<'
+verify-src/Gemma4.aff:2230:39: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2231:24: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2233:41: ERROR AFFOGATO_PARSE: extraneous input 'q6' expecting {';', NL}
+verify-src/Gemma4.aff:2246:29: ERROR AFFOGATO_PARSE: no viable alternative at input 'letsign=(bits&0x8000'
+verify-src/Gemma4.aff:2246:29: ERROR AFFOGATO_PARSE: extraneous input 'x8000' expecting ')'
+verify-src/Gemma4.aff:2246:37: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2247:26: ERROR AFFOGATO_PARSE: no viable alternative at input 'varexp=(bits>>'
+verify-src/Gemma4.aff:2247:26: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2247:27: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2247:36: ERROR AFFOGATO_PARSE: extraneous input 'x1F' expecting {';', NL}
+verify-src/Gemma4.aff:2248:32: ERROR AFFOGATO_PARSE: extraneous input 'x03FF' expecting {';', NL}
+verify-src/Gemma4.aff:2255:32: ERROR AFFOGATO_PARSE: no viable alternative at input '(mantissa&0x0400'
+verify-src/Gemma4.aff:2255:32: ERROR AFFOGATO_PARSE: extraneous input 'x0400' expecting ')'
+verify-src/Gemma4.aff:2256:38: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2259:36: ERROR AFFOGATO_PARSE: extraneous input 'x03FF' expecting {';', NL}
+verify-src/Gemma4.aff:2260:52: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2260:71: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2262:20: ERROR AFFOGATO_PARSE: extraneous input 'x1F' expecting '{'
+verify-src/Gemma4.aff:2263:49: ERROR AFFOGATO_PARSE: mismatched input 'x7F800000' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2263:72: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2263:77: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2265:78: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2265:97: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2268:5: ERROR AFFOGATO_PARSE: no viable alternative at input '\n\nstatic'
+verify-src/Gemma4.aff:2268:5: ERROR AFFOGATO_PARSE: extraneous input 'static' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:2272:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:2272:50: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:2301:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'letq0=qlA.and((byte)0'
+verify-src/Gemma4.aff:2301:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2301:45: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2301:46: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2301:48: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2301:52: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2301:60: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2301:68: ERROR AFFOGATO_PARSE: extraneous input '3' expecting ')'
+verify-src/Gemma4.aff:2301:104: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2301:109: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2301:117: ERROR AFFOGATO_PARSE: extraneous input '32' expecting ')'
+verify-src/Gemma4.aff:2302:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'letq1=qlB.and((byte)0'
+verify-src/Gemma4.aff:2302:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2302:45: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2302:46: ERROR AFFOGATO_PARSE: mismatched input 'xF' expecting {';', NL}
+verify-src/Gemma4.aff:2302:48: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2302:52: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2302:94: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2302:102: ERROR AFFOGATO_PARSE: extraneous input '3' expecting ')'
+verify-src/Gemma4.aff:2302:138: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2302:143: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2302:151: ERROR AFFOGATO_PARSE: extraneous input '32' expecting ')'
+verify-src/Gemma4.aff:2303:120: ERROR AFFOGATO_PARSE: no viable alternative at input 'letq2=qlA.lanewise(VectorOperators.LSHR,4).or(qhV.lanewise(VectorOperators.LSHR,4).and((byte)3'
+verify-src/Gemma4.aff:2303:70: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2303:112: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2303:120: ERROR AFFOGATO_PARSE: extraneous input '3' expecting ')'
+verify-src/Gemma4.aff:2303:156: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2303:161: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2303:169: ERROR AFFOGATO_PARSE: extraneous input '32' expecting ')'
+verify-src/Gemma4.aff:2304:120: ERROR AFFOGATO_PARSE: no viable alternative at input 'letq3=qlB.lanewise(VectorOperators.LSHR,4).or(qhV.lanewise(VectorOperators.LSHR,6).and((byte)3'
+verify-src/Gemma4.aff:2304:70: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2304:112: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2304:120: ERROR AFFOGATO_PARSE: extraneous input '3' expecting ')'
+verify-src/Gemma4.aff:2304:156: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2304:161: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2304:169: ERROR AFFOGATO_PARSE: extraneous input '32' expecting ')'
+verify-src/Gemma4.aff:2306:43: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2307:43: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2308:43: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2309:43: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2426:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:2426:68: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:2511:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:2519:68: ERROR AFFOGATO_PARSE: no viable alternative at input 'letqsOffset=blockOffset+Byte.BYTES+(inBlockIndex&0x0F'
+verify-src/Gemma4.aff:2519:68: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting ')'
+verify-src/Gemma4.aff:2522:13: ERROR AFFOGATO_PARSE: extraneous input '?' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:2522:26: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting ')'
+verify-src/Gemma4.aff:2523:13: ERROR AFFOGATO_PARSE: extraneous input ':' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:2523:25: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2523:26: ERROR AFFOGATO_PARSE: extraneous input '>' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2523:34: ERROR AFFOGATO_PARSE: extraneous input 'x0F' expecting ')'
+verify-src/Gemma4.aff:2525:53: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2540:16: ERROR AFFOGATO_PARSE: mismatched input 'Integer' expecting {';', NL}
+verify-src/Gemma4.aff:2540:57: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', NL}
+verify-src/Gemma4.aff:2557:40: ERROR AFFOGATO_PARSE: no viable alternative at input 'letlo=packed.and((byte)0'
+verify-src/Gemma4.aff:2557:32: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2557:40: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2557:41: ERROR AFFOGATO_PARSE: mismatched input 'x0F' expecting {';', NL}
+verify-src/Gemma4.aff:2557:44: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2620:83: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2629:21: ERROR AFFOGATO_PARSE: mismatched input 'x00200000' expecting {';', NL}
+verify-src/Gemma4.aff:2629:32: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2631:29: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2663:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:2665:43: ERROR AFFOGATO_PARSE: mismatched input 'bits' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2665:49: ERROR AFFOGATO_PARSE: extraneous input '<' expecting {'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', '(', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral}
+verify-src/Gemma4.aff:2665:53: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2677:16: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2709:54: ERROR AFFOGATO_PARSE: no viable alternative at input 'letsegment=Arena.ofAuto().allocate((long)n'
+verify-src/Gemma4.aff:2709:46: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2709:54: ERROR AFFOGATO_PARSE: mismatched input 'n' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2709:60: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2710:38: ERROR AFFOGATO_PARSE: mismatched input 'n' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2710:39: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:2710:48: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2728:44: ERROR AFFOGATO_PARSE: no viable alternative at input 'letzeroExponentMask=bits32.and(0x7C00'
+verify-src/Gemma4.aff:2728:42: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2728:44: ERROR AFFOGATO_PARSE: extraneous input 'x7C00' expecting ')'
+verify-src/Gemma4.aff:2729:28: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2729:30: ERROR AFFOGATO_PARSE: extraneous input 'x8000' expecting ')'
+verify-src/Gemma4.aff:2729:74: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2729:123: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:2729:125: ERROR AFFOGATO_PARSE: extraneous input 'x7FFF' expecting ')'
+verify-src/Gemma4.aff:2729:156: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:2729:158: ERROR AFFOGATO_PARSE: extraneous input 'x1C000' expecting ')'
+verify-src/Gemma4.aff:2729:277: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2734:16: ERROR AFFOGATO_PARSE: mismatched input '0' expecting {';', NL}
+verify-src/Gemma4.aff:2739:79: ERROR AFFOGATO_PARSE: mismatched input 'index' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2739:89: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:2739:139: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2750:16: ERROR AFFOGATO_PARSE: mismatched input 'FloatTensor' expecting {';', NL}
+verify-src/Gemma4.aff:2775:28: ERROR AFFOGATO_PARSE: mismatched input 'values' expecting {';', NL}
+verify-src/Gemma4.aff:2781:28: ERROR AFFOGATO_PARSE: mismatched input 'values' expecting {';', NL}
+verify-src/Gemma4.aff:2800:15: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2842:42: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2842:72: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2869:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2869:54: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2890:108: ERROR AFFOGATO_PARSE: missing ')' at 'Float'
+verify-src/Gemma4.aff:2890:128: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2905:114: ERROR AFFOGATO_PARSE: missing ')' at 'index'
+verify-src/Gemma4.aff:2905:129: ERROR AFFOGATO_PARSE: mismatched input 'Float' expecting {';', NL}
+verify-src/Gemma4.aff:2905:140: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:2905:186: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2920:176: ERROR AFFOGATO_PARSE: no viable alternative at input 'leta=FloatVector.fromMemorySegment(FloatTensor.F_SPECIES,thiz.memorySegment,(long)(thisOffset+i)*(long)Float'
+verify-src/Gemma4.aff:2920:176: ERROR AFFOGATO_PARSE: mismatched input 'Float' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:2920:187: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:2920:241: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:2928:83: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:2941:28: ERROR AFFOGATO_PARSE: mismatched input ':' expecting {';', '{', NL}
+verify-src/Gemma4.aff:2942:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {'static', 'abstract', 'public', 'private', 'protected', 'var', 'let', 'init', 'func', 'override', ';', '}', '[', '@', Identifier, NL}
+verify-src/Gemma4.aff:2945:5: ERROR AFFOGATO_PARSE: extraneous input 'isSpecialToken' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:2964:12: ERROR AFFOGATO_PARSE: extraneous input 'buildSpecialTokens' expecting {'static', 'abstract', 'public', 'private', 'protected', 'func', 'override'}
+verify-src/Gemma4.aff:2965:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:2969:45: ERROR AFFOGATO_PARSE: token recognition error at: '"\u'
+verify-src/Gemma4.aff:2969:52: ERROR AFFOGATO_PARSE: token recognition error at: '"))\n'
+verify-src/Gemma4.aff:3032:51: ERROR AFFOGATO_PARSE: token recognition error at: '"\u'
+verify-src/Gemma4.aff:3032:63: ERROR AFFOGATO_PARSE: token recognition error at: '")\n'
+verify-src/Gemma4.aff:3039:12: ERROR AFFOGATO_PARSE: extraneous input 'replaceControlCharacters' expecting {'static', 'abstract', 'public', 'private', 'protected', 'func', 'override'}
+verify-src/Gemma4.aff:3040:9: ERROR AFFOGATO_PARSE: extraneous input 'let' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:3042:68: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:3042:69: ERROR AFFOGATO_PARSE: token recognition error at: '\'
+verify-src/Gemma4.aff:3042:71: ERROR AFFOGATO_PARSE: token recognition error at: '''
+verify-src/Gemma4.aff:3051:12: ERROR AFFOGATO_PARSE: extraneous input 'replaceControlCharacters' expecting {'static', 'abstract', 'public', 'private', 'protected', 'func', 'override'}
+verify-src/Gemma4.aff:3052:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}
+verify-src/Gemma4.aff:3320:35: ERROR AFFOGATO_PARSE: no viable alternative at input 'varoptionName=args[i'
+verify-src/Gemma4.aff:3320:34: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3333:39: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3334:36: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3337:35: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3394:36: ERROR AFFOGATO_PARSE: token recognition error at: '"\0'
+verify-src/Gemma4.aff:3394:41: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3394:42: ERROR AFFOGATO_PARSE: extraneous input '36' expecting {'[', Identifier}
+verify-src/Gemma4.aff:3394:45: ERROR AFFOGATO_PARSE: token recognition error at: '"\n'
+verify-src/Gemma4.aff:3395:5: ERROR AFFOGATO_PARSE: mismatched input 'private' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ';', '(', NL}
+verify-src/Gemma4.aff:3395:37: ERROR AFFOGATO_PARSE: token recognition error at: '"\0'
+verify-src/Gemma4.aff:3395:42: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3395:43: ERROR AFFOGATO_PARSE: extraneous input '0' expecting {'[', Identifier}
+verify-src/Gemma4.aff:3395:45: ERROR AFFOGATO_PARSE: token recognition error at: '"\n'
+verify-src/Gemma4.aff:3396:5: ERROR AFFOGATO_PARSE: mismatched input 'private' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ';', '(', NL}
+verify-src/Gemma4.aff:3396:36: ERROR AFFOGATO_PARSE: token recognition error at: '"\0'
+verify-src/Gemma4.aff:3396:41: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3396:42: ERROR AFFOGATO_PARSE: extraneous input '90' expecting {'[', Identifier}
+verify-src/Gemma4.aff:3396:45: ERROR AFFOGATO_PARSE: token recognition error at: '"\n'
+verify-src/Gemma4.aff:3397:1: ERROR AFFOGATO_PARSE: mismatched input '\n' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ';', '(', NL}
+verify-src/Gemma4.aff:3478:18: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3479:16: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3481:22: ERROR AFFOGATO_PARSE: mismatched input '->' expecting {';', NL}
+verify-src/Gemma4.aff:3486:26: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3487:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3492:67: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3492:70: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3494:26: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3495:24: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3500:29: ERROR AFFOGATO_PARSE: missing '{' at '['
+verify-src/Gemma4.aff:3503:32: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3505:19: ERROR AFFOGATO_PARSE: mismatched input 'else' expecting {';', NL}
+verify-src/Gemma4.aff:3552:38: ERROR AFFOGATO_PARSE: no viable alternative at input 'letscanner=Scanner(System.in'
+verify-src/Gemma4.aff:3552:30: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3552:38: ERROR AFFOGATO_PARSE: no viable alternative at input 'System.in'
+verify-src/Gemma4.aff:3698:311: ERROR AFFOGATO_PARSE: mismatched input 'promptNanos' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:3698:337: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3698:371: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3698:420: ERROR AFFOGATO_PARSE: mismatched input 'genNanos' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:3698:443: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3698:480: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3698:515: ERROR AFFOGATO_PARSE: mismatched input ']' expecting {';', NL}
+verify-src/Gemma4.aff:3706:40: ERROR AFFOGATO_PARSE: mismatched input 'x' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:3706:60: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3706:98: ERROR AFFOGATO_PARSE: mismatched input 'x' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:3706:121: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3706:131: ERROR AFFOGATO_PARSE: mismatched input 'x' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:3706:132: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3706:137: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3711:27: ERROR AFFOGATO_PARSE: extraneous input 'size' expecting {';', NL}
+verify-src/Gemma4.aff:3713:22: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3713:38: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3713:48: ERROR AFFOGATO_PARSE: extraneous input 'ss' expecting ')'
+verify-src/Gemma4.aff:3713:51: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3715:138: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3715:146: ERROR AFFOGATO_PARSE: extraneous input 'index' expecting ')'
+verify-src/Gemma4.aff:3715:152: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3726:27: ERROR AFFOGATO_PARSE: extraneous input 'size' expecting {';', NL}
+verify-src/Gemma4.aff:3728:22: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3728:38: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3728:48: ERROR AFFOGATO_PARSE: extraneous input 'ss' expecting ')'
+verify-src/Gemma4.aff:3728:51: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3744:27: ERROR AFFOGATO_PARSE: extraneous input 'size' expecting {';', NL}
+verify-src/Gemma4.aff:3746:22: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3746:38: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3746:48: ERROR AFFOGATO_PARSE: extraneous input 'ss' expecting ')'
+verify-src/Gemma4.aff:3746:51: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3758:31: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:3758:40: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3758:50: ERROR AFFOGATO_PARSE: extraneous input 'dim' expecting ')'
+verify-src/Gemma4.aff:3766:37: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:3766:46: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3766:56: ERROR AFFOGATO_PARSE: extraneous input 'plDim' expecting ')'
+verify-src/Gemma4.aff:3767:63: ERROR AFFOGATO_PARSE: no viable alternative at input 'letprojScale=(float)(1.0/Math.sqrt((double)dim'
+verify-src/Gemma4.aff:3767:37: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3767:53: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3767:63: ERROR AFFOGATO_PARSE: extraneous input 'dim' expecting ')'
+verify-src/Gemma4.aff:3767:67: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3778:39: ERROR AFFOGATO_PARSE: mismatched input 'token' expecting {';', NL}
+verify-src/Gemma4.aff:3778:54: ERROR AFFOGATO_PARSE: extraneous input 'plTotal' expecting {';', NL}
+verify-src/Gemma4.aff:3781:87: ERROR AFFOGATO_PARSE: no viable alternative at input 'lettokEmb=weights.perLayerTokenEmbd.getFloat(tokEmbOffset+(long)i'
+verify-src/Gemma4.aff:3781:64: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3781:87: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:3782:120: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3782:128: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:3782:156: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3791:43: ERROR AFFOGATO_PARSE: no viable alternative at input 'letlayerIsSWA=config.isSWA[l'
+verify-src/Gemma4.aff:3791:42: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3796:54: ERROR AFFOGATO_PARSE: no viable alternative at input 'lethiddenDim=config.feedForwardLength[l'
+verify-src/Gemma4.aff:3796:53: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3798:125: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3798:128: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3798:149: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3798:197: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3800:23: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3803:205: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3803:208: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3803:238: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3803:294: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3830:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3831:30: ERROR AFFOGATO_PARSE: missing '{' at '['
+verify-src/Gemma4.aff:3832:31: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3833:19: ERROR AFFOGATO_PARSE: mismatched input 'else' expecting {';', NL}
+verify-src/Gemma4.aff:3839:229: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3839:232: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3839:266: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3839:330: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3862:49: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3862:58: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3862:73: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3862:80: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3863:51: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3863:60: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3863:75: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3863:82: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3872:67: ERROR AFFOGATO_PARSE: mismatched input '->' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3879:45: ERROR AFFOGATO_PARSE: no viable alternative at input 'letscore=state.q.dot(\n'
+verify-src/Gemma4.aff:3879:44: ERROR AFFOGATO_PARSE: extraneous input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3880:32: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3881:39: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3881:53: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3882:39: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3884:21: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:3889:41: ERROR AFFOGATO_PARSE: extraneous input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3890:46: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3892:17: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:3899:44: ERROR AFFOGATO_PARSE: extraneous input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3900:33: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3901:41: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3901:55: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3902:32: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3903:33: ERROR AFFOGATO_PARSE: extraneous input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3905:21: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:3908:14: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {'switch', 'var', 'let', 'guard', 'if', 'for', 'while', 'try', 'return', 'throw', 'break', 'continue', 'not', 'new', 'this', 'super', 'true', 'false', 'null', '++', '--', '-', '!', '~', ';', '(', '{', '}', '[', Identifier, IntegerLiteral, FloatingPointLiteral, StringLiteral, NL}
+verify-src/Gemma4.aff:3910:23: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3911:133: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3911:136: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3911:157: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3911:205: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3915:67: ERROR AFFOGATO_PARSE: no viable alternative at input 'letisMoELayer=config.isMoE()&&weights.ffnGateInp[l'
+verify-src/Gemma4.aff:3915:66: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3917:141: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3917:144: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3917:169: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3917:225: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3918:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3919:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3922:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3923:140: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3923:143: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3923:168: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3923:224: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3925:144: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3925:147: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3925:172: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3925:228: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3928:35: ERROR AFFOGATO_PARSE: extraneous input 'dim' expecting {';', NL}
+verify-src/Gemma4.aff:3930:66: ERROR AFFOGATO_PARSE: no viable alternative at input 'letrmsScale=(float)(1.0/Math.sqrt((double)ss'
+verify-src/Gemma4.aff:3930:40: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3930:56: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3930:66: ERROR AFFOGATO_PARSE: extraneous input 'ss' expecting ')'
+verify-src/Gemma4.aff:3930:69: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3930:81: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {';', NL}
+verify-src/Gemma4.aff:3930:90: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3930:100: ERROR AFFOGATO_PARSE: extraneous input 'dim' expecting ')'
+verify-src/Gemma4.aff:3933:108: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3933:116: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:3933:203: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3933:234: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3937:35: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3951:70: ERROR AFFOGATO_PARSE: no viable alternative at input 'letval=state.routerLogits.getFloat((long)ei'
+verify-src/Gemma4.aff:3951:62: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:3951:70: ERROR AFFOGATO_PARSE: extraneous input 'ei' expecting ')'
+verify-src/Gemma4.aff:3958:31: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3959:29: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3970:48: ERROR AFFOGATO_PARSE: no viable alternative at input 'letexpertIdx=topExperts[ki'
+verify-src/Gemma4.aff:3970:47: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3971:41: ERROR AFFOGATO_PARSE: no viable alternative at input 'letprob=topProbs[ki'
+verify-src/Gemma4.aff:3971:40: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3972:62: ERROR AFFOGATO_PARSE: no viable alternative at input 'letdownScale=weights.ffnDownExpsScale[l'
+verify-src/Gemma4.aff:3972:61: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3975:42: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3980:140: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:3980:148: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:3980:256: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3985:40: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:3992:154: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3992:157: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3992:182: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3992:238: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3996:141: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3996:144: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3996:169: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3996:225: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:3999:141: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:3999:144: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3999:169: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:3999:225: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:4000:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4001:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4004:27: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4005:141: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:4005:144: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:4005:169: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:4005:225: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:4010:40: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4015:116: ERROR AFFOGATO_PARSE: missing ')' at '('
+verify-src/Gemma4.aff:4015:124: ERROR AFFOGATO_PARSE: extraneous input 'i' expecting ')'
+verify-src/Gemma4.aff:4015:226: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:4018:37: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4019:152: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', ',', '(', ')'}
+verify-src/Gemma4.aff:4019:155: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:4019:180: ERROR AFFOGATO_PARSE: mismatched input ',' expecting {';', NL}
+verify-src/Gemma4.aff:4019:236: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:4023:50: ERROR AFFOGATO_PARSE: no viable alternative at input 'letscale=weights.layerOutputScale[l'
+verify-src/Gemma4.aff:4023:49: ERROR AFFOGATO_PARSE: mismatched input '[' expecting {';', NL}
+verify-src/Gemma4.aff:4031:30: ERROR AFFOGATO_PARSE: extraneous input '(' expecting Identifier
+verify-src/Gemma4.aff:4031:49: ERROR AFFOGATO_PARSE: mismatched input '.' expecting {'<', '('}
+verify-src/Gemma4.aff:4031:72: ERROR AFFOGATO_PARSE: extraneous input ',' expecting Identifier
+verify-src/Gemma4.aff:4031:93: ERROR AFFOGATO_PARSE: mismatched input '.' expecting {'<', '('}
+verify-src/Gemma4.aff:4031:167: ERROR AFFOGATO_PARSE: mismatched input ')' expecting {'<', '!', '?', '.', '[', Identifier}
+verify-src/Gemma4.aff:4032:28: ERROR AFFOGATO_PARSE: extraneous input '(' expecting Identifier
+verify-src/Gemma4.aff:4032:34: ERROR AFFOGATO_PARSE: mismatched input '.' expecting {'<', '('}
+verify-src/Gemma4.aff:4032:50: ERROR AFFOGATO_PARSE: extraneous input ',' expecting Identifier
+verify-src/Gemma4.aff:4032:58: ERROR AFFOGATO_PARSE: mismatched input '.' expecting {'<', '('}
+verify-src/Gemma4.aff:4033:9: ERROR AFFOGATO_PARSE: extraneous input 'if' expecting {'static', 'abstract', 'public', 'private', 'protected', 'var', 'let', 'init', 'func', 'override', ';', '}', '[', '@', Identifier, NL}
+verify-src/Gemma4.aff:4033:36: ERROR AFFOGATO_PARSE: mismatched input '>' expecting {'<', '!', '?', '.', '[', Identifier}
+verify-src/Gemma4.aff:4035:36: ERROR AFFOGATO_PARSE: mismatched input '(' expecting {';', NL}
+verify-src/Gemma4.aff:4035:56: ERROR AFFOGATO_PARSE: mismatched input 'Math' expecting {'is', 'as', '|', '||', '&&', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '=', '<', '>', '++', '+', '--', '-', '*', '/', '%', '?', '&', '^', '.', '(', ')'}
+verify-src/Gemma4.aff:4035:85: ERROR AFFOGATO_PARSE: extraneous input ')' expecting {';', NL}
+verify-src/Gemma4.aff:4037:9: ERROR AFFOGATO_PARSE: no viable alternative at input '\nreturn'
+verify-src/Gemma4.aff:4037:9: ERROR AFFOGATO_PARSE: extraneous input 'return' expecting {'static', 'abstract', 'public', 'private', 'protected', 'var', 'let', 'init', 'func', 'override', ';', '}', '[', '@', Identifier, NL}
+verify-src/Gemma4.aff:4037:28: ERROR AFFOGATO_PARSE: mismatched input '\n' expecting {'<', '!', '?', '.', '[', Identifier}
+verify-src/Gemma4.aff:4039:1: ERROR AFFOGATO_PARSE: extraneous input '}' expecting {<EOF>, 'static', 'abstract', 'class', 'enum', 'record', 'interface', 'public', 'private', 'protected', 'func', 'override', '@'}

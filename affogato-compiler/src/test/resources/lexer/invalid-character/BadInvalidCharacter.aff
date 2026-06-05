@@ -1,0 +1,7 @@
+package dev.affogato.lexer
+
+class BadInvalidCharacter {
+    run(): int {
+        return 1 @ 2
+    }
+}

@@ -1,0 +1,9 @@
+package dev.affogato.parser
+
+class BadElseWithoutIf {
+    func run() {
+        else {
+            println("no if")
+        }
+    }
+}

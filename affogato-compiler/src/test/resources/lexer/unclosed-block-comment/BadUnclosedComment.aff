@@ -1,0 +1,9 @@
+package dev.affogato.lexer
+
+/* comment never ends
+
+class BadUnclosedComment {
+    run(): int {
+        return 1
+    }
+}

@@ -1,0 +1,7 @@
+package dev.affogato.exec
+
+class StderrOutput {
+    static func run() {
+        Err.println("stderr-line")
+    }
+}

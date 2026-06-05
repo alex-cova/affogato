@@ -1,0 +1,8 @@
+package dev.affogato.parser
+
+class BadUnclosedGeneric {
+    run(): int {
+        let box: List<String = List<String>()
+        return box.size()
+    }
+}

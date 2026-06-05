@@ -1,5 +1,28 @@
 grammar Affogato;
 
+@lexer::members {
+    // Tracks open brackets so newlines inside ( ) and [ ] are treated as line
+    // continuations (skipped), while newlines inside { } blocks remain real
+    // statement separators. The innermost open bracket decides: ( or [ suppress
+    // newlines; { does not.
+    private final java.util.Deque<Character> openBrackets = new java.util.ArrayDeque<>();
+
+    private void pushBracket(char bracket) {
+        openBrackets.push(bracket);
+    }
+
+    private void popBracket() {
+        if (!openBrackets.isEmpty()) {
+            openBrackets.pop();
+        }
+    }
+
+    private boolean newlineSuppressed() {
+        Character top = openBrackets.peek();
+        return top != null && (top == '(' || top == '[');
+    }
+}
+
 compilationUnit
     : separators? packageDecl? importDecl* typeDecl* EOF
     ;
@@ -163,6 +186,7 @@ statement
     | switchStatement separators?
     | returnStatement terminators?
     | throwStatement terminators?
+    | assertStatement terminators?
     | breakStatement terminators?
     | continueStatement terminators?
     | localVarDecl terminators
@@ -275,6 +299,10 @@ throwStatement
     : THROW expression
     ;
 
+assertStatement
+    : ASSERT expression (COLON expression)?
+    ;
+
 breakStatement
     : BREAK
     ;
@@ -354,7 +382,8 @@ assignmentExpression
     ;
 
 ternaryExpression
-    : logicalOrExpression (QUESTION expression COLON expression)?
+    : switchExpression
+    | logicalOrExpression (QUESTION expression COLON expression)?
     ;
 
 logicalOrExpression
@@ -382,7 +411,17 @@ equalityExpression
     ;
 
 relationalExpression
-    : castExpression ((LT | LE | GT | GE) castExpression | IS typeRef)*
+    : shiftExpression ((LT | LE | GT | GE) shiftExpression | IS typeRef)*
+    ;
+
+shiftExpression
+    : castExpression (shiftOp castExpression)*
+    ;
+
+shiftOp
+    : LT LT
+    | GT GT GT
+    | GT GT
     ;
 
 castExpression
@@ -412,7 +451,7 @@ postfixExpression
     ;
 
 postfixPart
-    : DOT Identifier
+    : DOT (Identifier | IN)
     | LPAREN argumentList? RPAREN
     | LBRACK expression RBRACK
     | PLUS_PLUS
@@ -495,6 +534,7 @@ FINALLY: 'finally';
 IN: 'in';
 RETURN: 'return';
 THROW: 'throw';
+ASSERT: 'assert';
 BREAK: 'break';
 CONTINUE: 'continue';
 NOT: 'not';
@@ -540,12 +580,12 @@ DOT: '.';
 COMMA: ',';
 COLON: ':';
 SEMI: ';';
-LPAREN: '(';
-RPAREN: ')';
-LBRACE: '{';
-RBRACE: '}';
-LBRACK: '[';
-RBRACK: ']';
+LPAREN: '(' { pushBracket('('); };
+RPAREN: ')' { popBracket(); };
+LBRACE: '{' { pushBracket('{'); };
+RBRACE: '}' { popBracket(); };
+LBRACK: '[' { pushBracket('['); };
+RBRACK: ']' { popBracket(); };
 AT: '@';
 
 Identifier
@@ -554,6 +594,7 @@ Identifier
 
 IntegerLiteral
     : DecimalIntegerLiteral
+    | HexIntegerLiteral
     ;
 
 FloatingPointLiteral
@@ -567,7 +608,7 @@ StringLiteral
     ;
 
 NL
-    : '\r'? '\n'
+    : '\r'? '\n' { if (newlineSuppressed()) skip(); }
     ;
 
 WS
@@ -589,10 +630,23 @@ fragment StringCharacter
 
 fragment EscapeSequence
     : '\\' [btnfr"'\\]
+    | '\\' 'u'+ HexDigit HexDigit HexDigit HexDigit
     ;
 
 fragment DecimalIntegerLiteral
     : Digits [lL]?
+    ;
+
+fragment HexIntegerLiteral
+    : '0' [xX] HexDigits [lL]?
+    ;
+
+fragment HexDigits
+    : HexDigit ([0-9a-fA-F_]* HexDigit)?
+    ;
+
+fragment HexDigit
+    : [0-9a-fA-F]
     ;
 
 fragment Digits

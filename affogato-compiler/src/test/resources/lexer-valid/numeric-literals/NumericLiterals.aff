@@ -1,0 +1,9 @@
+package dev.affogato.lexer.valid
+
+class NumericLiterals {
+    run(): int {
+        let count = 42
+        let extra = 1_000
+        return count
+    }
+}

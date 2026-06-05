@@ -1,0 +1,3 @@
+package dev.affogato.parser
+
+class BadMissingClassBody

@@ -1,0 +1,9 @@
+package dev.affogato.lexer
+
+/* outer /* inner */ still open */
+
+class BadNestedComment {
+    run(): int {
+        return 1
+    }
+}

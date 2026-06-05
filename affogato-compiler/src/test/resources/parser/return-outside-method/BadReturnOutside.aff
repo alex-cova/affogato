@@ -1,0 +1,9 @@
+package dev.affogato.parser
+
+return 1
+
+class BadReturnOutside {
+    run(): int {
+        return 0
+    }
+}

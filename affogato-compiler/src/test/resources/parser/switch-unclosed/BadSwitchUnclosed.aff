@@ -1,0 +1,9 @@
+package dev.affogato.parser
+
+class BadSwitchUnclosed {
+    run(x: int): int {
+        return switch (x) {
+            case 1 -> 10
+        // missing closing brace for switch
+    }
+}
