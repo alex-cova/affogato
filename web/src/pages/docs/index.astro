@@ -5,6 +5,7 @@ import Footer from '../../components/Footer.astro';
 
 const sections = [
   { id: 'getting-started', label: 'Getting Started' },
+  { id: 'java-comparison', label: 'Java Comparison' },
   { id: 'syntax', label: 'Syntax' },
   { id: 'classes', label: 'Classes & Records' },
   { id: 'nullability', label: 'Nullability' },
@@ -18,6 +19,16 @@ const sections = [
 
 // ── Code samples (HTML-safe, rendered via set:html) ──
 const code = {
+  javaComparison: `// Java
+final String name = "espresso";
+int count = 1;
+Dog dog = new Dog("Fido");
+
+// Affogato
+let name = "espresso"      // let = final / immutable
+var count = 1              // var = mutable
+let dog = Dog(name = "Fido") // no 'new' keyword, named args`,
+
   gradleSetup: `plugins {
     id("dev.affogato") version "0.1.0"
     application
@@ -45,7 +56,7 @@ import static java.util.Collections.sort`,
   syntaxVars: `var counter: int = 0       // mutable, explicit type
 var name = "Affogato"      // mutable, type inferred
 let pi = 3.14159           // immutable, type inferred
-let max: Int = 100         // immutable, explicit type`,
+let max: int = 100         // immutable, explicit type`,
 
   syntaxMethods: `// Java-style: return type first
 String greet(String name) {
@@ -66,7 +77,7 @@ func logMessage(msg: String) {
     var brand: String!
     var speed: int = 0
 
-    constructor(brand: String!) {
+    init(brand: String!) {
         this.brand = brand
     }
 
@@ -79,7 +90,7 @@ func logMessage(msg: String) {
 class Car : Vehicle {
     var doors: int
 
-    constructor(brand: String!, doors: int) {
+    init(brand: String!, doors: int) {
         super(brand)
         this.doors = doors
     }
@@ -95,7 +106,7 @@ record Point(x: int, y: int)
 record User(name: String!, email: String?, age: int)
 
 // Usage
-let p = Point(x: 10, y: 20)
+let p = Point(x = 10, y = 20)
 println(p.x())   // Java record accessor`,
 
   classEnum: `enum Status {
@@ -239,8 +250,8 @@ func demo() {
 }`,
 
   javaCollections: `var strings: List&lt;String&gt; = List&lt;String&gt;()      // ArrayList
-var numbers: Set&lt;Int&gt; = Set&lt;Int&gt;()              // HashSet
-var map: Map&lt;String, Int&gt; = Map&lt;String, Int&gt;()  // HashMap`,
+var numbers: Set&lt;Integer&gt; = Set&lt;Integer&gt;()              // HashSet
+var map: Map&lt;String, Integer&gt; = Map&lt;String, Integer&gt;()  // HashMap`,
 
   javaStatic: `import static java.util.Collections.sort
 import static java.lang.Math.max
@@ -275,7 +286,7 @@ func withRef(items: List&lt;String&gt;): List&lt;String&gt; {
 createUser("Alice", 42)
 
 // Named (requires -parameters in Java compilation)
-createUser(name: "Alice", age: 42)`,
+createUser(name = "Alice", age = 42)`,
 
   javaGenerics: `func firstElement&lt;T&gt;(list: List&lt;T&gt;): T {
     return list.get(0)
@@ -296,7 +307,7 @@ func printAll(items: List&lt;? extends Object&gt;) {
 sendEmail("alice@example.com", "Hello", "Body text")
 
 // Named — order doesn't matter
-sendEmail(body: "Body text", to: "alice@example.com", subject: "Hello")`,
+sendEmail(body = "Body text", to = "alice@example.com", subject = "Hello")`,
 
   overloadAmbig: `// Given:
 // func process(x: int): void
@@ -443,6 +454,59 @@ const unsupportedCodes = [
 
           <h3>Building the Project</h3>
           <pre translate="no"><code set:html={code.gradleBuild}></code></pre>
+        </section>
+
+        <!-- ═══════════════════════════
+             JAVA COMPARISON
+        ═══════════════════════════════ -->
+        <section id="java-comparison" class="mb-16">
+          <h2>Affogato for Java Developers</h2>
+          <p>
+            Affogato is designed to feel instantly familiar to Java developers while eliminating standard boilerplate. Since it transpiles to Java 21, all your JVM knowledge, libraries, and tools work out of the box.
+          </p>
+
+          <h3>Quick Comparison</h3>
+          <p>Here is a side-by-side comparison of common Java and Affogato patterns:</p>
+          <pre translate="no"><code set:html={code.javaComparison}></code></pre>
+
+          <h3>Key Differences</h3>
+          <table>
+            <thead>
+              <tr><th scope="col">Concept</th><th scope="col">Java</th><th scope="col">Affogato</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Mutability</strong></td>
+                <td>Mutable by default. Use <code>final</code> for immutability.</td>
+                <td>Explicit: <code>var</code> (mutable) vs <code>let</code> (immutable).</td>
+              </tr>
+              <tr>
+                <td><strong>Instantiation</strong></td>
+                <td>Requires the <code>new</code> keyword.</td>
+                <td><code>new</code> is optional (e.g. <code>User()</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Constructors</strong></td>
+                <td>Same name as the class; verbose field binding.</td>
+                <td>Compact constructors automatically bind fields, or use <code>init</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Null Safety</strong></td>
+                <td>Optional or annotations (not compiler enforced).</td>
+                <td>First-class: <code>Type!</code> (non-null) and <code>Type?</code> (nullable).</td>
+              </tr>
+              <tr>
+                <td><strong>Semicolons</strong></td>
+                <td>Mandatory at the end of statements.</td>
+                <td>Completely optional.</td>
+              </tr>
+              <tr>
+                <td><strong>Inheritance</strong></td>
+                <td>Uses <code>extends</code> and <code>implements</code>.</td>
+                <td>Uses a single colon (<code>:</code>) for both.</td>
+              </tr>
+            </tbody>
+          </table>
         </section>
 
         <!-- ═══════════════════════════

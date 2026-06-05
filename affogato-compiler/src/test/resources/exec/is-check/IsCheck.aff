@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class IsCheck {
+    static func run() {
+        let value: Object = "text"
+        if value is String {
+            println("string")
+        } else {
+            println("other")
+        }
+    }
+}

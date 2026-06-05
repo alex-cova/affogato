@@ -50,6 +50,8 @@ See [docs/LANGUAGE_REFERENCE.md](docs/LANGUAGE_REFERENCE.md) for syntax,
 nullability, Java interop, overload/named-argument behavior and diagnostic
 codes.
 
+Contributors: [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
+
 ## Known Limitations
 
 - Java source generation is the only backend; there is no bytecode backend.
@@ -69,6 +71,8 @@ codes.
 ```bash
 GRADLE_USER_HOME=.gradle ./gradlew build
 ```
+
+CI runs the same `build` task on pushes and pull requests (see `.github/workflows/ci.yml`).
 
 ## CLI
 

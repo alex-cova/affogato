@@ -30,6 +30,10 @@ Note: `affogato-compiler:test` is the primary compiler coverage task. The
 `selfTest` task remains for compatibility and delegates to the same JUnit suite
 through `AffogatoCompilerSelfTest.main`.
 
+Contributor workflow: `CONTRIBUTING.md` and `docs/DEVELOPER_GUIDE.md`. Update
+goldens with `-Daffogato.golden.update=true`, exec fixtures with
+`-Daffogato.exec.update=true`.
+
 ## Module Architecture
 
 ```

@@ -1,6 +1,7 @@
 package dev.affogato.compiler.internal;
 
 import dev.affogato.compiler.AffogatoDiagnostic;
+import dev.affogato.compiler.SourceLocations;
 import dev.affogato.compiler.parser.AffogatoLexer;
 import dev.affogato.compiler.parser.AffogatoParser;
 import org.antlr.v4.runtime.BaseErrorListener;
@@ -149,7 +150,7 @@ public final class AffogatoTranspiler {
             }
             if (source.startsWith(token, index)) {
                 SourceLocation location = sourceLocation(source, index);
-                diagnostics.add(error(sourceFile, location.line(), location.column(), code, message));
+                diagnostics.add(error(sourceFile, location.line(), location.column(), token.length(), code, message));
                 index += token.length();
                 continue;
             }
@@ -1095,8 +1096,13 @@ public final class AffogatoTranspiler {
 
     private void writeBlockStatements(StringBuilder out, CompilationUnit unit, AffogatoParser.BlockContext block, MethodContext context, int indent) {
         flow.checkUnreachable(unit.sourceFile(), block);
-        for (AffogatoParser.StatementContext statement : block.statement()) {
-            writeStatement(out, unit, statement, context, indent);
+        context.pushBlockScope();
+        try {
+            for (AffogatoParser.StatementContext statement : block.statement()) {
+                writeStatement(out, unit, statement, context, indent);
+            }
+        } finally {
+            context.popBlockScope();
         }
     }
 
@@ -1471,6 +1477,11 @@ public final class AffogatoTranspiler {
         TypeRef type = declaration.typeRef() == null ? null : typeRef(declaration.typeRef());
         int declLine = declaration.getStart().getLine();
         int declCol = declaration.getStart().getCharPositionInLine() + 1;
+        if (!context.declareBlockLocal(name)) {
+            diagnostics.add(error(unit.sourceFile(), declLine, declCol, name.length(),
+                    "AFFOGATO_DUPLICATE_LOCAL",
+                    "Duplicate local variable '" + name + "' in the same block."));
+        }
         if (type != null) {
             validateTypeRef(type, unit, declLine, declCol);
         }
@@ -2138,7 +2149,12 @@ public final class AffogatoTranspiler {
                 diagnostics.add(error(
                         context.unit.sourceFile(),
                         context.currentLine,
-                        context.currentColumn,
+                        SourceLocations.columnOfIdentifier(
+                                context.unit.source(),
+                                context.currentLine,
+                                identifier.name(),
+                                context.currentColumn),
+                        identifier.name().length(),
                         "AFFOGATO_IDENTIFIER_RESOLUTION",
                         "Cannot resolve identifier " + identifier.name() + "."
                 ));
@@ -3265,19 +3281,33 @@ public final class AffogatoTranspiler {
                     continue;
                 }
                 if (exited) {
+                    int line = stmt.getStart().getLine();
+                    int column = stmt.getStart().getCharPositionInLine() + 1;
+                    int length = statementHighlightLength(stmt);
                     diagnostics.add(new AffogatoDiagnostic(
                             AffogatoDiagnostic.Severity.WARNING,
                             "AFFOGATO_UNREACHABLE",
                             "Unreachable statement.",
                             sourceFile,
-                            stmt.getStart().getLine(),
-                            stmt.getStart().getCharPositionInLine() + 1
+                            line,
+                            column,
+                            length
                     ));
                 }
                 if (statementStopsControl(stmt)) {
                     exited = true;
                 }
             }
+        }
+
+        private static int statementHighlightLength(AffogatoParser.StatementContext stmt) {
+            if (stmt.getStart() == null || stmt.getStop() == null) {
+                return 1;
+            }
+            if (stmt.getStart().getLine() == stmt.getStop().getLine()) {
+                return Math.max(1, stmt.getStop().getCharPositionInLine() - stmt.getStart().getCharPositionInLine() + 1);
+            }
+            return Math.max(1, stmt.getStart().getText().length());
         }
     }
 
@@ -4393,7 +4423,11 @@ public final class AffogatoTranspiler {
     }
 
     private AffogatoDiagnostic error(Path sourceFile, int line, int column, String code, String message) {
-        return new AffogatoDiagnostic(AffogatoDiagnostic.Severity.ERROR, code, message, sourceFile, line, column);
+        return error(sourceFile, line, column, 1, code, message);
+    }
+
+    private AffogatoDiagnostic error(Path sourceFile, int line, int column, int length, String code, String message) {
+        return new AffogatoDiagnostic(AffogatoDiagnostic.Severity.ERROR, code, message, sourceFile, line, column, length);
     }
 
     public record ParsedUnit(Path sourceFile, CompilationUnit unit) {
@@ -4427,7 +4461,11 @@ public final class AffogatoTranspiler {
                 RecognitionException exception
         ) {
             hadErrors = true;
-            diagnostics.add(error(sourceFile, line, charPositionInLine + 1, "AFFOGATO_PARSE", message));
+            int length = 1;
+            if (offendingSymbol instanceof Token token && token.getLine() == line) {
+                length = Math.max(1, token.getText().length());
+            }
+            diagnostics.add(error(sourceFile, line, charPositionInLine + 1, length, "AFFOGATO_PARSE", message));
         }
 
         private boolean hadErrors() {

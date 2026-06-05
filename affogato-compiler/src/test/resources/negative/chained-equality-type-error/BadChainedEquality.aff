@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadChainedEquality {
+    run(a: int, b: int, c: int): boolean {
+        return a == b == c
+    }
+}

@@ -1,0 +1,11 @@
+package dev.affogato.exec
+
+func String.tagged(): String {
+    return "[" + this + "]"
+}
+
+class ExtensionCall {
+    static func run() {
+        println("hi".tagged())
+    }
+}

@@ -30,6 +30,37 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
   parameter. When that parameter is a `Supplier<[T]>`, the block becomes a
   result builder that collects each child expression into a list, enabling DSLs
   such as `Panel { Label(...) Button(...) { ... } }`.
+- String interpolation: `"Hello ${name}"` and `"count $count"` lower to Java
+  string concatenation. Use `\$` for a literal dollar sign. Embedded expressions
+  follow normal Affogato expression syntax inside `${ ... }`.
+- Extension functions: `func ReceiverType.member(...): ReturnType { ... }` at
+  top level become static methods on a generated holder class; inside the body,
+  `this` is the receiver and bare member names resolve on the receiver type.
+
+## Identifiers And Literals
+
+- Identifiers use ASCII letters, digits, `_` and `$` (same subset as the
+  compiler lexer). Unicode identifiers are not supported yet.
+- String literals use `"..."` with escapes `\t`, `\n`, `\b`, `\r`, `\f`, `\"`,
+  `\'`, and `\\`. `\uXXXX` escapes are not supported.
+- Integer literals may use digit separators (`1_000`). Suffixes `l`/`L` mark
+  `long`. Hex, octal and binary literals are not supported.
+
+## Operator Precedence
+
+From highest to lowest binding (Java-like):
+
+1. Postfix: calls, `.member`, `++`/`--` postfix
+2. Unary: `!`, `-`, `~`, prefix `++`/`--`, `not(...)`
+3. Multiplicative: `*`, `/`, `%`
+4. Additive: `+`, `-`
+5. Cast: `expr as Type`
+6. Relational: `<`, `<=`, `>`, `>=`, `is Type`
+7. Equality: `==`, `!=` (left-associative; `a == b == c` is `(a == b) == c`)
+8. Bitwise: `&`, `^`, `|`
+9. Logical: `&&`, `||`
+10. Ternary: `? :`
+11. Assignment: `=`, `+=`, … (right-associative; `a = b = c` is `a = (b = c)`)
 
 ## Nullability
 
@@ -63,19 +94,65 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 
 ## Diagnostics
 
-Common stable diagnostic codes include:
+The compiler emits stable `AFFOGATO_*` codes. CLI and Gradle render multi-line
+output with file location, source snippet, caret, and hint when source is
+available:
 
-- `AFFOGATO_PARSE`: syntax/parser error.
-- `AFFOGATO_TYPE_RESOLUTION`: unknown type.
-- `AFFOGATO_CALL_RESOLUTION`: unresolved method/function call.
-- `AFFOGATO_CONSTRUCTOR_RESOLUTION`: unresolved constructor call.
-- `AFFOGATO_PROPERTY_RESOLUTION`: unresolved property on a known receiver.
-- `AFFOGATO_RETURN_TYPE`: returned expression is incompatible with method type.
-- `AFFOGATO_RETURN_FLOW`: non-void method may complete without a value.
-- `AFFOGATO_ASSIGNMENT_TYPE`: initializer or assignment is incompatible.
-- `AFFOGATO_CONDITION_TYPE`: condition is not boolean.
-- `AFFOGATO_NAMED_ARGS`: named arguments cannot be mapped to a callable.
-- `AFFOGATO_UNSUPPORTED_SAFE_CALL`: `?.` is outside the production subset.
-- `AFFOGATO_UNSUPPORTED_ELVIS`: `?:` is outside the production subset.
-- `AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION`: `!!` is outside the production
-  subset.
+```text
+AFFOGATO_IDENTIFIER_RESOLUTION: Cannot resolve identifier total.
+  at App.aff:3:9
+
+3 |         return total
+            ^^^^^
+Hint: Declare the name before use, import it, or fix the spelling.
+```
+
+IntelliJ shows the same hint inline in the annotation tooltip.
+
+### Diagnostic catalog
+
+| Code | Meaning |
+|---|---|
+| `AFFOGATO_ARRAY_ACCESS_TYPE` | `[]` used on a non-array/list receiver |
+| `AFFOGATO_ARRAY_INDEX_TYPE` | Array index is not int-compatible |
+| `AFFOGATO_ASSIGNMENT_TYPE` | Initializer or assignment type mismatch |
+| `AFFOGATO_CALL_RESOLUTION` | Unresolved method or function call |
+| `AFFOGATO_CAST_TYPE` | Invalid cast target or source |
+| `AFFOGATO_CATCH_TYPE` | Catch type not assignable from thrown type |
+| `AFFOGATO_CLASS_LITERAL_TYPE` | Class literal uses erased type parameter |
+| `AFFOGATO_COMPACT_PARAM` | Invalid compact constructor parameter |
+| `AFFOGATO_CONDITION_TYPE` | Non-boolean condition or logical operand |
+| `AFFOGATO_CONSTRUCTOR_RESOLUTION` | Unresolved constructor call |
+| `AFFOGATO_DUPLICATE_CLASS` | Duplicate top-level type name |
+| `AFFOGATO_DUPLICATE_LOCAL` | Duplicate `let`/`var` in the same block |
+| `AFFOGATO_EXTENSION_PARAM_CONFLICT` | Extension parameter shadows member |
+| `AFFOGATO_FIELD_TYPE` | Field initializer type mismatch |
+| `AFFOGATO_FOR_ITERABLE_TYPE` | `for-in` requires array or `Iterable` |
+| `AFFOGATO_GUARD_FLOW` | Guard else block must exit (return/throw) |
+| `AFFOGATO_IDENTIFIER_RESOLUTION` | Unknown identifier |
+| `AFFOGATO_IMPORT_CONFLICT` | Conflicting imports |
+| `AFFOGATO_INSTANCEOF_TYPE` | `is` requires reference type |
+| `AFFOGATO_IO` | Source file read failure |
+| `AFFOGATO_JAVA_RELEASE` | Unsupported `--release` (currently 21 only) |
+| `AFFOGATO_LET_ASSIGN` | Assignment to immutable `let` or final field |
+| `AFFOGATO_LOCAL_TYPE` | Local needs explicit type (e.g. null init) |
+| `AFFOGATO_NAMED_ARGS` | Named arguments cannot map to callable |
+| `AFFOGATO_OPERATOR_TYPE` | Operator applied to incompatible types |
+| `AFFOGATO_PARSE` | Syntax or lexer error |
+| `AFFOGATO_POLY_TARGET_TYPE` | Lambda/method ref needs target type |
+| `AFFOGATO_PROPERTY_RESOLUTION` | Unknown property on known receiver |
+| `AFFOGATO_RECORD_MEMBER` | Invalid record member access |
+| `AFFOGATO_RETURN_FLOW` | Non-void method may complete without value |
+| `AFFOGATO_RETURN_TYPE` | Return expression type mismatch |
+| `AFFOGATO_SOURCE_SCAN` | Cannot scan source directory |
+| `AFFOGATO_SWITCH_EXPR_BODY` | Invalid switch expression arm |
+| `AFFOGATO_SWITCH_LABEL_TYPE` | Switch label type mismatch |
+| `AFFOGATO_SWITCH_SELECTOR_TYPE` | Invalid switch selector type |
+| `AFFOGATO_TERNARY_TYPE` | Incompatible ternary branch types |
+| `AFFOGATO_THROW_TYPE` | Throw expression not a `Throwable` |
+| `AFFOGATO_TYPE_RESOLUTION` | Unknown type reference |
+| `AFFOGATO_UNREACHABLE` | Statement is unreachable (warning) |
+| `AFFOGATO_UNSUPPORTED_ELVIS` | `?:` outside production subset |
+| `AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION` | `!!` outside production subset |
+| `AFFOGATO_UNSUPPORTED_SAFE_CALL` | `?.` outside production subset |
+| `AFFOGATO_WRITE` | Failed to write generated Java |

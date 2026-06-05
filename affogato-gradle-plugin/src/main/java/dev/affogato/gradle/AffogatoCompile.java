@@ -1,10 +1,12 @@
 package dev.affogato.gradle;
 
-import dev.affogato.compiler.AffogatoCompilationResult;
+import dev.affogato.compiler.AffogatoCompilationException;
 import dev.affogato.compiler.AffogatoCompiler;
 import dev.affogato.compiler.AffogatoCompilerOptions;
 import dev.affogato.compiler.AffogatoDiagnostic;
+import dev.affogato.compiler.AffogatoDiagnosticPrinter;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
@@ -18,6 +20,7 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 import java.nio.file.Path;
+import java.util.Map;
 
 @CacheableTask
 public abstract class AffogatoCompile extends DefaultTask {
@@ -67,18 +70,27 @@ public abstract class AffogatoCompile extends DefaultTask {
             options.addClasspathEntry(classpathEntry.toPath());
         }
 
-        AffogatoCompilationResult result = new AffogatoCompiler().compile(options.build());
-        for (AffogatoDiagnostic diagnostic : result.diagnostics()) {
-            if (diagnostic.severity() == AffogatoDiagnostic.Severity.ERROR) {
-                getLogger().error(diagnostic.toString());
-            } else if (diagnostic.severity() == AffogatoDiagnostic.Severity.WARNING) {
-                getLogger().warn(diagnostic.toString());
-            } else {
-                getLogger().info(diagnostic.toString());
+        try {
+            var result = new AffogatoCompiler().compile(options.build());
+            logDiagnostics(result.diagnostics());
+            for (Path generatedFile : result.generatedFiles()) {
+                getLogger().debug("Generated {}", generatedFile);
             }
+        } catch (AffogatoCompilationException exception) {
+            logDiagnostics(exception.diagnostics());
+            throw new GradleException(exception.getMessage(), exception);
         }
-        for (Path generatedFile : result.generatedFiles()) {
-            getLogger().debug("Generated {}", generatedFile);
+    }
+
+    private void logDiagnostics(java.util.List<AffogatoDiagnostic> diagnostics) {
+        Map<Path, String> sources = new java.util.HashMap<>();
+        for (AffogatoDiagnostic diagnostic : diagnostics) {
+            String rendered = AffogatoDiagnosticPrinter.render(diagnostic, sources);
+            switch (diagnostic.severity()) {
+                case ERROR -> getLogger().error(rendered);
+                case WARNING -> getLogger().warn(rendered);
+                case INFO -> getLogger().info(rendered);
+            }
         }
     }
 }

@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+class BadDuplicateLocal {
+    run(): int {
+        let x = 1
+        let x = 2
+        return x
+    }
+}

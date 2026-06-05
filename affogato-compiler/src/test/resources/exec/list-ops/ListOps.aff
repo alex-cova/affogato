@@ -1,0 +1,11 @@
+package dev.affogato.exec
+
+class ListOps {
+    static func run() {
+        var items = List<String>()
+        items.add("one")
+        items.add("two")
+        println(items.size())
+        println(items.get(1))
+    }
+}

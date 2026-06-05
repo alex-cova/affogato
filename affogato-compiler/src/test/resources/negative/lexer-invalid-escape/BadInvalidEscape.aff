@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadInvalidEscape {
+    run(): String {
+        return "bad\qescape"
+    }
+}

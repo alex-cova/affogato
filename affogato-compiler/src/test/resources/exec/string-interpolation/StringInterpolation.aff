@@ -1,0 +1,10 @@
+package dev.affogato.exec
+
+class StringInterpolation {
+    static func run() {
+        let name = "Ada"
+        let count = 3
+        println("Hello ${name}")
+        println("count $count")
+    }
+}

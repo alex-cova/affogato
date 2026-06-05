@@ -1,0 +1,8 @@
+package dev.affogato.exec
+
+class BooleanLogical {
+    static func run() {
+        println("${true && false}")
+        println("${true || false}")
+    }
+}

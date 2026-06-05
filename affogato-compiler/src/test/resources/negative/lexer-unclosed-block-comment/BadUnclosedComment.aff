@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class BadUnclosedComment {
+    run(): String {
+        return "ok"
+    }
+}
+/* comment never closed

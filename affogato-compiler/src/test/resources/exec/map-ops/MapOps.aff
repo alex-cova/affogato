@@ -1,0 +1,9 @@
+package dev.affogato.exec
+
+class MapOps {
+    static func run() {
+        var lookup = Map<String, String>()
+        lookup.put("key", "value")
+        println(lookup.get("key"))
+    }
+}

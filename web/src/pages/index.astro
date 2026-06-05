@@ -9,22 +9,22 @@ const heroCode = `<span class="token-comment">// Affogato — clean, expressive 
 
 <span class="token-keyword">import</span> java.util.List
 
-<span class="token-keyword">record</span> <span class="token-type">User</span>(<span class="token-var">var</span> name: <span class="token-type">String!</span>, <span class="token-var">var</span> id: <span class="token-type">Int</span>)
+<span class="token-keyword">record</span> <span class="token-type">User</span>(name: <span class="token-type">String!</span>, id: <span class="token-type">int</span>)
 
 <span class="token-keyword">class</span> <span class="token-type">UserService</span> {
 
   <span class="token-var">var</span> users: <span class="token-type">List</span>&lt;<span class="token-type">User</span>&gt; = <span class="token-type">List</span>&lt;<span class="token-type">User</span>&gt;()
 
-  <span class="token-fn">func</span> <span class="token-fn">addUser</span>(name: <span class="token-type">String!</span>, id: <span class="token-type">Int</span>) {
-    users.add(<span class="token-type">User</span>(name: name, id: id))
-    <span class="token-fn">println</span>(<span class="token-string">"Added user: \${name}"</span>)
+  <span class="token-fn">func</span> <span class="token-fn">addUser</span>(name: <span class="token-type">String!</span>, id: <span class="token-type">int</span>) {
+    users.add(<span class="token-type">User</span>(name = name, id = id))
+    <span class="token-fn">println</span>(<span class="token-string">"Added user: "</span> + name)
   }
 
   <span class="token-fn">greet</span>(): <span class="token-type">String</span> {
     <span class="token-keyword">guard</span> <span class="token-op">not</span>(users.isEmpty()) <span class="token-keyword">else</span> {
       <span class="token-keyword">return</span> <span class="token-string">"No users yet ☕"</span>
     }
-    <span class="token-keyword">return</span> <span class="token-string">"Hello, \${users.get(0).name}!"</span>
+    <span class="token-keyword">return</span> <span class="token-string">"Hello, "</span> + users.get(0).name + <span class="token-string">"!"</span>
   }
 }`;
 
@@ -36,21 +36,21 @@ const classesCode = `<span class="token-comment">// Compact record constructors<
 <span class="token-keyword">class</span> <span class="token-type">Animal</span> {
   <span class="token-var">var</span> name: <span class="token-type">String!</span>
 
-  <span class="token-keyword">constructor</span>(name: <span class="token-type">String!</span>) {
+  <span class="token-keyword">init</span>(name: <span class="token-type">String!</span>) {
     <span class="token-keyword">this</span>.name = name
   }
 
-  <span class="token-fn">speak</span>(): <span class="token-type">String</span> = <span class="token-string">"..."</span>
+  <span class="token-fn">speak</span>(): <span class="token-type">String</span> { <span class="token-keyword">return</span> <span class="token-string">"..."</span> }
 }
 
 <span class="token-keyword">class</span> <span class="token-type">Dog</span> : <span class="token-type">Animal</span> {
   <span class="token-keyword">override</span> <span class="token-fn">speak</span>(): <span class="token-type">String</span> {
-    <span class="token-keyword">return</span> <span class="token-string">"Woof! I'm \${name}"</span>
+    <span class="token-keyword">return</span> <span class="token-string">"Woof! I'm "</span> + name
   }
 }`;
 
 const controlFlowCode = `<span class="token-comment">// Guard for early exits</span>
-<span class="token-fn">processOrder</span>(id: <span class="token-type">Int</span>): <span class="token-type">String</span> {
+<span class="token-fn">processOrder</span>(id: <span class="token-type">int</span>): <span class="token-type">String</span> {
   <span class="token-keyword">guard</span> id &gt; <span class="token-num">0</span> <span class="token-keyword">else</span> {
     <span class="token-keyword">return</span> <span class="token-string">"Invalid order ID"</span>
   }
@@ -64,7 +64,7 @@ const controlFlowCode = `<span class="token-comment">// Guard for early exits</s
 
   <span class="token-comment">// For-in loops</span>
   <span class="token-keyword">for</span> item <span class="token-keyword">in</span> items {
-    <span class="token-fn">println</span>(<span class="token-string">"\${item.name}: \${status}"</span>)
+    <span class="token-fn">println</span>(item.name + <span class="token-string">": "</span> + status)
   }
 
   <span class="token-keyword">return</span> status
@@ -116,7 +116,7 @@ const gradleStep2 = `<span class="token-comment">// src/main/affogato/Hello.aff<
 <span class="token-keyword">package</span> com.example
 
 <span class="token-keyword">class</span> <span class="token-type">Hello</span> {
-  <span class="token-fn">func</span> <span class="token-fn">main</span>() {
+  <span class="token-keyword">static</span> <span class="token-fn">func</span> <span class="token-fn">main</span>(args: <span class="token-type">String[]</span>) {
     <span class="token-fn">println</span>(<span class="token-string">"Hello from Affogato ☕"</span>)
   }
 }`;

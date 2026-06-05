@@ -1,0 +1,11 @@
+package dev.affogato.exec
+
+record Point(x: int, y: int) {}
+
+class RecordField {
+    static func run() {
+        let point = new Point(3, 4)
+        println(point.x)
+        println(point.y)
+    }
+}

@@ -1,0 +1,7 @@
+package dev.affogato.golden
+
+class LogicalNotEquality {
+    check(flag: boolean, other: boolean): boolean {
+        return !flag == other
+    }
+}

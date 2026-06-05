@@ -1,0 +1,16 @@
+package dev.affogato.exec
+
+class TryCatch {
+    static func run() {
+        println(parseOrNan(value = "42"))
+        println(parseOrNan(value = "x"))
+    }
+
+    static parseOrNan(value: String): String {
+        try {
+            return Integer.parseInt(value) + ""
+        } catch (NumberFormatException e) {
+            return "nan"
+        }
+    }
+}

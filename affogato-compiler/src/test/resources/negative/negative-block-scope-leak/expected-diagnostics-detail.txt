@@ -1,0 +1,2 @@
+# Format: CODE line col message-substring
+AFFOGATO_IDENTIFIER_RESOLUTION 8 16 Cannot resolve identifier scoped

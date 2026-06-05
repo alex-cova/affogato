@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class WhileLoop {
+    static func run() {
+        var counter = 0
+        while counter <= 2 {
+            println(counter)
+            counter = counter + 1
+        }
+        println("done")
+    }
+}

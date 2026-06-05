@@ -6,6 +6,7 @@
   tokenTypeClass="dev.affogato.intellij.psi.AffogatoTokenType"
   elementTypeClass="dev.affogato.intellij.psi.AffogatoElementType"
   tokens=[
+    ABSTRACT_KEYWORD='abstract'
     AND='&&'
     ARROW='->'
     AS_KEYWORD='as'
@@ -13,11 +14,14 @@
     BAD_CHARACTER='regexp:.'
     BANG='!'
     BLOCK_COMMENT='regexp:/\\*([^*]|\\*+[^*/])*\\*+/'
+    BREAK_KEYWORD='break'
     CASE_KEYWORD='case'
     CATCH_KEYWORD='catch'
+    CARET='^'
     CLASS_KEYWORD='class'
     COLON=':'
     COMMA=','
+    CONTINUE_KEYWORD='continue'
     INIT_KEYWORD='init'
     DEFAULT_KEYWORD='default'
     DOT='.'
@@ -47,6 +51,7 @@
     LT='<'
     MINUS='-'
     MINUS_ASSIGN='-='
+    MINUS_MINUS='--'
     NE='!='
     NEW_KEYWORD='new'
     NOT_KEYWORD='not'
@@ -56,9 +61,11 @@
     OVERRIDE_KEYWORD='override'
     PACKAGE_KEYWORD='package'
     PERCENT='%'
+    PERCENT_ASSIGN='%='
     PIPE='|'
     PLUS='+'
     PLUS_ASSIGN='+='
+    PLUS_PLUS='++'
     PRIVATE_KEYWORD='private'
     PROTECTED_KEYWORD='protected'
     PUBLIC_KEYWORD='public'
@@ -79,6 +86,7 @@
     SWITCH_KEYWORD='switch'
     THIS_KEYWORD='this'
     THROW_KEYWORD='throw'
+    TILDE='~'
     TRUE_KEYWORD='true'
     TRY_KEYWORD='try'
     VAR_KEYWORD='var'
@@ -96,8 +104,8 @@ topLevelDecl ::= classDecl | recordDecl | enumDecl | interfaceDecl | extensionFu
 annotation ::= '@' qualifiedName ('(' annotationArgs? ')')?
 annotationArgs ::= annotationArg (',' annotationArg)*
 annotationArg ::= identifier '=' expression | expression
-classModifier ::= 'public' | 'private' | 'protected'
-memberModifier ::= 'public' | 'private' | 'protected' | 'static' | 'override'
+classModifier ::= 'public' | 'private' | 'protected' | 'abstract'
+memberModifier ::= 'public' | 'private' | 'protected' | 'static' | 'override' | 'abstract'
 
 extensionFuncDecl ::= annotation* memberModifier* 'func' extensionReceiverType '.' identifier '(' parameterList? ')' (':' typeRef)? block
 extensionReceiverType ::= identifier typeArguments? arraySuffix* nullability?
@@ -149,6 +157,8 @@ statement ::= block
   | switchStatement
   | returnStatement terminator*
   | throwStatement terminator*
+  | breakStatement terminator*
+  | continueStatement terminator*
   | localVarDecl terminator*
   | expression trailingClosure? terminator*
   | terminator
@@ -172,6 +182,8 @@ switchLabel ::= expression
 switchArmBody ::= block | expression terminator*
 returnStatement ::= 'return' (switchExpression | expression)? trailingClosure?
 throwStatement ::= 'throw' expression
+breakStatement ::= 'break'
+continueStatement ::= 'continue'
 localVarDecl ::= variableKind identifier (':' typeRef)? ('=' (switchExpression | expression))? trailingClosure?
 condition ::= '(' expression ')' | expression
 forCondition ::= '(' forContent ')' | forContent
@@ -200,15 +212,20 @@ private expressionAtom ::= identifier
   | LT
   | MINUS
   | MINUS_ASSIGN
+  | MINUS_MINUS
   | NE
   | NEW_KEYWORD
   | NOT_KEYWORD
   | NULL_KEYWORD
   | OR
   | PERCENT
+  | PERCENT_ASSIGN
   | PIPE
   | PLUS
   | PLUS_ASSIGN
+  | PLUS_PLUS
+  | CARET
+  | TILDE
   | QUESTION
   | SLASH
   | SLASH_ASSIGN

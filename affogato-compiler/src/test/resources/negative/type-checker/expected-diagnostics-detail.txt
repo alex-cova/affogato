@@ -1,0 +1,4 @@
+# Format: CODE line col message-substring
+AFFOGATO_CONDITION_TYPE 76 9 Conditions must be boolean
+AFFOGATO_LET_ASSIGN 31 9 Cannot assign to let local
+AFFOGATO_TYPE_RESOLUTION 5 1 Cannot resolve type MissingThing

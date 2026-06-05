@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadUnclosedString {
+    run(): String {
+        return "unclosed
+    }
+}

@@ -12,8 +12,25 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public final class AffogatoCompiler {
+    /** Java language level Affogato currently emits and validates against. */
+    public static final int SUPPORTED_JAVA_RELEASE = 21;
+
     public AffogatoCompilationResult compile(AffogatoCompilerOptions options) {
         List<AffogatoDiagnostic> diagnostics = new ArrayList<>();
+        if (options.javaRelease() != SUPPORTED_JAVA_RELEASE) {
+            Path location = options.sourceRoots().isEmpty() ? null : options.sourceRoots().getFirst();
+            diagnostics.add(new AffogatoDiagnostic(
+                    AffogatoDiagnostic.Severity.ERROR,
+                    "AFFOGATO_JAVA_RELEASE",
+                    "Affogato currently targets Java " + SUPPORTED_JAVA_RELEASE
+                            + "; requested release " + options.javaRelease() + " is not supported.",
+                    location,
+                    1,
+                    1
+            ));
+            throw new AffogatoCompilationException(diagnostics);
+        }
+
         List<AffogatoTranspiler.ParsedUnit> units = new ArrayList<>();
         AffogatoTranspiler transpiler = new AffogatoTranspiler(diagnostics, options.classpath());
 

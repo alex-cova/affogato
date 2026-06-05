@@ -1,0 +1,19 @@
+package dev.affogato.exec
+
+class IfElse {
+    static func run() {
+        println(classify(value = 5))
+        println(classify(value = 0))
+        println(classify(value = -2))
+    }
+
+    static classify(value: int): String {
+        if value > 0 {
+            return "positive"
+        } else if value == 0 {
+            return "zero"
+        } else {
+            return "negative"
+        }
+    }
+}

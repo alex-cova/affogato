@@ -1,8 +1,11 @@
 package dev.affogato.compiler.internal;
 
 import static dev.affogato.compiler.internal.TranspilerTypes.*;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,6 +29,7 @@ final class MethodContext {
     private String resolutionFailure = "";
     int currentLine = 1;
     int currentColumn = 1;
+    private final Deque<Set<String>> blockLocalNames = new ArrayDeque<>();
 
     private MethodContext(
             CompilationUnit unit,
@@ -71,6 +75,24 @@ final class MethodContext {
         variableTypes.put(name, type.javaType());
         mutableVariables.put(name, mutable);
         variableNullabilities.put(name, type.nullability());
+    }
+
+    void pushBlockScope() {
+        blockLocalNames.push(new HashSet<>());
+    }
+
+    void popBlockScope() {
+        if (!blockLocalNames.isEmpty()) {
+            blockLocalNames.pop();
+        }
+    }
+
+    /** Returns {@code false} when {@code name} is already declared in the current block. */
+    boolean declareBlockLocal(String name) {
+        if (blockLocalNames.isEmpty()) {
+            pushBlockScope();
+        }
+        return blockLocalNames.peek().add(name);
     }
 
     ScopeSnapshot snapshotScope() {

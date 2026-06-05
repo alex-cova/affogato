@@ -691,6 +691,53 @@ public final class AffogatoCompilerSelfTest {
         requireContains(utilsJava, "public <T> T identity(T x)");
     }
 
+    @Test
+    public void emptyAndCommentOnlySourcesCompileWithoutOutput() throws Exception {
+        Path workDir = newWorkDir();
+        Path sourceRoot = workDir.resolve("src/main/affogato");
+        Files.createDirectories(sourceRoot);
+        Files.writeString(sourceRoot.resolve("Empty.aff"), "", StandardCharsets.UTF_8);
+        Files.writeString(sourceRoot.resolve("CommentsOnly.aff"), """
+                // package header intentionally omitted
+                /* file with no declarations */
+                """, StandardCharsets.UTF_8);
+
+        AffogatoCompilationResult result = new AffogatoCompiler().compile(AffogatoCompilerOptions.builder()
+                .addSourceRoot(sourceRoot)
+                .outputDirectory(workDir.resolve("generated"))
+                .build());
+
+        require(result.diagnostics().isEmpty(),
+                "Empty and comment-only files should compile cleanly: " + result.diagnostics());
+        require(result.generatedFiles().isEmpty(),
+                "Files without type declarations should not emit Java.");
+    }
+
+    @Test
+    public void unsupportedJavaReleaseFailsWithReleaseDiagnostic() throws Exception {
+        Path workDir = newWorkDir();
+        Path sourceRoot = workDir.resolve("src/main/affogato");
+        Files.createDirectories(sourceRoot);
+        Files.writeString(sourceRoot.resolve("App.aff"), """
+                class App {
+                    func run() {
+                    }
+                }
+                """, StandardCharsets.UTF_8);
+
+        try {
+            new AffogatoCompiler().compile(AffogatoCompilerOptions.builder()
+                    .addSourceRoot(sourceRoot)
+                    .outputDirectory(workDir.resolve("generated"))
+                    .javaRelease(17)
+                    .build());
+            throw new AssertionError("Unsupported Java release should fail compilation.");
+        } catch (AffogatoCompilationException exception) {
+            require(hasDiagnostic(exception, "AFFOGATO_JAVA_RELEASE"),
+                    "Unsupported Java release should report AFFOGATO_JAVA_RELEASE.");
+        }
+    }
+
     private static Path newWorkDir() throws Exception {
         return Files.createTempDirectory("affogato-compiler-test");
     }

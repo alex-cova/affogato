@@ -1,0 +1,11 @@
+package dev.affogato.exec
+
+class ThrowCaught {
+    static func run() {
+        try {
+            throw new RuntimeException("boom")
+        } catch (RuntimeException e) {
+            println("caught")
+        }
+    }
+}

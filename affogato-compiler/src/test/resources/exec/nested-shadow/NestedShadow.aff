@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class NestedShadow {
+    static func run() {
+        let outer = "outer"
+        {
+            let inner = "inner"
+            println(inner)
+        }
+        println(outer)
+    }
+}

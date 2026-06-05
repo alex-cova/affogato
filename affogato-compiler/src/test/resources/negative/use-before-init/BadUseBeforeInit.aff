@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+class BadUseBeforeInit {
+    run(): int {
+        let y = x + 1
+        let x = 1
+        return y
+    }
+}

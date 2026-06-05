@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class SwitchExpression {
+    static func run() {
+        let label = switch 1 {
+            case 0 -> "zero"
+            case 1 -> "one"
+            default -> "other"
+        }
+        println(label)
+    }
+}

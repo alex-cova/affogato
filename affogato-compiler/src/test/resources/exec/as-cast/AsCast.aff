@@ -1,0 +1,8 @@
+package dev.affogato.exec
+
+class AsCast {
+    static func run() {
+        let value: Object = "cast"
+        println(value as String)
+    }
+}

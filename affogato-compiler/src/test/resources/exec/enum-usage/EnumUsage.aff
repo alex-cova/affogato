@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+enum Size {
+    SMALL, LARGE
+}
+
+class EnumUsage {
+    static func run() {
+        println(Size.SMALL.name())
+        println(Size.LARGE.name())
+    }
+}

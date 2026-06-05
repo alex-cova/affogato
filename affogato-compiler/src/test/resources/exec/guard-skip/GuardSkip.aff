@@ -1,0 +1,16 @@
+package dev.affogato.exec
+
+class GuardSkip {
+    static func run() {
+        attempt(value = 0)
+        attempt(value = 1)
+    }
+
+    static func attempt(value: int) {
+        guard value > 0 else {
+            println("skip")
+            return
+        }
+        println("ok")
+    }
+}

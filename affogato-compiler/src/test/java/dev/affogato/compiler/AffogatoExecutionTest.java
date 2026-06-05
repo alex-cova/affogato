@@ -29,23 +29,33 @@ import org.junit.Test;
  * The fixture's class must expose a {@code public static void run()} method with no parameters. The
  * test compiles the Affogato source, compiles the generated Java, loads the classes, captures stdout,
  * and compares against {@code expected-output.txt}.
+ *
+ * <p>To create or refresh expected output after an intentional change, run with the update flag:
+ * <pre>{@code
+ *   GRADLE_USER_HOME=.gradle ./gradlew :affogato-compiler:test \
+ *       --tests dev.affogato.compiler.AffogatoExecutionTest \
+ *       -Daffogato.exec.update=true
+ * }</pre>
+ * (or set {@code AFFOGATO_UPDATE_EXEC=1}).
  */
 public final class AffogatoExecutionTest {
     private static final Path EXEC_ROOT = Path.of("src/test/resources/exec");
 
+    private static final boolean UPDATE =
+            Boolean.getBoolean("affogato.exec.update")
+                    || "1".equals(System.getenv("AFFOGATO_UPDATE_EXEC"));
+
     @Test
     public void executionFixturesProduceExpectedOutput() throws Exception {
-        if (!Files.isDirectory(EXEC_ROOT)) {
-            return;
-        }
+        require(Files.isDirectory(EXEC_ROOT),
+                "Execution fixtures directory is missing: " + EXEC_ROOT.toAbsolutePath()
+                        + " (tests must run with the module directory as the working directory).");
 
         List<Path> fixtures;
         try (var stream = Files.list(EXEC_ROOT)) {
             fixtures = stream.filter(Files::isDirectory).sorted().toList();
         }
-        if (fixtures.isEmpty()) {
-            return;
-        }
+        require(!fixtures.isEmpty(), "No execution fixtures found under " + EXEC_ROOT + ".");
 
         List<String> failures = new ArrayList<>();
         for (Path fixture : fixtures) {
@@ -65,11 +75,25 @@ public final class AffogatoExecutionTest {
         require(Files.isRegularFile(mainClassFile), "Missing main-class.txt.");
         String mainClass = Files.readString(mainClassFile, StandardCharsets.UTF_8).strip();
 
-        Path expectedOutputFile = fixture.resolve("expected-output.txt");
-        require(Files.isRegularFile(expectedOutputFile), "Missing expected-output.txt.");
-        String expectedOutput = Files.readString(expectedOutputFile, StandardCharsets.UTF_8)
-                .replace("\r\n", "\n").replace('\r', '\n').stripTrailing();
+        Path classesDir = compileFixture(fixture);
+        String actual = normalizeOutput(invokeRun(classesDir, mainClass));
 
+        Path expectedOutputFile = fixture.resolve("expected-output.txt");
+        if (UPDATE) {
+            Files.writeString(expectedOutputFile, actual + System.lineSeparator(), StandardCharsets.UTF_8);
+            return;
+        }
+
+        require(Files.isRegularFile(expectedOutputFile),
+                "Missing expected-output.txt. Run with -Daffogato.exec.update=true to create it.");
+        String expectedOutput = normalizeOutput(Files.readString(expectedOutputFile, StandardCharsets.UTF_8));
+        require(expectedOutput.equals(actual),
+                "Output mismatch." + System.lineSeparator()
+                        + "--- expected ---" + System.lineSeparator() + expectedOutput
+                        + System.lineSeparator() + "--- actual ---" + System.lineSeparator() + actual);
+    }
+
+    private Path compileFixture(Path fixture) throws Exception {
         Path workDir = Files.createTempDirectory("affogato-exec-" + fixture.getFileName());
         Path sourceRoot = workDir.resolve("src");
         Files.createDirectories(sourceRoot);
@@ -102,14 +126,7 @@ public final class AffogatoExecutionTest {
 
         Path classesDir = workDir.resolve("classes");
         compileGeneratedJava(generatedRoot, classesDir);
-
-        String actualOutput = invokeRun(classesDir, mainClass);
-        String actual = actualOutput.replace("\r\n", "\n").replace('\r', '\n').stripTrailing();
-
-        require(expectedOutput.equals(actual),
-                "Output mismatch." + System.lineSeparator()
-                        + "--- expected ---" + System.lineSeparator() + expectedOutput
-                        + System.lineSeparator() + "--- actual ---" + System.lineSeparator() + actual);
+        return classesDir;
     }
 
     private static void compileGeneratedJava(Path generatedRoot, Path classesDir) throws Exception {
@@ -153,6 +170,10 @@ public final class AffogatoExecutionTest {
             }
             return buf.toString(StandardCharsets.UTF_8);
         }
+    }
+
+    private static String normalizeOutput(String text) {
+        return text.replace("\r\n", "\n").replace('\r', '\n').stripTrailing();
     }
 
     private static String describe(AffogatoCompilationException exception) {

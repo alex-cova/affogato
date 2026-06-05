@@ -112,6 +112,13 @@ test suite that protects language behavior.
   surface for records, enums, interfaces, annotations, static imports,
   switch, try/catch/finally, loops and modern operators.
 
+## Developer experience (recent)
+
+- [x] `CONTRIBUTING.md` and `docs/DEVELOPER_GUIDE.md` (build, fixtures, dual grammar, CLI).
+- [x] CLI `--help`, repeatable `--classpath`, testable `AffogatoCli.run` exit codes.
+- [x] Gradle `compileAffogato` fails with rendered diagnostics (`GradleException`).
+- [x] IntelliJ lexer keywords extended (`abstract`, `break`, `continue`, `++`, `--`, `%=`).
+
 ## Remaining Work
 
 ### Compiler / semantics

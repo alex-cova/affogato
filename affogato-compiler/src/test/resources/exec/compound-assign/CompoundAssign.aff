@@ -1,0 +1,9 @@
+package dev.affogato.exec
+
+class CompoundAssign {
+    static func run() {
+        var total = 5
+        total += 3
+        println(total)
+    }
+}

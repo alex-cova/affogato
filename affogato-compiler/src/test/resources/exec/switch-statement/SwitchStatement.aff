@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class SwitchStatement {
+    static func run() {
+        switch 2 {
+            case 0 -> println("zero")
+            case 1 -> println("one")
+            case 2 -> println("two")
+            default -> println("other")
+        }
+    }
+}

@@ -15,6 +15,7 @@ import dev.affogato.compiler.AffogatoCompilationResult;
 import dev.affogato.compiler.AffogatoCompiler;
 import dev.affogato.compiler.AffogatoCompilerOptions;
 import dev.affogato.compiler.AffogatoDiagnostic;
+import dev.affogato.compiler.AffogatoDiagnosticCodes;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -107,7 +108,12 @@ public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoE
                 case INFO -> HighlightSeverity.INFORMATION;
             };
             TextRange range = diagnosticRange(document, diagnostic);
-            holder.newAnnotation(severity, "[" + diagnostic.code() + "] " + diagnostic.message())
+            String message = diagnostic.message();
+            String hint = AffogatoDiagnosticCodes.hint(diagnostic.code()).orElse("");
+            if (!hint.isBlank()) {
+                message = message + " — " + hint;
+            }
+            holder.newAnnotation(severity, "[" + diagnostic.code() + "] " + message)
                     .range(range)
                     .create();
         }
@@ -118,12 +124,8 @@ public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoE
         int lineStart = document.getLineStartOffset(line);
         int lineEnd = document.getLineEndOffset(line);
         int start = Math.min(lineStart + Math.max(0, diagnostic.column() - 1), lineEnd);
-        String text = document.getText();
-        int end = start;
-        while (end < lineEnd && Character.isJavaIdentifierPart(text.charAt(end))) {
-            end++;
-        }
-        if (end == start) {
+        int end = Math.min(start + Math.max(1, diagnostic.length()), lineEnd);
+        if (end <= start) {
             end = Math.min(start + 1, lineEnd);
         }
         return TextRange.create(start, end);

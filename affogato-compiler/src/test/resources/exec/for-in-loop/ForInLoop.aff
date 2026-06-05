@@ -1,0 +1,15 @@
+package dev.affogato.exec
+
+class ForInLoop {
+    static func run() {
+        var names = List<String>()
+        names.add("alpha")
+        names.add("beta")
+        var count = 0
+        for name in names {
+            println(name)
+            count = count + 1
+        }
+        println("count:${count}")
+    }
+}

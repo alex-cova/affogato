@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class ForAccumulator {
+    static func run() {
+        let values: int[] = [1, 2, 3]
+        var sum = 0
+        for value in values {
+            sum = sum + value
+        }
+        println(sum)
+    }
+}

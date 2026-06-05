@@ -1,0 +1,9 @@
+package dev.affogato.exec
+
+class IncrementPrefix {
+    static func run() {
+        var i = 0
+        println(++i)
+        println(i)
+    }
+}

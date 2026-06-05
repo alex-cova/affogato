@@ -1,0 +1,10 @@
+package dev.affogato.exec
+
+class VarMutation {
+    static func run() {
+        var value = 1
+        println(value)
+        value = 2
+        println(value)
+    }
+}

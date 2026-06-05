@@ -1,0 +1,10 @@
+package dev.affogato.exec
+
+import java.util.function.Supplier
+
+class LambdaSupplier {
+    static func run() {
+        let supplier: Supplier<String> = () -> "ok"
+        println(supplier.get())
+    }
+}
