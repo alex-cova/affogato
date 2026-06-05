@@ -2,6 +2,7 @@ plugins {
     `java-library`
     application
     antlr
+    id("me.champeau.jmh") version "0.7.2"
 }
 
 dependencies {
@@ -29,6 +30,14 @@ tasks.withType<AntlrTask>().configureEach {
         "-package",
         "dev.affogato.compiler.parser"
     )
+}
+
+jmh {
+    fork = 1
+    warmupIterations = 2
+    iterations = 5
+    benchmarkMode = listOf("thrpt")
+    timeUnit = "s"
 }
 
 val selfTest by tasks.registering(JavaExec::class) {
