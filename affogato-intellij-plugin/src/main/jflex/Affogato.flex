@@ -11,7 +11,11 @@ package dev.affogato.intellij.lexer;
 WHITE_SPACE=[\ \n\r\t\f]+
 ID=[A-Za-z$_][A-Za-z0-9$_]*
 NUMBER=(0[xX][0-9a-fA-F_]+[lL]?)|([0-9]+(\.[0-9]+)?[fFdDlL]?)
-STRING=\"([^\"\\]|\\.)*\"
+STRING_ESCAPE=\\.
+STRING_INNER=\"([^\"\\]|{STRING_ESCAPE})*\"
+INTERP_PART=([^{}\"\\]|{STRING_ESCAPE}|{STRING_INNER})
+INTERP=\$\{{INTERP_PART}*(\{{INTERP_PART}*\}{INTERP_PART}*)*\}
+STRING=\"([^\"\\$]|{STRING_ESCAPE}|\$[^{]|{INTERP})*\"
 LINE_COMMENT="//".*
 BLOCK_COMMENT="/"\*([^*]|\*+[^*/])*\*+"/"
 

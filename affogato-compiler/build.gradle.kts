@@ -24,13 +24,35 @@ tasks.test {
     System.getProperty("affogato.exec.update")?.let { systemProperty("affogato.exec.update", it) }
 }
 
+val antlrPackage = "dev.affogato.compiler.parser"
+val antlrOutput = layout.buildDirectory.dir("generated-src/antlr/main")
+
+val generateLexerGrammarSource by tasks.registering(AntlrTask::class) {
+    description = "Generates the Affogato lexer (must run before the parser grammar)."
+    val grammarDir = layout.projectDirectory.dir("src/main/antlr/dev/affogato/compiler/parser")
+    source = fileTree(grammarDir) {
+        include("AffogatoLexer.g4")
+    }
+    outputDirectory = antlrOutput.get().asFile
+    arguments.addAll(listOf("-visitor", "-long-messages", "-package", antlrPackage))
+}
+
 tasks.withType<AntlrTask>().configureEach {
     arguments = arguments + listOf(
         "-visitor",
         "-long-messages",
         "-package",
-        "dev.affogato.compiler.parser"
+        antlrPackage
     )
+}
+
+tasks.named<AntlrTask>("generateGrammarSource").configure {
+    dependsOn(generateLexerGrammarSource)
+    arguments = arguments + listOf(
+        "-lib",
+        antlrOutput.get().asFile.absolutePath
+    )
+    exclude("**/AffogatoLexer.g4")
 }
 
 jmh {

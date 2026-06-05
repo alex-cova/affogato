@@ -1,0 +1,25 @@
+package dev.affogato.exec
+
+import java.util.function.Supplier
+
+class InterpolationNestedString {
+    greet(s: String): String {
+        return s
+    }
+
+    join(a: String, b: String): String {
+        return a + b
+    }
+
+    call(fn: Supplier<String>): String {
+        return fn.get()
+    }
+
+    static func run() {
+        let a = InterpolationNestedString()
+        println("${a.greet("x")}")
+        println("${a.greet("${a.greet("y")}")}")
+        println("${a.join("a", "b")}")
+        println("${a.call(() -> { return "z"; })}")
+    }
+}

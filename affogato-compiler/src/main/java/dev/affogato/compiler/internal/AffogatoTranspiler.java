@@ -11,6 +11,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import static dev.affogato.compiler.internal.TranspilerTypes.*;
 
@@ -231,7 +232,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         for (Token token : tokens.getTokens()) {
             if (token.getType() == AffogatoLexer.IntegerLiteral) {
                 validateIntegerLiteral(sourceFile, token);
-            } else if (token.getType() == AffogatoLexer.StringLiteral) {
+            } else if (token.getType() == AffogatoLexer.STR_ESCAPE) {
                 validateStringEscapes(sourceFile, token);
             }
         }
@@ -245,44 +246,29 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // direct escape form.
     private void validateStringEscapes(Path sourceFile, Token token) {
         String text = token.getText();
+        if (!text.startsWith("\\u")) {
+            return;
+        }
         int line = token.getLine();
         int baseColumn = token.getCharPositionInLine() + 1;
-        int i = 1; // skip opening quote
-        int end = text.length() - 1; // skip closing quote
-        while (i < end) {
-            char c = text.charAt(i);
-            if (c != '\\') {
-                i++;
-                continue;
-            }
-            if (i + 1 >= end) {
-                break;
-            }
-            char next = text.charAt(i + 1);
-            if (next != 'u') {
-                i += 2; // a simple escape (\n, \\, \", …); skip both chars
-                continue;
-            }
-            int cursor = i + 1;
-            while (cursor < end && text.charAt(cursor) == 'u') {
-                cursor++;
-            }
-            if (cursor + 4 <= end) {
-                String hex = text.substring(cursor, cursor + 4);
-                try {
-                    int codePoint = Integer.parseInt(hex, 16);
-                    if (codePoint == '"' || codePoint == '\\' || codePoint == '\n' || codePoint == '\r') {
-                        diagnostics.add(error(sourceFile, line, baseColumn + i, cursor + 4 - i,
-                                "AFFOGATO_PARSE",
-                                "Unicode escape '" + text.substring(i, cursor + 4) + "' decodes to a character "
-                                        + "that is invalid in a string literal; use the direct escape "
-                                        + "(\\\", \\\\, \\n, or \\r) instead."));
-                    }
-                } catch (NumberFormatException ignored) {
-                    // Malformed \\u escapes are a lexer error already; nothing to add here.
+        int cursor = 1;
+        while (cursor < text.length() && text.charAt(cursor) == 'u') {
+            cursor++;
+        }
+        if (cursor + 4 <= text.length()) {
+            String hex = text.substring(cursor, cursor + 4);
+            try {
+                int codePoint = Integer.parseInt(hex, 16);
+                if (codePoint == '"' || codePoint == '\\' || codePoint == '\n' || codePoint == '\r') {
+                    diagnostics.add(error(sourceFile, line, baseColumn, text.length(),
+                            "AFFOGATO_PARSE",
+                            "Unicode escape '" + text.substring(0, cursor + 4) + "' decodes to a character "
+                                    + "that is invalid in a string literal; use the direct escape "
+                                    + "(\\\", \\\\, \\n, or \\r) instead."));
                 }
+            } catch (NumberFormatException ignored) {
+                // Malformed \\u escapes are a lexer error already; nothing to add here.
             }
-            i = cursor + 4;
         }
     }
 
@@ -2382,18 +2368,19 @@ public final class AffogatoTranspiler implements AutoCloseable {
             context.expressionColumn = context.currentColumn;
         }
         try {
-            return transformExpressionTypedInSpan(expression, context);
+            return transformExpressionTypedInSpan(expression, context, expressionAnchor);
         } finally {
             context.expressionLine = savedExpressionLine;
             context.expressionColumn = savedExpressionColumn;
         }
     }
 
-    private TypedExpression transformExpressionTypedInSpan(String expression, MethodContext context) {
+    private TypedExpression transformExpressionTypedInSpan(String expression, MethodContext context, ParserRuleContext expressionAnchor) {
         AstExpression ast = expressionAst(expression, context);
         validateExpressionSubset(ast, context, expression);
         validateExpressionSemantics(ast, context, expression);
         String result = expression.trim();
+        result = transformInterpolatedStringsFromParseTree(result, context, expressionAnchor);
         result = transformStringInterpolation(result, context);
         result = transformReceiverThis(result, context);
         result = transformImplicitReceiver(result, context);
@@ -2963,6 +2950,130 @@ public final class AffogatoTranspiler implements AutoCloseable {
             index++;
         }
         return expression.length();
+    }
+
+  // Lowers interpolated string parse-tree nodes to Java concatenation, mirroring the legacy
+    // transformStringInterpolation output so existing goldens stay byte-identical.
+    private String transformInterpolatedStringsFromParseTree(String expression, MethodContext context, ParserRuleContext anchor) {
+        AffogatoParser.ExpressionContext expressionTree = parseExpressionTree(expression);
+        if (expressionTree == null) {
+            return expression;
+        }
+        List<AffogatoParser.InterpolatedStringContext> strings = new ArrayList<>();
+        collectInterpolatedStrings(expressionTree, strings);
+        strings.removeIf(this::nestedInInterpolationExpression);
+        if (strings.isEmpty()) {
+            return expression;
+        }
+        strings.sort(Comparator.comparingInt((AffogatoParser.InterpolatedStringContext ctx) -> ctx.getStart().getStartIndex()).reversed());
+        String result = expression;
+        for (AffogatoParser.InterpolatedStringContext stringContext : strings) {
+            int start = stringContext.getStart().getStartIndex();
+            int end = stringContext.getStop().getStopIndex() + 1;
+            String lowered = lowerInterpolatedString(stringContext, expression, context);
+            result = result.substring(0, start) + lowered + result.substring(end);
+        }
+        return result;
+    }
+
+    private AffogatoParser.ExpressionContext parseExpressionTree(String expression) {
+        try {
+            AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(expression));
+            SyntaxFlag flag = new SyntaxFlag();
+            lexer.removeErrorListeners();
+            lexer.addErrorListener(flag);
+            CommonTokenStream tokens = new CommonTokenStream(lexer);
+            AffogatoParser parser = new AffogatoParser(tokens);
+            parser.removeErrorListeners();
+            parser.addErrorListener(flag);
+            AffogatoParser.ExpressionContext tree = parser.expression();
+            if (flag.errors || parser.getCurrentToken().getType() != Token.EOF) {
+                return null;
+            }
+            return tree;
+        } catch (RuntimeException failure) {
+            return null;
+        }
+    }
+
+    private void collectInterpolatedStrings(ParseTree tree, List<AffogatoParser.InterpolatedStringContext> out) {
+        if (tree instanceof AffogatoParser.InterpolatedStringContext stringContext) {
+            out.add(stringContext);
+        }
+        for (int index = 0; index < tree.getChildCount(); index++) {
+            ParseTree child = tree.getChild(index);
+            if (child != null) {
+                collectInterpolatedStrings(child, out);
+            }
+        }
+    }
+
+    private boolean nestedInInterpolationExpression(AffogatoParser.InterpolatedStringContext stringContext) {
+        for (ParserRuleContext parent = stringContext.getParent(); parent != null; parent = parent.getParent()) {
+            if (parent instanceof AffogatoParser.StringPartContext) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String lowerInterpolatedString(AffogatoParser.InterpolatedStringContext ctx, String whole, MethodContext context) {
+        StringBuilder segment = new StringBuilder();
+        List<String> parts = new ArrayList<>();
+        boolean interpolated = false;
+        for (AffogatoParser.StringPartContext part : ctx.stringPart()) {
+            if (part.STR_TEXT() != null) {
+                segment.append(part.STR_TEXT().getText());
+            } else if (part.STR_ESCAPE() != null) {
+                segment.append(part.STR_ESCAPE().getText());
+            } else if (part.STR_DOLLAR() != null) {
+                segment.append('$');
+            } else if (part.STR_SIMPLE_INTERP() != null) {
+                interpolated = true;
+                parts.add('"' + segment.toString() + '"');
+                segment.setLength(0);
+                parts.add('(' + part.STR_SIMPLE_INTERP().getText().substring(1) + ')');
+            } else if (part.expression() != null) {
+                interpolated = true;
+                parts.add('"' + segment.toString() + '"');
+                segment.setLength(0);
+                String exprText = whole.substring(
+                        part.expression().getStart().getStartIndex(),
+                        part.expression().getStop().getStopIndex() + 1);
+                if (exprText.isBlank()) {
+                    if (context != null) {
+                        diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                                "AFFOGATO_PARSE", "Empty interpolation '${}' has no expression."));
+                    }
+                } else {
+                    String nested = transformInterpolatedStringsFromParseTree(exprText, context, null);
+                    parts.add('(' + nested + ')');
+                }
+            }
+        }
+        if (!interpolated) {
+            return '"' + segment.toString() + '"';
+        }
+        parts.add('"' + segment.toString() + '"');
+        List<String> rendered = new ArrayList<>();
+        for (String part : parts) {
+            if (!part.equals("\"\"")) {
+                rendered.add(part);
+            }
+        }
+        if (rendered.isEmpty() || rendered.get(0).startsWith("(")) {
+            rendered.add(0, "\"\"");
+        }
+        return String.join(" + ", rendered);
+    }
+
+    private static final class SyntaxFlag extends BaseErrorListener {
+        private boolean errors;
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String message, RecognitionException exception) {
+            errors = true;
+        }
     }
 
     // Rewrites interpolated string literals into Java string concatenation.
