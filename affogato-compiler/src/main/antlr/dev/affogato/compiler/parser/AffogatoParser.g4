@@ -170,8 +170,17 @@ statement
     | assertStatement terminators?
     | breakStatement terminators?
     | continueStatement terminators?
-    | localVarDecl terminators
-    | expressionStatement terminators
+    | localVarDecl statementEnd
+    | expressionStatement statementEnd
+    ;
+
+// A local declaration or expression statement is normally closed by a terminator (newline or `;`).
+// The closing `}` of a block also ends the final statement, so a one-line body such as
+// `func f() { doThing() }` is accepted without forcing a trailing `;`. The predicate keeps this to
+// the `}` case only, so missing separators between statements mid-block are still parse errors.
+statementEnd
+    : terminators
+    | {_input.LA(1) == RBRACE}?
     ;
 
 guardStatement

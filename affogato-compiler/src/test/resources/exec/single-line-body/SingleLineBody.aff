@@ -1,0 +1,6 @@
+package dev.affogato.exec
+
+class SingleLineBody {
+    static greet(name: String): String { return name }
+    static func run() { println(greet("compact")) }
+}

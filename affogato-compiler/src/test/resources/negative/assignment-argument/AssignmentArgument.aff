@@ -1,0 +1,6 @@
+class AssignmentArgument {
+    static func run() {
+        var x = 0
+        println(x = 5)
+    }
+}

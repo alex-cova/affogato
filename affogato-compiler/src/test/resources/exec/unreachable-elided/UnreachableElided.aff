@@ -1,0 +1,9 @@
+package dev.affogato.exec
+
+class UnreachableElided {
+    static func run() {
+        println("reachable")
+        return
+        println("dead code that javac would reject")
+    }
+}

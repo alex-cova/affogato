@@ -109,6 +109,18 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     public ParsedUnit parse(Path sourceFile, String source) {
         scanUnsupportedSourceEdges(sourceFile, source);
+        // The ANTLR string lexer matches interpolation with a recursive fragment, whose ATN
+        // simulation is super-linear in nesting depth (~1.5x per level): a few dozen nested
+        // `${ "${ ... }" }` make tokenization take minutes — a denial-of-service on pathological
+        // input. This O(n) pre-scan rejects absurd nesting before the lexer ever runs.
+        int deepInterpolation = deepInterpolationIndex(source);
+        if (deepInterpolation >= 0) {
+            SourceLocation location = sourceLocation(source, deepInterpolation);
+            diagnostics.add(error(sourceFile, location.line(), location.column(), "AFFOGATO_PARSE",
+                    "String interpolation is nested too deeply (limit " + MAX_INTERPOLATION_DEPTH
+                            + " levels); split it into separate expressions."));
+            return ParsedUnit.empty(sourceFile, source);
+        }
         AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(source, sourceFile.toString()));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         AffogatoParser parser = new AffogatoParser(tokens);
@@ -145,6 +157,77 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     "Source is too deeply nested to compile; reduce expression or block nesting depth."));
             return ParsedUnit.empty(sourceFile, source);
         }
+    }
+
+    // Maximum nesting depth for `${ ... }` interpolation. Real code nests two or three levels at
+    // most; the limit is generous so it only ever trips on pathological input.
+    private static final int MAX_INTERPOLATION_DEPTH = 16;
+
+    // Linear scan that returns the index where `${` interpolation nesting first exceeds
+    // MAX_INTERPOLATION_DEPTH, or -1 otherwise. The StringBuilder acts as a stack whose top char
+    // marks the current context: 'S' inside a string literal, 'I' inside an interpolation, 'B'
+    // inside a `{ }` block nested in an interpolation (e.g. a lambda body). String and comment
+    // contents are skipped exactly as the lexer would treat them, so balanced braces/quotes there
+    // never perturb the count and valid code is never falsely rejected.
+    private int deepInterpolationIndex(String source) {
+        StringBuilder stack = new StringBuilder();
+        int interpDepth = 0;
+        int index = 0;
+        int length = source.length();
+        while (index < length) {
+            char c = source.charAt(index);
+            char top = stack.length() == 0 ? '\0' : stack.charAt(stack.length() - 1);
+            if (top == 'S') {
+                if (c == '\\') {
+                    index += 2;
+                } else if (c == '"') {
+                    stack.setLength(stack.length() - 1);
+                    index++;
+                } else if (c == '$' && index + 1 < length && source.charAt(index + 1) == '{') {
+                    stack.append('I');
+                    interpDepth++;
+                    if (interpDepth > MAX_INTERPOLATION_DEPTH) {
+                        return index;
+                    }
+                    index += 2;
+                } else {
+                    index++;
+                }
+                continue;
+            }
+            if (c == '/' && index + 1 < length && source.charAt(index + 1) == '/') {
+                index += 2;
+                while (index < length && source.charAt(index) != '\n') {
+                    index++;
+                }
+                continue;
+            }
+            if (c == '/' && index + 1 < length && source.charAt(index + 1) == '*') {
+                index += 2;
+                while (index + 1 < length) {
+                    if (source.charAt(index) == '*' && source.charAt(index + 1) == '/') {
+                        index += 2;
+                        break;
+                    }
+                    index++;
+                }
+                continue;
+            }
+            if (c == '"') {
+                stack.append('S');
+            } else if (c == '{') {
+                stack.append('B');
+            } else if (c == '}') {
+                if (top == 'I') {
+                    stack.setLength(stack.length() - 1);
+                    interpDepth--;
+                } else if (top == 'B') {
+                    stack.setLength(stack.length() - 1);
+                }
+            }
+            index++;
+        }
+        return -1;
     }
 
     private void scanUnsupportedSourceEdges(Path sourceFile, String source) {
@@ -1256,13 +1339,24 @@ public final class AffogatoTranspiler implements AutoCloseable {
         context.pushBlockScope();
         try {
             List<AffogatoParser.StatementContext> statements = block.statement();
+            boolean unreachable = false;
             for (int index = 0; index < statements.size(); index++) {
+                AffogatoParser.StatementContext statement = statements.get(index);
+                // Statements after a return/throw/break/continue (or a block that always exits) are
+                // unreachable. checkUnreachable already reported them; omit them from the generated Java
+                // so javac — which treats unreachable code as a hard error — still accepts the output.
+                if (unreachable && !flow.isPureSeparator(statement)) {
+                    continue;
+                }
                 Set<String> declaredLater = new LinkedHashSet<>();
                 for (int later = index + 1; later < statements.size(); later++) {
                     declaredLater.addAll(localNamesDeclaredInStatement(statements.get(later)));
                 }
                 context.setLocalsDeclaredLaterInBlock(declaredLater);
-                writeStatement(out, unit, statements.get(index), context, indent);
+                writeStatement(out, unit, statement, context, indent);
+                if (flow.statementStopsControl(statement)) {
+                    unreachable = true;
+                }
             }
             context.setLocalsDeclaredLaterInBlock(Set.of());
         } finally {
@@ -3421,6 +3515,31 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (resolved.isPresent()) {
             return String.join(", ", resolved.get().expressions());
         } else {
+            // A label that matches a variable already in scope is almost always an assignment
+            // expression mistaken for a named argument: Affogato reads `f(x = 5)` as the named
+            // argument `x`, never as an assignment (the `name = value` syntax is reserved for named
+            // arguments, like Kotlin). The variable being declared by an enclosing `let`/`var` is not
+            // yet in scope while its initializer is transformed, so a self-referential named call such
+            // as `let v = api(v = ...)` still reports the generic named-args failure, not this.
+            Optional<String> assignmentTarget = arguments.stream()
+                    .map(TypedArgument::name)
+                    .filter(name -> !name.isBlank() && context.variableTypes.containsKey(name))
+                    .findFirst();
+            if (assignmentTarget.isPresent()) {
+                String name = assignmentTarget.get();
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_ASSIGNMENT_ARGUMENT",
+                        "'" + name + "' is a variable in scope, so '" + name + " = ...' is read as a named "
+                                + "argument to " + callName + ", not an assignment. Assignment expressions are not "
+                                + "allowed as call arguments; assign in a separate statement before the call."
+                ));
+                List<String> raw = new ArrayList<>();
+                arguments.forEach(argument -> raw.add(argument.expression()));
+                return String.join(", ", raw);
+            }
             String failure = context.resolutionFailure();
             diagnostics.add(error(
                     context.unit.sourceFile(),
@@ -3452,8 +3571,16 @@ public final class AffogatoTranspiler implements AutoCloseable {
         int angle = 0;
         int paren = 0;
         int brace = 0;
+        boolean inString = false;
         for (int index = 0; index < part.length(); index++) {
             char current = part.charAt(index);
+            char previous = index > 0 ? part.charAt(index - 1) : '\0';
+            if (current == '"' && previous != '\\') {
+                inString = !inString;
+            }
+            if (inString) {
+                continue;
+            }
             if (current == '<') {
                 angle++;
             } else if (current == '>') {
@@ -3467,7 +3594,6 @@ public final class AffogatoTranspiler implements AutoCloseable {
             } else if (current == '}') {
                 brace = Math.max(0, brace - 1);
             } else if (current == '=' && angle == 0 && paren == 0 && brace == 0) {
-                char previous = index > 0 ? part.charAt(index - 1) : '\0';
                 char next = index + 1 < part.length() ? part.charAt(index + 1) : '\0';
                 if (previous != '=' && previous != '!' && previous != '<' && previous != '>' && next != '=') {
                     return index;
@@ -3590,36 +3716,109 @@ public final class AffogatoTranspiler implements AutoCloseable {
         StringBuilder out = new StringBuilder();
         int index = 0;
         while (index < expression.length()) {
-            if (!isUppercaseIdentifierStart(expression, index) || isPrecededByNewOrDot(expression, index)) {
-                out.append(expression.charAt(index));
-                index++;
-                continue;
+            if (isUppercaseIdentifierStart(expression, index) && !isPrecededByNewOrDot(expression, index)) {
+                // Simple constructor `Type<...>(...)` — the original, uppercase-leading path.
+                int nameEnd = readTypeExpressionEnd(expression, index);
+                if (nameEnd > index && nameEnd < expression.length() && expression.charAt(nameEnd) == '(') {
+                    emitTypeConstruction(out, expression.substring(index, nameEnd), expression, nameEnd, context);
+                    index = nameEnd + 1;
+                    continue;
+                }
+            } else {
+                // Fully-qualified constructor `pkg.sub.Type<...>(...)`. The package segments start
+                // lowercase, so the path above never sees them; without `new` the generated Java is
+                // invalid. Only fires when the root segment is a package (not a local/this/super), so
+                // instance member chains like `obj.field.method()` are never mistaken for a constructor.
+                int nameEnd = qualifiedConstructorEnd(expression, index, context);
+                if (nameEnd > index && nameEnd < expression.length() && expression.charAt(nameEnd) == '(') {
+                    emitTypeConstruction(out, expression.substring(index, nameEnd).trim(), expression, nameEnd, context);
+                    index = nameEnd + 1;
+                    continue;
+                }
             }
-
-            int nameEnd = readTypeExpressionEnd(expression, index);
-            if (nameEnd <= index || nameEnd >= expression.length() || expression.charAt(nameEnd) != '(') {
-                out.append(expression.charAt(index));
-                index++;
-                continue;
-            }
-            String typeName = expression.substring(index, nameEnd);
-            String implementation = constructorImplementation(typeName);
-            int close = findMatching(expression, nameEnd, '(', ')');
-            if (classSymbol(typeName, context.unit) == null && !context.javaResolver.typeExists(implementation, context.unit)) {
-                diagnostics.add(error(
-                        context.unit.sourceFile(),
-                        context.currentLine,
-                        context.currentColumn,
-                        "AFFOGATO_TYPE_RESOLUTION",
-                        "Cannot resolve type " + typeName + "."
-                ));
-            } else if (close >= 0) {
-                validateConstructorCall(typeName, implementation, expression.substring(nameEnd + 1, close), context);
-            }
-            out.append("new ").append(implementation).append('(');
-            index = nameEnd + 1;
+            out.append(expression.charAt(index));
+            index++;
         }
         return out.toString();
+    }
+
+    private void emitTypeConstruction(StringBuilder out, String typeName, String expression, int nameEnd, MethodContext context) {
+        String implementation = constructorImplementation(typeName);
+        int close = findMatching(expression, nameEnd, '(', ')');
+        if (classSymbol(typeName, context.unit) == null && !context.javaResolver.typeExists(implementation, context.unit)) {
+            diagnostics.add(error(
+                    context.unit.sourceFile(),
+                    context.currentLine,
+                    context.currentColumn,
+                    "AFFOGATO_TYPE_RESOLUTION",
+                    "Cannot resolve type " + typeName + "."
+            ));
+        } else if (close >= 0) {
+            validateConstructorCall(typeName, implementation, expression.substring(nameEnd + 1, close), context);
+        }
+        out.append("new ").append(implementation).append('(');
+    }
+
+    // Returns the index of the '(' that starts the argument list when a fully-qualified constructor
+    // call (`pkg.sub.Type<...>(`) begins at `index`, or -1 otherwise. Requires a token boundary, an
+    // uppercase final segment (the type), and — to avoid rewriting instance member chains — a root
+    // segment that is not a known local, parameter, `this`, or `super`.
+    private int qualifiedConstructorEnd(String expression, int index, MethodContext context) {
+        if (index > 0) {
+            char previous = expression.charAt(index - 1);
+            if (Character.isJavaIdentifierPart(previous) || previous == '.') {
+                return -1;
+            }
+        }
+        if (index >= expression.length() || !Character.isJavaIdentifierStart(expression.charAt(index))
+                || isPrecededByNewOrDot(expression, index)) {
+            return -1;
+        }
+        int cursor = index;
+        int lastSegmentStart = index;
+        int segments = 0;
+        while (true) {
+            if (cursor >= expression.length() || !Character.isJavaIdentifierStart(expression.charAt(cursor))) {
+                return -1;
+            }
+            lastSegmentStart = cursor;
+            segments++;
+            cursor++;
+            while (cursor < expression.length() && Character.isJavaIdentifierPart(expression.charAt(cursor))) {
+                cursor++;
+            }
+            if (cursor < expression.length() && expression.charAt(cursor) == '.') {
+                cursor++;
+                continue;
+            }
+            break;
+        }
+        // Must be a qualified name whose last segment is a type (uppercase).
+        if (segments < 2 || !Character.isUpperCase(expression.charAt(lastSegmentStart))) {
+            return -1;
+        }
+        String rootSegment = expression.substring(index, readIdentifierEnd(expression, index));
+        if (rootSegment.equals("this") || rootSegment.equals("super")
+                || context.variableTypes.containsKey(rootSegment)) {
+            return -1;
+        }
+        if (cursor < expression.length() && expression.charAt(cursor) == '<') {
+            int angle = 1;
+            cursor++;
+            while (cursor < expression.length() && angle > 0) {
+                char current = expression.charAt(cursor);
+                if (current == '<') {
+                    angle++;
+                } else if (current == '>') {
+                    angle--;
+                }
+                cursor++;
+            }
+        }
+        while (cursor < expression.length() && Character.isWhitespace(expression.charAt(cursor))) {
+            cursor++;
+        }
+        return cursor;
     }
 
     private void validateConstructorCall(
@@ -4230,7 +4429,19 @@ public final class AffogatoTranspiler implements AutoCloseable {
         // misreads as a boolean comparison on the top-level '<' / '>'.
         return ast instanceof LambdaExpression
                 || ast instanceof MethodReferenceExpression
-                || (ast instanceof ConstructorExpression && ast.resolvedType().isKnown());
+                || (ast instanceof ConstructorExpression && ast.resolvedType().isKnown())
+                // Shift (<<, >>, >>>) and numeric bitwise (&, |, ^) expressions carry a numeric result
+                // type from buildShift / the bitwise builders. The regex inference below reads a bare
+                // '<' / '>' as a relational comparison (boolean) and does not type bitwise at all
+                // (Object), so without the AST short-circuit `let x = 1 << 4` emits invalid Java and
+                // `let m = 0xFF & x` emits an imprecise Object. The known-type guard keeps this to the
+                // numeric cases (boolean operands are rejected earlier and never resolve to a type here).
+                || (ast instanceof BinaryExpression binary && isShiftOrBitwiseOperator(binary.operator()) && ast.resolvedType().isKnown());
+    }
+
+    private static boolean isShiftOrBitwiseOperator(String operator) {
+        return operator.equals("<<") || operator.equals(">>") || operator.equals(">>>")
+                || operator.equals("&") || operator.equals("|") || operator.equals("^");
     }
 
     private final class TranspilerExpressionSupport implements ExpressionSemanticChecker.Support {

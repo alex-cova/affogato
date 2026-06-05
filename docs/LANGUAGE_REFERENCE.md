@@ -19,6 +19,10 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
   syntax (`name(): String`). `func` means `void`.
 - Locals and fields use `var` for mutable bindings and `let` for immutable
   bindings.
+- Statements are separated by a newline or `;`. The closing `}` of a block also
+  ends the final statement, so single-line bodies like `func f() { doThing() }`
+  are valid; a missing separator *between* statements on one line is still an
+  error.
 - Control flow includes `if`, `guard ... else`, `for ... in`, `while`, `switch`,
   `try`, `catch`, multi-catch, `finally`, `return` and `throw`.
 - Expressions include literals, identifiers, calls, constructors, property
@@ -66,12 +70,13 @@ From highest to lowest binding (Java-like):
 3. Multiplicative: `*`, `/`, `%`
 4. Additive: `+`, `-`
 5. Cast: `expr as Type` (left-associative; `expr as A as B` chains to `((B)((A) expr))`)
-6. Relational: `<`, `<=`, `>`, `>=`, `is Type`
-7. Equality: `==`, `!=` (left-associative; `a == b == c` is `(a == b) == c`)
-8. Bitwise: `&`, `^`, `|`
-9. Logical: `&&`, `||`
-10. Ternary: `? :`
-11. Assignment: `=`, `+=`, … (right-associative; `a = b = c` is `a = (b = c)`)
+6. Shift: `<<`, `>>`, `>>>` (numeric operands; result type follows the left operand, e.g. `1 << 4` is `int`, `1L << 40` is `long`). Compound shift-assignment (`<<=`, `>>=`, `>>>=`) is not supported.
+7. Relational: `<`, `<=`, `>`, `>=`, `is Type`
+8. Equality: `==`, `!=` (left-associative; `a == b == c` is `(a == b) == c`)
+9. Bitwise: `&`, `^`, `|`
+10. Logical: `&&`, `||`
+11. Ternary: `? :`
+12. Assignment: `=`, `+=`, … (right-associative; `a = b = c` is `a = (b = c)`)
 
 ## Nullability
 
@@ -126,6 +131,7 @@ IntelliJ shows the same hint inline in the annotation tooltip.
 |---|---|
 | `AFFOGATO_ARRAY_ACCESS_TYPE` | `[]` used on a non-array/list receiver |
 | `AFFOGATO_ARRAY_INDEX_TYPE` | Array index is not int-compatible |
+| `AFFOGATO_ASSIGNMENT_ARGUMENT` | `name = value` used as a call argument where `name` is a variable in scope (read as a named argument, not an assignment) |
 | `AFFOGATO_ASSIGNMENT_TYPE` | Initializer or assignment type mismatch |
 | `AFFOGATO_CALL_RESOLUTION` | Unresolved method or function call |
 | `AFFOGATO_CAST_TYPE` | Invalid cast target or source |

@@ -127,13 +127,13 @@ const gradleStep3 = `<span class="token-comment"># Compiles .aff → Java → by
 <span class="token-comment"># Or compile only</span>
 ./gradlew compileAffogato`;
 
-const marqueeItems = ['JVM Native', 'Java 21', 'ANTLR Grammar', 'Type Safety', 'Named Arguments', 'Nullable Types', 'Guard Clauses', 'Switch Expressions', 'Records', 'Enums', 'Interfaces', 'Gradle Plugin', 'IntelliJ Support', 'Java Interop', 'Lambdas', 'Method References'];
+const marqueeItems = ['JVM Native', 'Java 21', 'Robust Parser', 'Type Safety', 'Named Arguments', 'Nullable Types', 'Guard Clauses', 'Switch Expressions', 'Records', 'Enums', 'Interfaces', 'Gradle Plugin', 'IntelliJ Support', 'Java Interop', 'Lambdas', 'Method References'];
 
 const features = [
   { icon: '🔒', title: 'Null Safety', desc: 'First-class nullability with String? nullable and String! non-null markers. Compile-time enforcement with runtime annotations.' },
   { icon: '☕', title: '100% Java Interop', desc: 'Seamless integration with any Java library. Call Java methods, use lambdas, method references, generics, and static imports.' },
   { icon: '🎯', title: 'Named Arguments', desc: 'Reorder function arguments by name for maximum readability. Works across Affogato and Java calls with overload resolution.' },
-  { icon: '⚡', title: 'ANTLR Grammar', desc: 'Robust ANTLR-based parser replaces fragile line-by-line parsing. Accurate diagnostics with stable error codes.' },
+  { icon: '⚡', title: 'Robust Parser', desc: 'Robust grammar-based parser replaces fragile line-by-line parsing. Accurate diagnostics with stable error codes.' },
   { icon: '🧩', title: 'Gradle Integration', desc: 'First-class Gradle plugin wires .aff compilation into your build. Configuration-cache compatible with cacheable tasks.' },
   { icon: '🔬', title: 'IntelliJ Plugin', desc: 'Syntax highlighting, navigation, rename, and live compiler diagnostics directly in your editor. Built with Grammar-Kit.' },
   { icon: '🛡️', title: 'Guard Clauses', desc: 'Swift-inspired guard condition else for early exits. Clean, readable defensive programming built into the language.' },
@@ -142,7 +142,7 @@ const features = [
 ];
 
 const roadmapItems = [
-  { done: true,  label: 'ANTLR grammar & parser',               desc: 'Replaced line-based parsing with robust ANTLR grammar.' },
+  { done: true,  label: 'Language grammar & parser',            desc: 'Replaced line-based parsing with robust grammar.' },
   { done: true,  label: 'Semantic symbol tables',                desc: 'Project-wide class, field, method and constructor resolution.' },
   { done: true,  label: 'Java classpath reflection',             desc: 'URLClassLoader-based method param names and getter discovery.' },
   { done: true,  label: 'Named arguments & overload resolution', desc: 'Strict, loose and varargs phases with most-specific tie breaking.' },
@@ -177,7 +177,7 @@ const roadmapItems = [
       <div class="animate-fade-up animation-delay-1 inline-flex mb-8">
         <span class="section-badge">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-amber)] animate-pulse"></span>
-          JVM Language · Java 21 · ANTLR Parser
+          JVM Language · Java 21 · Robust Parser
         </span>
       </div>
 
@@ -388,7 +388,7 @@ const roadmapItems = [
         {[
           { num: 'Java 21', label: 'Target platform' },
           { num: '4', label: 'Core modules' },
-          { num: 'ANTLR', label: 'Parser backbone' },
+          { num: 'Grammar', label: 'Parser backbone' },
           { num: '100%', label: 'Java interop' },
         ].map((s, i) => (
           <div class="stat-card reveal" style={`transition-delay: ${i * 80}ms`}>

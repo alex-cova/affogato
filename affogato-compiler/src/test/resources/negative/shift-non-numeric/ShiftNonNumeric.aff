@@ -1,0 +1,6 @@
+class ShiftNonNumeric {
+    static func run() {
+        let bad = "text" << 2
+        println(bad)
+    }
+}

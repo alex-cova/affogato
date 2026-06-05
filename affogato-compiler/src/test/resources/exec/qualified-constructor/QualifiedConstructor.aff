@@ -1,0 +1,14 @@
+package dev.affogato.exec
+
+class QualifiedConstructor {
+    static func run() {
+        let a = java.util.ArrayList<String>()
+        a.add("one")
+        a.add("two")
+        let b = java.util.ArrayList<java.util.List<String>>()
+        b.add(a)
+        println(a.size())
+        println(b.size())
+        println(a.get(0))
+    }
+}

@@ -1,0 +1,13 @@
+package dev.affogato.exec
+
+class BitwiseInference {
+    static func run() {
+        let x = 22
+        let m = 0xFF & x
+        let o = x | 1
+        let xr = x ^ 3
+        let mix = (x & 0xF) | (x >> 2)
+        let big = 1L & 255L
+        println(m + " " + o + " " + xr + " " + mix + " " + big)
+    }
+}

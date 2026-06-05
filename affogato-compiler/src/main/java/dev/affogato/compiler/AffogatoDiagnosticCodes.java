@@ -10,6 +10,7 @@ public final class AffogatoDiagnosticCodes {
     private static final Map<String, String> HINTS = Map.ofEntries(
             Map.entry("AFFOGATO_ARRAY_ACCESS_TYPE", "Use an array or list receiver for [] access."),
             Map.entry("AFFOGATO_ARRAY_INDEX_TYPE", "Array indexes must be int-compatible."),
+            Map.entry("AFFOGATO_ASSIGNMENT_ARGUMENT", "`name = value` in a call is a named argument, not an assignment; assign before the call."),
             Map.entry("AFFOGATO_ASSIGNMENT_TYPE", "Adjust the expression type or change the declared type."),
             Map.entry("AFFOGATO_CALL_RESOLUTION", "Check the method name, receiver type, imports, and argument types."),
             Map.entry("AFFOGATO_CAST_TYPE", "Use a cast target that is assignable from the source expression."),

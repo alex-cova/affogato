@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class NamedArgStringEquals {
+    static func greet(msg: String) {
+        println(msg)
+    }
+    static func run() {
+        println("a=b")
+        println("key=value=tail")
+        greet("x=y")
+    }
+}
