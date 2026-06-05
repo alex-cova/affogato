@@ -159,14 +159,23 @@ final class ExpressionSemanticChecker {
             return new SwitchExpressionNode(src(ctx.switchExpression(), whole), TypeGuess.unknown());
         }
         if (ctx.QUESTION() != null) {
-            AstExpression condition = buildExpression(ctx.getChild(0).getText(), null); // Placeholder for logicalOr
+            AstExpression condition = buildElvis(ctx.elvisExpression(), whole);
             AstExpression thenExpression = buildExpression(ctx.expression(0), whole);
             AstExpression elseExpression = buildExpression(ctx.expression(1), whole);
             TypeGuess type = ternaryType(thenExpression.resolvedType(), elseExpression.resolvedType());
             return new TernaryExpression(src(ctx, whole), condition, thenExpression, elseExpression,
                     type.isKnown() ? type : TypeGuess.unknown());
         }
-        return new UnknownExpression(src(ctx, whole)); // Temporary
+        return buildElvis(ctx.elvisExpression(), whole);
+    }
+
+    private AstExpression buildElvis(AffogatoParser.ElvisExpressionContext ctx, String whole) {
+        AstExpression left = buildLogicalOr(ctx.logicalOrExpression(), whole);
+        if (ctx.ELVIS() != null) {
+            AstExpression right = buildElvis(ctx.elvisExpression(), whole);
+            return new ElvisExpression(src(ctx, whole), left, right, right.resolvedType());
+        }
+        return left;
     }
 
     private AstExpression buildLogicalOr(AffogatoParser.LogicalOrExpressionContext ctx, String whole) {

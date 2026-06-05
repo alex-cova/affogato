@@ -18,10 +18,11 @@ final class ExpressionRenderer {
 
     String render(AstExpression ast, MethodContext context) {
         if (ast instanceof LiteralExpression literal) {
-            if (literal.source().startsWith("\"")) {
-                return transpiler.transformStringInterpolation(literal.source(), context);
+            String source = literal.source();
+            if (source.startsWith("\"")) {
+                return transpiler.transformStringInterpolation(source, context);
             }
-            return literal.source();
+            return source;
         }
         if (ast instanceof ArrayLiteralExpression arrayLiteral) {
             List<String> renderedElements = new ArrayList<>();
@@ -51,9 +52,14 @@ final class ExpressionRenderer {
             if (name.equals("this") && context.receiverType != null) {
                 return "$this";
             }
-            if (context.receiverType != null && !name.equals("this") && !name.equals("super") 
-                    && !context.variableTypes.containsKey(name) && !name.equals("$this") 
+            if (context.receiverType != null && !name.equals("this") && !name.equals("super")
+                    && !context.variableTypes.containsKey(name) && !name.equals("$this")
                     && context.receiverHasField(name)) {
+                String resolvedReceiverType = context.activeTypeParams.contains(context.receiverType) ? "java.lang.Object" : context.receiverType;
+                AffogatoTranspiler.PropertyHop hop = transpiler.resolvePropertyHopOnType(resolvedReceiverType, name, context);
+                if (hop != null) {
+                    return hop.call() ? "$this." + hop.accessor() + "()" : "$this." + hop.accessor();
+                }
                 return "$this." + name;
             }
             return name;
@@ -205,25 +211,24 @@ final class ExpressionRenderer {
                     String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
                     FieldSymbol field = transpiler.fieldForOwnerType(resolvedOwner, prop.property(), context);
                     String valueText = render(assignment.value(), context);
-                    if (field != null && field.mutable()) {
-                        String accessor = transpiler.getterName(prop.property(), field.type());
+                    
+                    if (transpiler.isGetterSetterBackedPropertyAccess(prop, context)) {
+                        String accessor = field != null ? transpiler.getterName(prop.property(), field.type()) : transpiler.getterName(prop.property(), TypeRef.unspecified("Object"));
+                        if (accessor == null || accessor.isEmpty()) {
+                            accessor = context.javaResolver.getterInvocationName(resolvedOwner, prop.property(), context.unit)
+                                    .orElse(transpiler.getterName(prop.property(), TypeRef.unspecified("Object")));
+                        }
                         String setter = transpiler.setterName(prop.property());
+                        String type = "Object";
+                        if (field != null) {
+                            type = mapPrimitive(field.type().javaType());
+                        }
+
                         if (assignment.operator().equals("=")) {
                             return receiverText + "." + setter + "(" + valueText + ")";
                         } else {
                             String op = assignment.operator().substring(0, assignment.operator().length() - 1);
                             return receiverText + "." + setter + "(" + receiverText + "." + accessor + "() " + op + " (" + valueText + "))";
-                        }
-                    }
-                    if (context.javaResolver.setterExists(resolvedOwner, prop.property(), context.unit)) {
-                        String setter = transpiler.setterName(prop.property());
-                        if (assignment.operator().equals("=")) {
-                            return receiverText + "." + setter + "(" + valueText + ")";
-                        } else {
-                            String getter = context.javaResolver.getterInvocationName(resolvedOwner, prop.property(), context.unit)
-                                    .orElse(transpiler.getterName(prop.property(), TypeRef.unspecified("Object")));
-                            String op = assignment.operator().substring(0, assignment.operator().length() - 1);
-                            return receiverText + "." + setter + "(" + receiverText + "." + getter + "() " + op + " (" + valueText + "))";
                         }
                     }
                 }
@@ -241,9 +246,7 @@ final class ExpressionRenderer {
         }
         if (ast instanceof UnaryExpression unary) {
             if (unary.operator().equals("++") || unary.operator().equals("--")) {
-                // Check if target is getter/setter-backed property access (should not be in expression position, but handle if so)
                 if (unary.expression() instanceof PropertyAccessExpression prop && transpiler.isGetterSetterBackedPropertyAccess(prop, context)) {
-                    // This will be caught by diagnostics, but render safely
                     String receiverText = render(prop.receiver(), context);
                     TypeGuess receiverType = prop.receiver().resolvedType().isKnown() ? prop.receiver().resolvedType() : transpiler.inferExpressionType(receiverText, context);
                     String ownerType = receiverType.javaType();
@@ -252,7 +255,24 @@ final class ExpressionRenderer {
                     String accessor = field != null ? transpiler.getterName(prop.property(), field.type()) : transpiler.getterName(prop.property(), TypeRef.unspecified("Object"));
                     String setter = transpiler.setterName(prop.property());
                     String op = unary.operator().substring(0, 1);
-                    return receiverText + "." + setter + "(" + receiverText + "." + accessor + "() " + op + " 1)";
+                    
+                    boolean isPostfix = ast.source().trim().endsWith("++") || ast.source().trim().endsWith("--");
+                    String type = "Object";
+                    if (field != null) {
+                        type = mapPrimitive(field.type().javaType());
+                    }
+                    
+                    if (isPostfix) {
+                        return "((java.util.function.Supplier<" + type + ">) () -> { " +
+                                type + " _v = " + receiverText + "." + accessor + "(); " +
+                                receiverText + "." + setter + "(_v " + op + " 1); " +
+                                "return _v; }).get()";
+                    } else {
+                        return "((java.util.function.Supplier<" + type + ">) () -> { " +
+                                type + " _v = " + receiverText + "." + accessor + "() " + op + " 1; " +
+                                receiverText + "." + setter + "(_v); " +
+                                "return _v; }).get()";
+                    }
                 }
                 // Check if postfix
                 if (ast.source().trim().endsWith("++") || ast.source().trim().endsWith("--")) {
@@ -267,7 +287,7 @@ final class ExpressionRenderer {
             return unary.operator() + render(unary.expression(), context);
         }
         if (ast instanceof CastExpression cast) {
-            return "((" + cast.targetType() + ") (" + render(cast.expression(), context) + "))";
+            return "((" + cast.targetType() + ") " + render(cast.expression(), context) + ")";
         }
         if (ast instanceof LambdaExpression lambda) {
             AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(lambda.source()));
@@ -285,7 +305,12 @@ final class ExpressionRenderer {
                     blockSb.append("{\n");
                     transpiler.writeBlockStatements(blockSb, context.unit, bodyCtx.block(), context, 1);
                     blockSb.append("}");
-                    return params + " -> " + blockSb.toString();
+                    String blockStr = blockSb.toString();
+                    // Collapse empty blocks to `{}`
+                    if (blockStr.equals("{\n}")) {
+                        blockStr = "{}";
+                    }
+                    return params + " -> " + blockStr;
                 }
             }
             return lambda.source();
@@ -374,7 +399,8 @@ final class ExpressionRenderer {
     }
 
     private String renderListBuilder(LambdaExpression lambda, String elementType, MethodContext context) {
-        AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(lambda.source()));
+        String lambdaSource = lambda.source();
+        AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(lambdaSource));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         AffogatoParser parser = new AffogatoParser(tokens);
         AffogatoParser.LambdaExpressionContext lambdaCtx = parser.lambdaExpression();
@@ -389,10 +415,10 @@ final class ExpressionRenderer {
                         continue;
                     }
                     if (statement.expressionStatement() != null) {
-                        AstExpression childExpr = transpiler.expressionAst(
-                                transpiler.sourceText(context.unit.source(), statement.expressionStatement().expression()),
-                                context
-                        );
+                        String rawExpr = transpiler.mergeTrailingClosure(
+                                transpiler.sourceText(lambdaSource, statement.expressionStatement().expression()),
+                                lambdaSource, statement.expressionStatement().trailingClosure(), context);
+                        AstExpression childExpr = transpiler.expressionAst(rawExpr, context);
                         String renderedChild = render(childExpr, context);
                         blockSb.append("$children.add(").append(renderedChild).append(");\n");
                     } else {

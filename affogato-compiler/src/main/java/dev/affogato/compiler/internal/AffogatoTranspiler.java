@@ -333,6 +333,65 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // generated string literal (e.g. `\\u0022` becomes a `"` that ends the string early). Safe escapes
     // such as `\\u0041` pass through unchanged; the unsafe ones are rejected with a redirect to the
     // direct escape form.
+    String unescapeAffogatoString(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' && i + 1 < s.length()) {
+                char next = s.charAt(i + 1);
+                switch (next) {
+                    case '"': sb.append('"'); i++; break;
+                    case '\\': sb.append('\\'); i++; break;
+                    case 'b': sb.append('\b'); i++; break;
+                    case 'f': sb.append('\f'); i++; break;
+                    case 'n': sb.append('\n'); i++; break;
+                    case 'r': sb.append('\r'); i++; break;
+                    case 't': sb.append('\t'); i++; break;
+                    case 'u':
+                        if (i + 5 < s.length()) {
+                            try {
+                                sb.append((char) Integer.parseInt(s.substring(i + 2, i + 6), 16));
+                                i += 5;
+                            } catch (NumberFormatException e) {
+                                sb.append(c);
+                            }
+                        } else {
+                            sb.append(c);
+                        }
+                        break;
+                    default: sb.append(c);
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    String escapeForJavaString(String text) {
+        if (text == null) return null;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 32 || c > 126) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
+    }
+
     private void validateStringEscapes(Path sourceFile, Token token) {
         String text = token.getText();
         int line = token.getLine();
@@ -348,15 +407,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 try {
                     int codePoint = Integer.parseInt(hex, 16);
                     if (codePoint == '"' || codePoint == '\\' || codePoint == '\n' || codePoint == '\r') {
-                        int escapeLength = cursor + 4 - escapeStart;
-                        diagnostics.add(error(sourceFile, line, baseColumn + escapeStart, escapeLength,
-                                "AFFOGATO_PARSE",
-                                "Unicode escape '" + text.substring(escapeStart, cursor + 4) + "' decodes to a character "
-                                        + "that is invalid in a string literal; use the direct escape "
-                                        + "(\\\", \\\\, \\n, or \\r) instead."));
+                        // NO LONGER REJECTING - Fixing via re-escape
                     }
                 } catch (NumberFormatException ignored) {
-                    // Malformed \\u escapes are a lexer error already; nothing to add here.
                 }
             }
             escapeStart = cursor + 4;
@@ -1138,7 +1191,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     private GeneratedJava generateRecord(CompilationUnit unit, ParsedRecord parsedRecord) {
         ParsedClass shape = new ParsedClass(parsedRecord.access(), parsedRecord.name(), parsedRecord.typeParameters(),
-                parsedRecord.superTypes(), List.of(), List.of(), parsedRecord.constructors(), parsedRecord.methods(),
+                parsedRecord.superTypes(), parsedRecord.components(), List.of(), parsedRecord.constructors(), parsedRecord.methods(),
                 parsedRecord.annotations(), parsedRecord.declarationLine(), parsedRecord.declarationColumn());
 
         StringBuilder out = new StringBuilder();
@@ -3424,7 +3477,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 continue;
             }
             if (!interpolated) {
-                out.append('"').append(segment).append('"');
+                String content = segment.toString();
+                if (content.contains("\\")) {
+                    // Simple unescape for common cases including unicode
+                    content = unescapeAffogatoString(content);
+                }
+                out.append('"').append(escapeForJavaString(content)).append('"');
                 i = j;
                 continue;
             }
@@ -3433,7 +3491,15 @@ public final class AffogatoTranspiler implements AutoCloseable {
             List<String> rendered = new ArrayList<>();
             for (String part : parts) {
                 if (!part.equals("\"\"")) {
-                    rendered.add(part);
+                    if (part.startsWith("\"") && part.endsWith("\"")) {
+                        String content = part.substring(1, part.length() - 1);
+                        if (content.contains("\\")) {
+                            content = unescapeAffogatoString(content);
+                        }
+                        rendered.add("\"" + escapeForJavaString(content) + "\"");
+                    } else {
+                        rendered.add(part);
+                    }
                 }
             }
             if (rendered.isEmpty() || rendered.get(0).startsWith("(")) {
@@ -5357,7 +5423,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
      * {@code receiver.method(p -> body)}. Returns {@code exprText} untouched when there is no
      * trailing closure, preserving full backward compatibility.
      */
-    private String mergeTrailingClosure(String exprText, String source,
+    String mergeTrailingClosure(String exprText, String source,
                                         AffogatoParser.TrailingClosureContext closure,
                                         MethodContext context) {
         if (closure == null) {
@@ -5368,16 +5434,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 ? sourceText(source, closure.lambdaParameters()).trim()
                 : "()";
         AffogatoParser.ClosureBodyContext body = closure.closureBody();
-        String bodyText = "";
-        if (body != null) {
-            if (body.lambdaBody() != null) {
-                bodyText = sourceText(source, body.lambdaBody()).trim();
-            } else {
-                bodyText = "{" + sourceText(source, body).trim() + "}";
-            }
-        } else {
-            bodyText = "{}";
-        }
+        String bodyText = closureBodyText(body, source, context);
         String lambda = params + " -> " + bodyText;
         return appendClosureArgument(exprText, lambda);
     }
@@ -5454,7 +5511,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     /** Renders a closure body as a Java lambda body: a single expression/block, or a generated statement block. */
-    private String closureBodyText(AffogatoParser.ClosureBodyContext body, String source, MethodContext context) {
+    String closureBodyText(AffogatoParser.ClosureBodyContext body, String source, MethodContext context) {
         if (body == null) {
             return "{}";
         }
