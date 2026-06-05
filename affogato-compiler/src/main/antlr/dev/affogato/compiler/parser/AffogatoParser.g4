@@ -76,6 +76,7 @@ classBody
 
 classMember
     : separators
+    | enumDecl separators?
     | fieldDecl terminators
     | constructorDecl separators?
     | methodDecl separators?

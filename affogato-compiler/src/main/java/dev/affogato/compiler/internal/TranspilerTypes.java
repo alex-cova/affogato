@@ -75,9 +75,27 @@ final class TranspilerTypes {
             List<ConstructorDecl> constructors,
             List<MethodDecl> methods,
             List<String> annotations,
+            List<ParsedEnum> nestedEnums,
             int declarationLine,
             int declarationColumn
     ) {
+        // Synthetic/shape classes (extension holders, interface and record shapes) carry no nested types.
+        ParsedClass(
+                String access,
+                String name,
+                List<TypeParamDecl> typeParameters,
+                List<String> superTypes,
+                List<ParamDecl> compactParameters,
+                List<FieldDecl> fields,
+                List<ConstructorDecl> constructors,
+                List<MethodDecl> methods,
+                List<String> annotations,
+                int declarationLine,
+                int declarationColumn
+        ) {
+            this(access, name, typeParameters, superTypes, compactParameters, fields, constructors, methods,
+                    annotations, List.of(), declarationLine, declarationColumn);
+        }
     }
 
     record ParsedEnum(String access, String name, List<String> constants, List<String> annotations, int declarationLine, int declarationColumn) {

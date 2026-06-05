@@ -21,6 +21,7 @@ final class MethodContext {
     private final ClassSymbolTable classSymbols;
     private final Map<String, List<ExtensionSymbol>> extensionSymbols;
     final JavaResolver javaResolver;
+    final Set<String> activeTypeParams;
     final Map<String, String> variableTypes = new LinkedHashMap<>();
     final Map<String, Boolean> mutableVariables = new LinkedHashMap<>();
     final Map<String, Nullability> variableNullabilities = new LinkedHashMap<>();
@@ -43,7 +44,8 @@ final class MethodContext {
             TypeRef returnType,
             ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
-            JavaResolver javaResolver
+            JavaResolver javaResolver,
+            Set<String> activeTypeParams
     ) {
         this.unit = unit;
         this.currentClass = currentClass;
@@ -52,6 +54,7 @@ final class MethodContext {
         this.classSymbols = classSymbols;
         this.extensionSymbols = extensionSymbols;
         this.javaResolver = javaResolver;
+        this.activeTypeParams = activeTypeParams;
     }
 
     static MethodContext forExecutable(
@@ -61,9 +64,10 @@ final class MethodContext {
             TypeRef returnType,
             ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
-            JavaResolver javaResolver
+            JavaResolver javaResolver,
+            Set<String> activeTypeParams
     ) {
-        return new MethodContext(unit, currentClass, executableName, returnType, classSymbols, extensionSymbols, javaResolver);
+        return new MethodContext(unit, currentClass, executableName, returnType, classSymbols, extensionSymbols, javaResolver, activeTypeParams);
     }
 
     static MethodContext empty(
@@ -71,9 +75,10 @@ final class MethodContext {
             ParsedClass currentClass,
             ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
-            JavaResolver javaResolver
+            JavaResolver javaResolver,
+            Set<String> activeTypeParams
     ) {
-        return new MethodContext(unit, currentClass, "", TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
+        return new MethodContext(unit, currentClass, "", TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
     }
 
     void declareVariable(String name, TypeRef type, boolean mutable) {
@@ -263,7 +268,8 @@ final class MethodContext {
 
     /** Return type of {@code method(args)} invoked on a receiver of static type {@code ownerType}. */
     TypeGuess returnTypeForReceiverType(String ownerType, String method, List<TypedArgument> arguments) {
-        List<MethodSymbol> ownerMethods = affogatoMethods(ownerType, method, unit);
+        String resolvedOwnerType = activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+        List<MethodSymbol> ownerMethods = affogatoMethods(resolvedOwnerType, method, unit);
         if (!ownerMethods.isEmpty()) {
             Optional<TypeGuess> affogatoReturn = ownerMethods.stream()
                     .map(candidate -> new ScoredReturn(
@@ -277,18 +283,18 @@ final class MethodContext {
                 return affogatoReturn.get();
             }
         }
-        TypeGuess javaReturn = javaResolver.methodReturnType(ownerType, method, arguments, unit)
+        TypeGuess javaReturn = javaResolver.methodReturnType(resolvedOwnerType, method, arguments, unit)
                 .orElse(TypeGuess.unknown());
         if (javaReturn.isKnown()) {
             return javaReturn;
         }
         // Extension functions are the last fallback, after instance methods fail to resolve.
-        return resolveExtensionCall(ownerType, method, arguments)
+        return resolveExtensionCall(resolvedOwnerType, method, arguments)
                 .map(match -> TypeGuess.of(match.symbol().returnType().javaType()))
                 .orElse(TypeGuess.unknown());
     }
 
-    private String resolveOwnerType(String owner) {
+    String resolveOwnerType(String owner) {
         if ("this".equals(owner)) {
             return currentClass.name();
         }
@@ -301,7 +307,8 @@ final class MethodContext {
             }
             return currentClass.superTypes().get(0);
         }
-        return variableTypes.getOrDefault(owner, owner);
+        String type = variableTypes.getOrDefault(owner, owner);
+        return activeTypeParams.contains(type) ? "java.lang.Object" : type;
     }
 
     /**
@@ -310,7 +317,8 @@ final class MethodContext {
      * methods fail. Candidates match the exact receiver type plus the Affogato supertype chain.
      */
     Optional<ExtensionMatch> resolveExtensionCall(String ownerType, String methodName, List<TypedArgument> arguments) {
-        List<ExtensionSymbol> candidates = extensionCandidates(ownerType, methodName);
+        String resolvedOwnerType = activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+        List<ExtensionSymbol> candidates = extensionCandidates(resolvedOwnerType, methodName);
         if (candidates.isEmpty()) {
             return Optional.empty();
         }
@@ -344,14 +352,15 @@ final class MethodContext {
     }
 
     private boolean instanceMethodResolves(String ownerType, String methodName, List<TypedArgument> arguments) {
-        for (MethodSymbol candidate : affogatoMethods(ownerType, methodName, unit)) {
+        String resolvedOwnerType = activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+        for (MethodSymbol candidate : affogatoMethods(resolvedOwnerType, methodName, unit)) {
             for (InvocationPhase phase : List.of(InvocationPhase.STRICT, InvocationPhase.LOOSE)) {
                 if (scoreAffogatoParameters(candidate.parameters(), arguments, phase).isPresent()) {
                     return true;
                 }
             }
         }
-        return javaResolver.resolveMethodArguments(ownerType, methodName, arguments, unit).isPresent();
+        return javaResolver.resolveMethodArguments(resolvedOwnerType, methodName, arguments, unit).isPresent();
     }
 
     /** True when the extension receiver type exposes a (possibly inherited) field or getter named {@code name}. */
@@ -359,10 +368,11 @@ final class MethodContext {
         if (receiverType == null) {
             return false;
         }
-        if (affogatoFieldExists(receiverType, name)) {
+        String resolvedReceiverType = activeTypeParams.contains(receiverType) ? "java.lang.Object" : receiverType;
+        if (affogatoFieldExists(resolvedReceiverType, name)) {
             return true;
         }
-        return javaResolver.getterExists(receiverType, name, unit) || javaResolver.fieldExists(receiverType, name, unit);
+        return javaResolver.getterExists(resolvedReceiverType, name, unit) || javaResolver.fieldExists(resolvedReceiverType, name, unit);
     }
 
     /** True when the extension receiver type exposes a (possibly inherited) method named {@code name}. */
@@ -370,10 +380,11 @@ final class MethodContext {
         if (receiverType == null) {
             return false;
         }
-        if (!affogatoMethods(receiverType, name, unit).isEmpty()) {
+        String resolvedReceiverType = activeTypeParams.contains(receiverType) ? "java.lang.Object" : receiverType;
+        if (!affogatoMethods(resolvedReceiverType, name, unit).isEmpty()) {
             return true;
         }
-        return javaResolver.hasMethodNamed(receiverType, name, unit);
+        return javaResolver.hasMethodNamed(resolvedReceiverType, name, unit);
     }
 
     boolean identifierResolvesAsMember(String name) {
@@ -402,10 +413,11 @@ final class MethodContext {
             }
         }
         if (receiverType != null) {
-            Optional<String> receiverFieldType = affogatoFieldType(receiverType, name)
+            String resolvedReceiverType = activeTypeParams.contains(receiverType) ? "java.lang.Object" : receiverType;
+            Optional<String> receiverFieldType = affogatoFieldType(resolvedReceiverType, name)
                     .map(TypeRef::javaType)
-                    .or(() -> javaResolver.getterReturnType(receiverType, name, unit).map(TypeGuess::javaType))
-                    .or(() -> javaResolver.fieldType(receiverType, name, unit).map(TypeGuess::javaType));
+                    .or(() -> javaResolver.getterReturnType(resolvedReceiverType, name, unit).map(TypeGuess::javaType))
+                    .or(() -> javaResolver.fieldType(resolvedReceiverType, name, unit).map(TypeGuess::javaType));
             if (receiverFieldType.isPresent()) {
                 return receiverFieldType;
             }

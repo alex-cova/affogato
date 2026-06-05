@@ -421,13 +421,14 @@ public final class AffogatoTranspiler implements AutoCloseable {
             });
         }
         for (ParsedEnum parsedEnum : unit.enums()) {
-            registerClassSymbol(unit, parsedEnum.name(), parsedEnum.declarationLine(), parsedEnum.declarationColumn(), () -> {
-                ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
-                symbol.isEnum = true;
-                symbol.enumConstants.addAll(parsedEnum.constants());
-                symbol.constructors.add(new ConstructorSymbol(List.of()));
-                return symbol;
-            });
+            registerEnumSymbol(unit, parsedEnum);
+        }
+        // Nested enums are registered by simple name alongside top-level types so `Day.MON` resolves
+        // from inside the enclosing class; they are emitted nested in the class's generated Java.
+        for (ParsedClass clazz : unit.classes()) {
+            for (ParsedEnum nested : clazz.nestedEnums()) {
+                registerEnumSymbol(unit, nested);
+            }
         }
         for (ParsedInterface parsedInterface : unit.interfaces()) {
             registerClassSymbol(unit, parsedInterface.name(), parsedInterface.declarationLine(), parsedInterface.declarationColumn(), () -> {
@@ -498,6 +499,25 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return;
         }
         classSymbols.register(unit.packageName(), builder.get());
+    }
+
+    private void registerEnumSymbol(CompilationUnit unit, ParsedEnum parsedEnum) {
+        registerClassSymbol(unit, parsedEnum.name(), parsedEnum.declarationLine(), parsedEnum.declarationColumn(), () -> {
+            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
+            symbol.isEnum = true;
+            symbol.enumConstants.addAll(parsedEnum.constants());
+            symbol.constructors.add(new ConstructorSymbol(List.of()));
+            // java.lang.Enum instance methods, so `value.name()` / `value.ordinal()` resolve on an
+            // enum-typed receiver (the symbol has no extends chain the resolver could walk to Enum).
+            registerEnumMethod(symbol, "name", "String");
+            registerEnumMethod(symbol, "ordinal", "int");
+            return symbol;
+        });
+    }
+
+    private void registerEnumMethod(ClassSymbol symbol, String name, String returnType) {
+        symbol.methods.computeIfAbsent(name, ignored -> new ArrayList<>())
+                .add(new MethodSymbol(name, TypeRef.unspecified(returnType), List.of(), false));
     }
 
     public List<GeneratedJava> generate(ParsedUnit parsedUnit) {
@@ -688,6 +708,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
         List<ConstructorDecl> constructors = new ArrayList<>();
         List<MethodDecl> methods = new ArrayList<>();
+        List<ParsedEnum> nestedEnums = new ArrayList<>();
         for (AffogatoParser.ClassMemberContext member : classDecl.classBody().classMember()) {
             if (member.fieldDecl() != null) {
                 fields.add(buildField(sourceFile, source, member.fieldDecl()));
@@ -695,10 +716,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 constructors.add(buildConstructor(sourceFile, source, member.constructorDecl()));
             } else if (member.methodDecl() != null) {
                 methods.add(buildMethod(sourceFile, source, member.methodDecl()));
+            } else if (member.enumDecl() != null) {
+                nestedEnums.add(buildEnum(sourceFile, source, member.enumDecl()));
             }
         }
 
-        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(source, classDecl.annotation()), classDecl.getStart().getLine(), classDecl.getStart().getCharPositionInLine() + 1);
+        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(source, classDecl.annotation()), nestedEnums, classDecl.getStart().getLine(), classDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private FieldDecl buildField(Path sourceFile, String source, AffogatoParser.FieldDeclContext fieldDecl) {
@@ -939,10 +962,21 @@ public final class AffogatoTranspiler implements AutoCloseable {
         writeConstructors(out, unit, clazz);
         writeAccessors(out, clazz);
         writeMethods(out, unit, clazz);
+        writeNestedEnums(out, clazz);
         activeTypeParams = prevTypeParams;
 
         out.append("}").append(System.lineSeparator());
         return new GeneratedJava(unit.packageName(), clazz.name(), out.toString());
+    }
+
+    private void writeNestedEnums(StringBuilder out, ParsedClass clazz) {
+        for (ParsedEnum nested : clazz.nestedEnums()) {
+            writeAnnotations(out, nested.annotations(), 1);
+            out.append(indent(1)).append(nested.access()).append(" enum ").append(nested.name()).append(" {")
+                    .append(System.lineSeparator());
+            out.append(indent(2)).append(String.join(", ", nested.constants())).append(System.lineSeparator());
+            out.append(indent(1)).append("}").append(System.lineSeparator());
+        }
     }
 
     private GeneratedJava generateExtensionsHolder(CompilationUnit unit) {
@@ -983,7 +1017,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
         for (ExtensionFuncDecl extension : unit.extensions()) {
             List<ParamDecl> parameters = holderParameters(extension);
-            MethodContext context = MethodContext.forExecutable(unit, shape, extension.name(), extension.returnType(), classSymbols, extensionSymbols, javaResolver);
+            MethodContext context = MethodContext.forExecutable(unit, shape, extension.name(), extension.returnType(), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
             context.receiverType = extension.receiverType().javaType();
             for (ParamDecl parameter : parameters) {
                 context.declareVariable(parameter.name(), parameter.type(), true);
@@ -1074,7 +1108,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 out.append("    default ").append(method.returnType().declaration()).append(' ')
                         .append(method.name()).append('(').append(parameterList(method.parameters())).append(") {")
                         .append(System.lineSeparator());
-                MethodContext context = MethodContext.forExecutable(unit, dummyClass, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver);
+                MethodContext context = MethodContext.forExecutable(unit, dummyClass, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
                 for (ParamDecl param : method.parameters()) {
                     context.declareVariable(param.name(), param.type(), true);
                 }
@@ -1161,7 +1195,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private void writeFields(StringBuilder out, CompilationUnit unit, ParsedClass clazz) {
-        MethodContext context = MethodContext.empty(unit, clazz, classSymbols, extensionSymbols, javaResolver);
+        MethodContext context = MethodContext.empty(unit, clazz, classSymbols, extensionSymbols, javaResolver, activeTypeParams);
         for (FieldDecl field : clazz.fields()) {
             validateTypeRef(field.type(), unit, field.line(), 1);
             writeAnnotations(out, field.annotations(), 1);
@@ -1188,7 +1222,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (clazz.compactParameters().isEmpty()) {
             return;
         }
-        MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
+        MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
         for (ParamDecl parameter : clazz.compactParameters()) {
             validateTypeRef(parameter.type(), unit, 1, 1);
             context.declareVariable(parameter.name(), parameter.type(), true);
@@ -1210,7 +1244,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
 
     private void writeConstructors(StringBuilder out, CompilationUnit unit, ParsedClass clazz) {
         for (ConstructorDecl constructor : clazz.constructors()) {
-            MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver);
+            MethodContext context = MethodContext.forExecutable(unit, clazz, clazz.name(), TypeRef.unspecified("void"), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
             for (ParamDecl parameter : constructor.parameters()) {
                 validateTypeRef(parameter.type(), unit, constructor.line(), 1);
                 context.declareVariable(parameter.name(), parameter.type(), true);
@@ -1276,7 +1310,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 method.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
             }
 
-            MethodContext context = MethodContext.forExecutable(unit, clazz, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver);
+            MethodContext context = MethodContext.forExecutable(unit, clazz, method.name(), method.returnType(), classSymbols, extensionSymbols, javaResolver, activeTypeParams);
             validateTypeRef(method.returnType(), unit, method.line(), 1);
             for (ParamDecl parameter : method.parameters()) {
                 validateTypeRef(parameter.type(), unit, method.line(), 1);
@@ -1626,7 +1660,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     .collect(java.util.stream.Collectors.joining(" | "));
             String varName = catchClause.Identifier().getText();
             out.append(" catch (").append(catchTypes).append(" ").append(varName).append(") {").append(System.lineSeparator());
-            MethodContext catchContext = MethodContext.forExecutable(unit, context.currentClass, context.executableName, context.returnType, classSymbols, extensionSymbols, javaResolver);
+            MethodContext catchContext = MethodContext.forExecutable(unit, context.currentClass, context.executableName, context.returnType, classSymbols, extensionSymbols, javaResolver, context.activeTypeParams);
             catchContext.variableTypes.putAll(context.variableTypes);
             catchContext.mutableVariables.putAll(context.mutableVariables);
             catchContext.variableNullabilities.putAll(context.variableNullabilities);
@@ -2056,7 +2090,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (!receiverType.isKnown() || receiverType.isNullLiteral()) {
             return null;
         }
-        String type = receiverType.javaType();
+        String type = context.activeTypeParams.contains(receiverType.javaType()) ? "java.lang.Object" : receiverType.javaType();
         String loweredReceiver = transformExpression(receiver, context);
         String value = transformExpression(rawValue, context);
 
@@ -4087,24 +4121,25 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // four-path order used for the first hop: Affogato field (getter, or direct for records), array
     // `length`, Java getter, then a directly-accessible Java field. Returns null when unresolvable.
     private PropertyHop resolvePropertyHopOnType(String ownerType, String property, MethodContext context) {
-        FieldSymbol field = fieldForOwnerType(ownerType, property, context);
+        String resolvedOwnerType = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+        FieldSymbol field = fieldForOwnerType(resolvedOwnerType, property, context);
         if (field != null) {
-            ClassSymbol ownerSymbol = classSymbol(ownerType, context.unit);
+            ClassSymbol ownerSymbol = classSymbol(resolvedOwnerType, context.unit);
             String accessor = ownerSymbol != null && ownerSymbol.isRecord() ? property : getterName(property, field.type());
             return new PropertyHop(accessor, true, TypeGuess.of(field.type().javaType()));
         }
-        if (isArrayLengthAccess(ownerType, property)) {
+        if (isArrayLengthAccess(resolvedOwnerType, property)) {
             return new PropertyHop(property, false, TypeGuess.of("int"));
         }
-        if (context.javaResolver.getterExists(ownerType, property, context.unit)) {
-            String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
+        if (context.javaResolver.getterExists(resolvedOwnerType, property, context.unit)) {
+            String getter = context.javaResolver.getterInvocationName(resolvedOwnerType, property, context.unit)
                     .orElse(getterName(property, TypeRef.unspecified("Object")));
-            TypeGuess resultType = context.javaResolver.getterReturnType(ownerType, property, context.unit)
+            TypeGuess resultType = context.javaResolver.getterReturnType(resolvedOwnerType, property, context.unit)
                     .orElse(TypeGuess.unknown());
             return new PropertyHop(getter, true, resultType);
         }
-        if (context.javaResolver.fieldExists(ownerType, property, context.unit)) {
-            TypeGuess resultType = context.javaResolver.fieldType(ownerType, property, context.unit)
+        if (context.javaResolver.fieldExists(resolvedOwnerType, property, context.unit)) {
+            TypeGuess resultType = context.javaResolver.fieldType(resolvedOwnerType, property, context.unit)
                     .orElse(TypeGuess.unknown());
             return new PropertyHop(property, false, resultType);
         }
@@ -5399,7 +5434,12 @@ public final class AffogatoTranspiler implements AutoCloseable {
             dot--;
         }
         if (dot >= 0 && value.charAt(dot) == '.') {
-            return value.substring(0, dot).trim();
+            // Extract only the immediate receiver chain ending at the dot, not the whole prefix.
+            // For `"p" + a.label()` the receiver is `a`, not `"p" + a` (which infers as String and
+            // makes `label()` look like a call on String). receiverStartInBuffer handles identifier
+            // chains, call/array suffixes and string literals, stopping at a preceding operator.
+            int start = receiverStartInBuffer(new StringBuilder(value.substring(0, dot)));
+            return value.substring(start < 0 ? 0 : start, dot).trim();
         }
         return "";
     }
