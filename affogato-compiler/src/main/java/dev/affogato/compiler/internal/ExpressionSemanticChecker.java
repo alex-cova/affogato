@@ -218,11 +218,13 @@ final class ExpressionSemanticChecker {
     }
 
     private AstExpression buildCast(AffogatoParser.CastExpressionContext ctx, String whole) {
-        if (ctx.AS() != null) {
-            String target = support.stripNullableSuffix(ctx.typeRef().getText());
-            return new CastExpression(src(ctx, whole), buildAdditive(ctx.additiveExpression(), whole), target, TypeGuess.of(target));
+        AstExpression current = buildAdditive(ctx.additiveExpression(), whole);
+        // `expr as A as B` chains left-to-right into nested casts: ((B)((A) expr)).
+        for (AffogatoParser.TypeRefContext typeRef : ctx.typeRef()) {
+            String target = support.stripNullableSuffix(typeRef.getText());
+            current = new CastExpression(srcBetween(whole, ctx.additiveExpression(), typeRef), current, target, TypeGuess.of(target));
         }
-        return buildAdditive(ctx.additiveExpression(), whole);
+        return current;
     }
 
     private AstExpression buildAdditive(AffogatoParser.AdditiveExpressionContext ctx, String whole) {

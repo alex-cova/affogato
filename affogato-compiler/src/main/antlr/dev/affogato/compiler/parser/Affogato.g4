@@ -425,7 +425,7 @@ shiftOp
     ;
 
 castExpression
-    : additiveExpression (AS typeRef)?
+    : additiveExpression (AS typeRef)*
     ;
 
 additiveExpression

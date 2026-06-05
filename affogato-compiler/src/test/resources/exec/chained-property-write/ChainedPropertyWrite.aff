@@ -1,0 +1,15 @@
+package dev.affogato.exec
+
+class Cell(var z: int) { }
+
+class Box(let c: Cell) { }
+
+class ChainedPropertyWrite {
+    static func run() {
+        let b = Box(Cell(10))
+        b.c.z = 5
+        b.c.z += 3
+        b.c.z++
+        println(b.c.z)
+    }
+}

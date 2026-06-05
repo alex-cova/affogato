@@ -1,0 +1,14 @@
+package dev.affogato.exec
+
+class Counter(var n: int) { }
+
+class PropertyIncDec {
+    static func run() {
+        let c = Counter(10)
+        c.n++
+        c.n++
+        c.n--
+        ++c.n
+        println(c.n)
+    }
+}

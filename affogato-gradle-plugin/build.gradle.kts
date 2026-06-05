@@ -1,5 +1,5 @@
 plugins {
-    `java-gradle-plugin`
+    id("com.gradle.plugin-publish") version "2.1.1"
 }
 
 dependencies {
@@ -10,10 +10,17 @@ dependencies {
 }
 
 gradlePlugin {
+    website = "https://github.com/alex-cova/affogato"
+    vcsUrl = "https://github.com/alex-cova/affogato.git"
+
     plugins {
         create("affogato") {
             id = "dev.affogato"
             implementationClass = "dev.affogato.gradle.AffogatoGradlePlugin"
+            displayName = "Affogato"
+            description =
+                "Gradle plugin for the Affogato JVM language: compiles .aff sources to Java and wires them into Java source sets."
+            tags.set(listOf("affogato", "transpiler", "java", "jvm"))
         }
     }
 }

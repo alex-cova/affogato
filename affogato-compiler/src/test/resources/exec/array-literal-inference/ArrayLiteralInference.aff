@@ -1,0 +1,15 @@
+package dev.affogato.exec
+
+class ArrayLiteralInference {
+    static func run() {
+        let xs = [1, 2, 3]
+        println(xs.length)
+        let names = ["a", "b"]
+        println(names[0])
+        var total = 0
+        for n in xs {
+            total = total + n
+        }
+        println(total)
+    }
+}

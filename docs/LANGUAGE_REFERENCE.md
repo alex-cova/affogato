@@ -66,7 +66,7 @@ From highest to lowest binding (Java-like):
 2. Unary: `!`, `-`, `~`, prefix `++`/`--`, `not(...)`
 3. Multiplicative: `*`, `/`, `%`
 4. Additive: `+`, `-`
-5. Cast: `expr as Type`
+5. Cast: `expr as Type` (left-associative; `expr as A as B` chains to `((B)((A) expr))`)
 6. Relational: `<`, `<=`, `>`, `>=`, `is Type`
 7. Equality: `==`, `!=` (left-associative; `a == b == c` is `(a == b) == c`)
 8. Bitwise: `&`, `^`, `|`

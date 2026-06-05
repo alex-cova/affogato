@@ -1,0 +1,14 @@
+package dev.affogato.exec
+
+class NumericLiteralKinds {
+    static func run() {
+        let hexes = [0x1, 0x2, 0x4]
+        println(hexes.length)
+        let total = hexes[0] + hexes[2]
+        println(total)
+        let f = 2.5f
+        println(f)
+        let big = 1_000_000
+        println(big)
+    }
+}

@@ -1,0 +1,15 @@
+package dev.affogato.exec
+
+class Person(let name: String) { }
+
+class PropertyOnCallResult {
+    static make(): Person {
+        return Person("Ada")
+    }
+
+    static func run() {
+        println(make().name)
+        let o: Object = make()
+        println((o as Person).name)
+    }
+}

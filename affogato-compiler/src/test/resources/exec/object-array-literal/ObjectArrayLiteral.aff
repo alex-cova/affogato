@@ -1,0 +1,13 @@
+package dev.affogato.exec
+
+class Person(let name: String) { }
+
+class ObjectArrayLiteral {
+    static func run() {
+        let people: Person[] = [Person("Ada"), Person("Bea")]
+        println(people.length)
+        println(people[0].name)
+        let inferred = [Person("Cy")]
+        println(inferred[0].name)
+    }
+}

@@ -1,0 +1,10 @@
+package dev.affogato.exec
+
+class MultidimArray {
+    static func run() {
+        let g = [[1, 2], [3, 4]]
+        println(g.length)
+        println(g[0].length)
+        println(g[1][0])
+    }
+}

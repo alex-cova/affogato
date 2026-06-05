@@ -53,6 +53,15 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private static final Pattern PROPERTY_ASSIGNMENT = Pattern.compile(
             "^([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.+)$"
     );
+    private static final Pattern PROPERTY_COMPOUND_ASSIGNMENT = Pattern.compile(
+            "^([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)\\s*([-+*/%])=\\s*(.+)$"
+    );
+    private static final Pattern PROPERTY_POSTFIX_INCDEC = Pattern.compile(
+            "^([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)\\s*(\\+\\+|--)$"
+    );
+    private static final Pattern PROPERTY_PREFIX_INCDEC = Pattern.compile(
+            "^(\\+\\+|--)\\s*([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)$"
+    );
     private static final Pattern VARIABLE_ASSIGNMENT = Pattern.compile(
             "^([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.+)$"
     );
@@ -83,6 +92,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private final ClassSymbolTable classSymbols = new ClassSymbolTable();
     private final Map<String, List<ExtensionSymbol>> extensionSymbols = new LinkedHashMap<>();
     private Set<String> activeTypeParams = new HashSet<>();
+    // When transforming an array-literal initializer whose binding has an explicit single-dimension array
+    // type (`let xs: Person[] = [...]`), this holds that element type so the emitted `new T[]{...}` matches
+    // the declared type instead of a too-wide `new Object[]`. Null when there is no explicit array target.
+    private String expectedArrayElementType = null;
 
     public AffogatoTranspiler(List<AffogatoDiagnostic> diagnostics, List<Path> classpath) {
         this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
@@ -1379,6 +1392,26 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     ? transformPropertyAssignment(assignmentMatcher, context)
                     : null;
             if (transformed == null) {
+                Matcher compoundMatcher = PROPERTY_COMPOUND_ASSIGNMENT.matcher(expression);
+                if (compoundMatcher.matches()) {
+                    transformed = transformPropertyCompoundAssignment(compoundMatcher, context);
+                }
+            }
+            if (transformed == null) {
+                Matcher postfix = PROPERTY_POSTFIX_INCDEC.matcher(expression);
+                Matcher prefix = PROPERTY_PREFIX_INCDEC.matcher(expression);
+                if (postfix.matches()) {
+                    transformed = transformPropertyIncDec(postfix.group(1), postfix.group(2), postfix.group(3).equals("++"), context);
+                } else if (prefix.matches()) {
+                    transformed = transformPropertyIncDec(prefix.group(2), prefix.group(3), prefix.group(1).equals("++"), context);
+                }
+            }
+            if (transformed == null) {
+                // The single-identifier handlers above missed: try a write whose target is a property on a
+                // complex receiver (`a.b.c = x`, `a.b.z += 1`, `a.b.z++`, `make().z = 5`).
+                transformed = transformComplexPropertyWrite(expression, context);
+            }
+            if (transformed == null) {
                 Matcher variableAssignment = VARIABLE_ASSIGNMENT.matcher(expression);
                 if (variableAssignment.matches()) {
                     validateVariableAssignment(variableAssignment, context, statement.getStart().getLine(), statement.getStart().getCharPositionInLine() + 1);
@@ -1709,9 +1742,24 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 ? ""
                 : mergeTrailingClosure(sourceText(unit.source(), declaration.expression()),
                         unit.source(), declaration.trailingClosure(), context);
-        TypedExpression typedInit = rawInitializer.isBlank()
-                ? null
-                : transformExpressionTyped(rawInitializer, context, declaration.expression());
+        // Target-type an array-literal initializer to the declared single-dimension array element type, so
+        // `let xs: Person[] = [...]` emits `new Person[]{...}` (matching the declared type) rather than the
+        // too-wide `new Object[]` that the element-based inference would otherwise pick.
+        String previousExpectedArrayElement = expectedArrayElementType;
+        if (type != null && type.javaType().endsWith("[]")) {
+            String element = type.javaType().substring(0, type.javaType().length() - 2);
+            expectedArrayElementType = element.endsWith("[]") ? null : element;
+        } else {
+            expectedArrayElementType = null;
+        }
+        TypedExpression typedInit;
+        try {
+            typedInit = rawInitializer.isBlank()
+                    ? null
+                    : transformExpressionTyped(rawInitializer, context, declaration.expression());
+        } finally {
+            expectedArrayElementType = previousExpectedArrayElement;
+        }
         String initializer = typedInit == null ? "" : typedInit.javaSource();
 
         if (type == null && typedInit != null) {
@@ -1783,6 +1831,246 @@ public final class AffogatoTranspiler implements AutoCloseable {
             return owner + "." + property + " = " + expression + ";";
         }
         return null;
+    }
+
+    // Compound assignment to a property (`c.n += x`). A property backed by a getter/setter cannot use
+    // Java's `+=` (the left side would be a method call), so it is desugared to
+    // `c.setN(c.getN() + (x))`. Directly-accessible mutable Java fields keep the native `+=` form.
+    private String transformPropertyCompoundAssignment(Matcher matcher, MethodContext context) {
+        String owner = matcher.group(1);
+        String property = matcher.group(2);
+        String operator = matcher.group(3);
+        String value = transformExpression(matcher.group(4), context);
+
+        FieldSymbol field = resolveField(owner, property, context);
+        if (field != null) {
+            if (!field.mutable()) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to let property " + property + "."));
+                return owner + "." + property + " " + operator + "= " + value + ";";
+            }
+            String read = owner + "." + getterName(property, field.type()) + "()";
+            return owner + "." + setterName(property) + "(" + read + " " + operator + " (" + value + "));";
+        }
+
+        String ownerType = context.variableTypes.get(owner);
+        if (ownerType != null
+                && context.javaResolver.setterExists(ownerType, property, context.unit)
+                && context.javaResolver.getterExists(ownerType, property, context.unit)) {
+            String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
+                    .orElse(getterName(property, TypeRef.unspecified("Object")));
+            String read = owner + "." + getter + "()";
+            return owner + "." + setterName(property) + "(" + read + " " + operator + " (" + value + "));";
+        }
+        if (ownerType != null && context.javaResolver.fieldExists(ownerType, property, context.unit)) {
+            if (!context.javaResolver.fieldMutable(ownerType, property, context.unit)) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to final Java field " + property + "."));
+            }
+            return owner + "." + property + " " + operator + "= " + value + ";";
+        }
+        return null;
+    }
+
+    // Increment/decrement of a property statement (`c.n++`, `++c.n`, `c.n--`). As a statement the result
+    // is discarded so prefix and postfix are equivalent; a getter/setter-backed property is desugared to
+    // `c.setN(c.getN() + 1)`. Directly-accessible mutable Java fields keep the native `++`/`--`.
+    private String transformPropertyIncDec(String owner, String property, boolean increment, MethodContext context) {
+        String operator = increment ? "+" : "-";
+        String suffix = increment ? "++" : "--";
+
+        FieldSymbol field = resolveField(owner, property, context);
+        if (field != null) {
+            if (!field.mutable()) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to let property " + property + "."));
+                return owner + "." + property + suffix + ";";
+            }
+            String read = owner + "." + getterName(property, field.type()) + "()";
+            return owner + "." + setterName(property) + "(" + read + " " + operator + " 1);";
+        }
+
+        String ownerType = context.variableTypes.get(owner);
+        if (ownerType != null
+                && context.javaResolver.setterExists(ownerType, property, context.unit)
+                && context.javaResolver.getterExists(ownerType, property, context.unit)) {
+            String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
+                    .orElse(getterName(property, TypeRef.unspecified("Object")));
+            String read = owner + "." + getter + "()";
+            return owner + "." + setterName(property) + "(" + read + " " + operator + " 1);";
+        }
+        if (ownerType != null && context.javaResolver.fieldExists(ownerType, property, context.unit)) {
+            if (!context.javaResolver.fieldMutable(ownerType, property, context.unit)) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to final Java field " + property + "."));
+            }
+            return owner + "." + property + suffix + ";";
+        }
+        return null;
+    }
+
+    // Handles a write whose target is `<receiver>.<property>` where the receiver is more than a bare
+    // identifier (a property chain, call, cast or index): `a.b.c = x`, `a.b.z += 1`, `a.b.z++`,
+    // `make().z = 5`. The receiver is lowered through the normal pipeline (so reads resolve to getters)
+    // and the final property write becomes a setter call. Returns null for non-property targets (locals,
+    // array elements) so they keep native Java assignment.
+    private String transformComplexPropertyWrite(String expression, MethodContext context) {
+        // Increment / decrement (statement position: prefix and postfix are equivalent).
+        String incDecTarget = null;
+        boolean increment = false;
+        if (expression.endsWith("++") || expression.endsWith("--")) {
+            incDecTarget = expression.substring(0, expression.length() - 2).trim();
+            increment = expression.endsWith("++");
+        } else if (expression.startsWith("++") || expression.startsWith("--")) {
+            incDecTarget = expression.substring(2).trim();
+            increment = expression.startsWith("++");
+        }
+        if (incDecTarget != null) {
+            return lowerPropertyTarget(incDecTarget, increment ? "+" : "-", "1", true, context);
+        }
+
+        int operatorStart = topLevelAssignmentStart(expression);
+        if (operatorStart < 0) {
+            return null;
+        }
+        boolean compound = expression.charAt(operatorStart) != '=';
+        String operator = compound ? String.valueOf(expression.charAt(operatorStart)) : "=";
+        int valueStart = operatorStart + (compound ? 2 : 1);
+        String target = expression.substring(0, operatorStart).trim();
+        String value = expression.substring(valueStart).trim();
+        return lowerPropertyTarget(target, operator, value, compound, context);
+    }
+
+    private String lowerPropertyTarget(String target, String operator, String rawValue, boolean readModify, MethodContext context) {
+        int dot = lastTopLevelDot(target);
+        if (dot <= 0) {
+            return null; // not a property target (local, array element) — keep native assignment
+        }
+        String receiver = target.substring(0, dot).trim();
+        String property = target.substring(dot + 1).trim();
+        if (!property.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+            return null;
+        }
+        TypeGuess receiverType = inferExpressionType(receiver, context);
+        if (!receiverType.isKnown() || receiverType.isNullLiteral()) {
+            return null;
+        }
+        String type = receiverType.javaType();
+        String loweredReceiver = transformExpression(receiver, context);
+        String value = transformExpression(rawValue, context);
+
+        FieldSymbol field = fieldForOwnerType(type, property, context);
+        if (field != null) {
+            if (!field.mutable()) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to let property " + property + "."));
+                return loweredReceiver + "." + property + " = " + value + ";";
+            }
+            String read = loweredReceiver + "." + getterName(property, field.type()) + "()";
+            String setValue = readModify ? read + " " + operator + " (" + value + ")" : value;
+            return loweredReceiver + "." + setterName(property) + "(" + setValue + ");";
+        }
+        if (context.javaResolver.setterExists(type, property, context.unit)) {
+            String setValue = value;
+            if (readModify) {
+                if (!context.javaResolver.getterExists(type, property, context.unit)) {
+                    return null;
+                }
+                String getter = context.javaResolver.getterInvocationName(type, property, context.unit)
+                        .orElse(getterName(property, TypeRef.unspecified("Object")));
+                setValue = loweredReceiver + "." + getter + "() " + operator + " (" + value + ")";
+            }
+            return loweredReceiver + "." + setterName(property) + "(" + setValue + ");";
+        }
+        if (context.javaResolver.fieldExists(type, property, context.unit)) {
+            if (!context.javaResolver.fieldMutable(type, property, context.unit)) {
+                diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                        "AFFOGATO_LET_ASSIGN", "Cannot assign to final Java field " + property + "."));
+            }
+            String assignOp = readModify ? " " + operator + "= " : " = ";
+            return loweredReceiver + "." + property + assignOp + value + ";";
+        }
+        return null;
+    }
+
+    // Index of the start of a top-level assignment operator (`=` or `+= -= *= /= %=`), or -1. Skips
+    // comparison operators (`== != <= >=`) and anything inside (), [], {} or string literals.
+    private int topLevelAssignmentStart(String expression) {
+        int paren = 0;
+        int bracket = 0;
+        int brace = 0;
+        boolean inString = false;
+        for (int index = 0; index < expression.length(); index++) {
+            char current = expression.charAt(index);
+            char previous = index > 0 ? expression.charAt(index - 1) : '\0';
+            if (current == '"' && previous != '\\') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (paren == 0 && bracket == 0 && brace == 0) {
+                char next = index + 1 < expression.length() ? expression.charAt(index + 1) : '\0';
+                char after = index + 2 < expression.length() ? expression.charAt(index + 2) : '\0';
+                if ((current == '+' || current == '-' || current == '*' || current == '/' || current == '%')
+                        && next == '=' && after != '=') {
+                    return index;
+                }
+                if (current == '=' && next != '='
+                        && previous != '=' && previous != '!' && previous != '<' && previous != '>'
+                        && previous != '+' && previous != '-' && previous != '*' && previous != '/' && previous != '%') {
+                    return index;
+                }
+            }
+            switch (current) {
+                case '(' -> paren++;
+                case ')' -> paren = Math.max(0, paren - 1);
+                case '[' -> bracket++;
+                case ']' -> bracket = Math.max(0, bracket - 1);
+                case '{' -> brace++;
+                case '}' -> brace = Math.max(0, brace - 1);
+                default -> { }
+            }
+        }
+        return -1;
+    }
+
+    private int lastTopLevelDot(String text) {
+        int paren = 0;
+        int bracket = 0;
+        int brace = 0;
+        int angle = 0;
+        boolean inString = false;
+        int last = -1;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            char previous = index > 0 ? text.charAt(index - 1) : '\0';
+            if (current == '"' && previous != '\\') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            switch (current) {
+                case '(' -> paren++;
+                case ')' -> paren = Math.max(0, paren - 1);
+                case '[' -> bracket++;
+                case ']' -> bracket = Math.max(0, bracket - 1);
+                case '{' -> brace++;
+                case '}' -> brace = Math.max(0, brace - 1);
+                case '<' -> angle++;
+                case '>' -> angle = Math.max(0, angle - 1);
+                case '.' -> {
+                    if (paren == 0 && bracket == 0 && brace == 0 && angle == 0) {
+                        last = index;
+                    }
+                }
+                default -> { }
+            }
+        }
+        return last;
     }
 
     // ── TYPE CHECKING ────────────────────────────────────────────────────────────
@@ -2123,7 +2411,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (!context.hasCurrentMethod("println") && !context.variableTypes.containsKey("println")) {
             result = result.replaceAll("(?<![A-Za-z0-9_.$])println\\s*\\(", "System.out.println(");
         }
-        result = transformArrayLiteral(result);
+        result = transformArrayLiteral(result, context);
         result = transformPropertyReads(result, context);
         TypeGuess resolvedType = ast.resolvedType().isKnown() && astTypeCanShortCircuitInference(ast)
                 ? ast.resolvedType()
@@ -2313,7 +2601,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
             TypeGuess receiverType = property.receiver().resolvedType().isKnown()
                     ? property.receiver().resolvedType()
                     : inferExpressionType(property.receiver().source(), context);
-            TypeGuess resolved = propertyType(property.source(), context);
+            // Resolve on the receiver type from the AST receiver, so a call/cast/paren receiver
+            // (`make().name`, `(o as T).name`) is checked instead of being rejected because the flat
+            // source contains parentheses.
+            TypeGuess resolved = propertyType(receiverType, property.property(), context);
             if (receiverType.isKnown() && !receiverType.isNullLiteral() && !resolved.isKnown()) {
                 diagnostics.add(error(
                         context.unit.sourceFile(),
@@ -2841,7 +3132,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return out.toString();
     }
 
-    private String transformArrayLiteral(String expression) {
+    private String transformArrayLiteral(String expression, MethodContext context) {
         StringBuilder out = new StringBuilder();
         int index = 0;
         while (index < expression.length()) {
@@ -2870,28 +3161,32 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     .map(String::trim)
                     .filter(s -> !s.isBlank())
                     .toList();
-            String elementType = inferArrayElementType(elements);
-            out.append("new ").append(elementType).append("[]{").append(contents).append("}");
+            String elementType = expectedArrayElementType != null
+                    ? expectedArrayElementType
+                    : inferArrayElementType(elements, context);
+            // Recurse so nested literals are lowered too: `[[1, 2], [3, 4]]` becomes
+            // `new int[][]{new int[]{1, 2}, new int[]{3, 4}}` rather than leaking raw inner `[...]`. The
+            // outer binding's target type applies only to this literal, so it is cleared for the recursion
+            // (a nested literal — including one inside an element like `Person([1, 2])` — is inferred).
+            String savedExpected = expectedArrayElementType;
+            expectedArrayElementType = null;
+            String loweredContents = transformArrayLiteral(contents, context);
+            expectedArrayElementType = savedExpected;
+            out.append("new ").append(elementType).append("[]{").append(loweredContents).append("}");
             index = close + 1;
         }
         return out.toString();
     }
 
-    private String inferArrayElementType(List<String> elements) {
+    private String inferArrayElementType(List<String> elements, MethodContext context) {
         if (elements.isEmpty()) {
             return "Object";
         }
-        boolean allInt = elements.stream().allMatch(e -> e.matches("-?\\d+"));
-        if (allInt) {
-            return "int";
-        }
-        boolean allLong = elements.stream().allMatch(e -> e.matches("-?\\d+[lL]"));
-        if (allLong) {
-            return "long";
-        }
-        boolean allDouble = elements.stream().allMatch(e -> e.matches("-?\\d+\\.\\d+[dD]?"));
-        if (allDouble) {
-            return "double";
+        // All elements must classify to the same numeric literal type (via the shared classifier);
+        // otherwise fall back to a uniform String/boolean array, or Object for anything mixed.
+        String firstNumeric = numericLiteralType(elements.get(0));
+        if (firstNumeric != null && elements.stream().allMatch(e -> firstNumeric.equals(numericLiteralType(e)))) {
+            return firstNumeric;
         }
         boolean allString = elements.stream().allMatch(e -> e.startsWith("\""));
         if (allString) {
@@ -2900,6 +3195,20 @@ public final class AffogatoTranspiler implements AutoCloseable {
         boolean allBoolean = elements.stream().allMatch(e -> e.equals("true") || e.equals("false"));
         if (allBoolean) {
             return "boolean";
+        }
+        // Object elements (e.g. constructor calls): if every element infers to the same known type, use
+        // it so `[Person(...), Person(...)]` becomes `Person[]` rather than a too-wide `Object[]`.
+        if (context != null) {
+            TypeGuess first = inferExpressionType(elements.get(0), context);
+            if (first.isKnown() && !first.isNullLiteral()) {
+                boolean uniform = elements.stream().allMatch(e -> {
+                    TypeGuess elementType = inferExpressionType(e, context);
+                    return elementType.isKnown() && elementType.javaType().equals(first.javaType());
+                });
+                if (uniform) {
+                    return first.javaType();
+                }
+            }
         }
         return "Object";
     }
@@ -3175,14 +3484,67 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return expression.replaceAll("\\bnot\\s*\\(", "!(");
     }
 
+    // `x is T` → `x instanceof T`. Java's instanceof shares Affogato's relational precedence, so the
+    // keyword is replaced in place and only the trailing type needs erasing — the operand can be any
+    // expression (call, member chain, array access), unlike the old identifier-only regex.
     private String transformInstanceof(String expression) {
-        Matcher matcher = INSTANCEOF_ALIAS.matcher(expression);
-        StringBuffer buffer = new StringBuffer();
-        while (matcher.find()) {
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement(matcher.group(1) + " instanceof " + eraseTypeArguments(matcher.group(2))));
+        return transformIsAs(expression, "is", false);
+    }
+
+    // `x as T` → `((T) x)`. A Java cast binds tighter than its operand, so the left operand is recovered
+    // from the already-emitted output via receiverStartInBuffer (handling calls, chains, arrays, parens),
+    // not assumed to be a single identifier.
+    private String transformCast(String expression) {
+        return transformIsAs(expression, "as", true);
+    }
+
+    private String transformIsAs(String expression, String keyword, boolean cast) {
+        if (!expression.contains(keyword)) {
+            return expression;
         }
-        matcher.appendTail(buffer);
-        return buffer.toString();
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        int n = expression.length();
+        while (i < n) {
+            char c = expression.charAt(i);
+            if (c == '"') {
+                int end = stringLiteralEnd(expression, i);
+                out.append(expression, i, end);
+                i = end;
+                continue;
+            }
+            if (isWordAt(expression, i, keyword) && lastNonWhitespace(out) != '.') {
+                int typeStart = i + keyword.length();
+                while (typeStart < n && Character.isWhitespace(expression.charAt(typeStart))) {
+                    typeStart++;
+                }
+                int typeEnd = readReferenceTypeEnd(expression, typeStart);
+                boolean typeOk = typeEnd > typeStart
+                        && Character.isJavaIdentifierStart(expression.charAt(typeStart));
+                int recvStart = cast ? receiverStartInBuffer(out) : 0;
+                if (typeOk && recvStart >= 0) {
+                    String type = expression.substring(typeStart, typeEnd).trim();
+                    if (type.endsWith("?")) {
+                        type = type.substring(0, type.length() - 1);
+                    }
+                    if (cast) {
+                        String operand = out.substring(recvStart).trim();
+                        out.delete(recvStart, out.length());
+                        out.append("((").append(type).append(") ").append(operand).append(')');
+                    } else {
+                        if (out.length() > 0 && !Character.isWhitespace(out.charAt(out.length() - 1))) {
+                            out.append(' ');
+                        }
+                        out.append("instanceof ").append(eraseTypeArguments(type));
+                    }
+                    i = typeEnd;
+                    continue;
+                }
+            }
+            out.append(c);
+            i++;
+        }
+        return out.toString();
     }
 
     private String eraseTypeArguments(String type) {
@@ -3190,18 +3552,41 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return generic < 0 ? type : type.substring(0, generic);
     }
 
-    private String transformCast(String expression) {
-        Matcher matcher = AS_CAST.matcher(expression);
-        StringBuffer buffer = new StringBuffer();
-        while (matcher.find()) {
-            String type = matcher.group(2);
-            if (type.endsWith("?")) {
-                type = type.substring(0, type.length() - 1);
-            }
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement("((" + type + ") " + matcher.group(1) + ")"));
+    // Reads a reference type starting at `start`: qualified name, optional balanced <...> generics,
+    // trailing [] array suffixes and a nullable `?`. Used to bound the type after `is`/`as`.
+    private int readReferenceTypeEnd(String expression, int start) {
+        int i = start;
+        int n = expression.length();
+        while (i < n && (Character.isJavaIdentifierPart(expression.charAt(i)) || expression.charAt(i) == '.')) {
+            i++;
         }
-        matcher.appendTail(buffer);
-        return buffer.toString();
+        if (i < n && expression.charAt(i) == '<') {
+            int angle = 0;
+            do {
+                char c = expression.charAt(i);
+                if (c == '<') {
+                    angle++;
+                } else if (c == '>') {
+                    angle--;
+                }
+                i++;
+            } while (i < n && angle > 0);
+        }
+        while (i + 1 < n && expression.charAt(i) == '[' && expression.charAt(i + 1) == ']') {
+            i += 2;
+        }
+        if (i < n && expression.charAt(i) == '?') {
+            i++;
+        }
+        return i;
+    }
+
+    private char lastNonWhitespace(StringBuilder buffer) {
+        int i = buffer.length() - 1;
+        while (i >= 0 && Character.isWhitespace(buffer.charAt(i))) {
+            i--;
+        }
+        return i >= 0 ? buffer.charAt(i) : '\0';
     }
 
     private String transformTypeConstruction(String expression, MethodContext context) {
@@ -3310,6 +3695,16 @@ public final class AffogatoTranspiler implements AutoCloseable {
         int index = 0;
         while (index < expression.length()) {
             if (!Character.isJavaIdentifierStart(expression.charAt(index))) {
+                // A `.member` whose receiver is not a bare identifier (a call/cast/index/string result
+                // already emitted into `out`) is lowered here, since the identifier branch only handles
+                // `variable.member`. The receiver's type is inferred from the emitted text.
+                if (expression.charAt(index) == '.') {
+                    int lowered = lowerBufferReceiverProperty(out, expression, index, context);
+                    if (lowered >= 0) {
+                        index = lowered;
+                        continue;
+                    }
+                }
                 out.append(expression.charAt(index));
                 index++;
                 continue;
@@ -3332,20 +3727,10 @@ public final class AffogatoTranspiler implements AutoCloseable {
             String owner = expression.substring(ownerStart, ownerEnd);
             String property = expression.substring(propertyStart, propertyEnd);
             String ownerType = context.variableTypes.get(owner);
-            FieldSymbol field = methodCall ? null : resolveField(owner, property, context);
-            if (field != null) {
-                ClassSymbol ownerSymbol = ownerType == null ? null : classSymbol(ownerType, context.unit);
-                String accessor = ownerSymbol != null && ownerSymbol.isRecord() ? property : getterName(property, field.type());
-                out.append(owner).append('.').append(accessor).append("()");
-            } else if (!methodCall && ownerType != null && isArrayLengthAccess(ownerType, property)) {
-                out.append(expression, ownerStart, propertyEnd);
-            } else if (!methodCall && ownerType != null && context.javaResolver.getterExists(ownerType, property, context.unit)) {
-                String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
-                        .orElse(getterName(property, TypeRef.unspecified("Object")));
-                out.append(owner).append('.').append(getter).append("()");
-            } else if (!methodCall && ownerType != null && context.javaResolver.fieldExists(ownerType, property, context.unit)) {
-                out.append(expression, ownerStart, propertyEnd);
-            } else {
+            PropertyHop hop = (methodCall || ownerType == null)
+                    ? null
+                    : resolvePropertyHopOnType(ownerType, property, context);
+            if (hop == null) {
                 if (!methodCall && ownerType != null) {
                     diagnostics.add(error(
                             context.unit.sourceFile(),
@@ -3356,10 +3741,110 @@ public final class AffogatoTranspiler implements AutoCloseable {
                     ));
                 }
                 out.append(expression, ownerStart, propertyEnd);
+                index = propertyEnd;
+                continue;
             }
-            index = propertyEnd;
+            // First hop resolved; emit it and keep lowering deeper `.member` hops on the resulting type so
+            // a chain like `a.b.c` becomes `a.getB().getC()` instead of leaking a raw field access.
+            out.append(owner).append('.').append(hop.accessor());
+            if (hop.call()) {
+                out.append("()");
+            }
+            String currentType = hop.resultType().isKnown() ? hop.resultType().javaType() : null;
+            index = lowerPropertyChain(out, expression, propertyEnd, currentType, context);
         }
         return out.toString();
+    }
+
+    // Lowers a `.member` read whose receiver is the call/cast/index/string expression already emitted into
+    // `out` (e.g. `make().name`, `((T) o).name`, `arr[0].name`). Returns the index just past the lowered
+    // chain, or -1 when this `.` is not a lowerable property read (method call, unknown receiver type, or
+    // unresolved member) so the caller emits it verbatim.
+    private int lowerBufferReceiverProperty(StringBuilder out, String expression, int dotIndex, MethodContext context) {
+        int propertyStart = dotIndex + 1;
+        if (propertyStart >= expression.length() || !Character.isJavaIdentifierStart(expression.charAt(propertyStart))) {
+            return -1;
+        }
+        int propertyEnd = readIdentifierEnd(expression, propertyStart);
+        if (propertyEnd < expression.length() && expression.charAt(propertyEnd) == '(') {
+            return -1; // method call
+        }
+        int receiverStart = receiverStartInBuffer(out);
+        if (receiverStart < 0) {
+            return -1;
+        }
+        TypeGuess receiverType = inferExpressionType(out.substring(receiverStart), context);
+        if (!receiverType.isKnown() || receiverType.isNullLiteral()) {
+            return -1;
+        }
+        PropertyHop hop = resolvePropertyHopOnType(receiverType.javaType(), expression.substring(propertyStart, propertyEnd), context);
+        if (hop == null) {
+            return -1;
+        }
+        out.append('.').append(hop.accessor());
+        if (hop.call()) {
+            out.append("()");
+        }
+        String currentType = hop.resultType().isKnown() ? hop.resultType().javaType() : null;
+        return lowerPropertyChain(out, expression, propertyEnd, currentType, context);
+    }
+
+    // Lowers a run of `.member` field reads starting at `cursor`, tracking `currentType` and appending each
+    // accessor to `out`. Stops at a method call, a non-field member, or an unknown receiver type. Returns
+    // the index just past the last lowered hop.
+    private int lowerPropertyChain(StringBuilder out, String expression, int cursor, String currentType, MethodContext context) {
+        while (currentType != null && cursor < expression.length() && expression.charAt(cursor) == '.') {
+            int nextStart = cursor + 1;
+            if (nextStart >= expression.length() || !Character.isJavaIdentifierStart(expression.charAt(nextStart))) {
+                break;
+            }
+            int nextEnd = readIdentifierEnd(expression, nextStart);
+            if (nextEnd < expression.length() && expression.charAt(nextEnd) == '(') {
+                break; // method call — leave it for normal call handling
+            }
+            PropertyHop nextHop = resolvePropertyHopOnType(currentType, expression.substring(nextStart, nextEnd), context);
+            if (nextHop == null) {
+                break;
+            }
+            out.append('.').append(nextHop.accessor());
+            if (nextHop.call()) {
+                out.append("()");
+            }
+            currentType = nextHop.resultType().isKnown() ? nextHop.resultType().javaType() : null;
+            cursor = nextEnd;
+        }
+        return cursor;
+    }
+
+    private record PropertyHop(String accessor, boolean call, TypeGuess resultType) {
+    }
+
+    // Resolves a single `.property` read on a known owner type to its Java accessor, mirroring the
+    // four-path order used for the first hop: Affogato field (getter, or direct for records), array
+    // `length`, Java getter, then a directly-accessible Java field. Returns null when unresolvable.
+    private PropertyHop resolvePropertyHopOnType(String ownerType, String property, MethodContext context) {
+        FieldSymbol field = fieldForOwnerType(ownerType, property, context);
+        if (field != null) {
+            ClassSymbol ownerSymbol = classSymbol(ownerType, context.unit);
+            String accessor = ownerSymbol != null && ownerSymbol.isRecord() ? property : getterName(property, field.type());
+            return new PropertyHop(accessor, true, TypeGuess.of(field.type().javaType()));
+        }
+        if (isArrayLengthAccess(ownerType, property)) {
+            return new PropertyHop(property, false, TypeGuess.of("int"));
+        }
+        if (context.javaResolver.getterExists(ownerType, property, context.unit)) {
+            String getter = context.javaResolver.getterInvocationName(ownerType, property, context.unit)
+                    .orElse(getterName(property, TypeRef.unspecified("Object")));
+            TypeGuess resultType = context.javaResolver.getterReturnType(ownerType, property, context.unit)
+                    .orElse(TypeGuess.unknown());
+            return new PropertyHop(getter, true, resultType);
+        }
+        if (context.javaResolver.fieldExists(ownerType, property, context.unit)) {
+            TypeGuess resultType = context.javaResolver.fieldType(ownerType, property, context.unit)
+                    .orElse(TypeGuess.unknown());
+            return new PropertyHop(property, false, resultType);
+        }
+        return null;
     }
 
     private boolean isArrayLengthAccess(String ownerType, String property) {
@@ -3603,17 +4088,32 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (value.equals("true") || value.equals("false")) {
             return TypeGuess.of("boolean");
         }
-        if (value.matches("-?\\d+[lL]")) {
-            return TypeGuess.of("long");
+        String numericType = numericLiteralType(value);
+        if (numericType != null) {
+            return TypeGuess.of(numericType);
         }
-        if (value.matches("-?\\d+")) {
-            return TypeGuess.of("int");
+
+        // Array literal `[e1, e2, ...]` — infer `ElementType[]` using the same element-type rule the
+        // codegen uses for `new T[]{...}`, so the declared local type matches the emitted array. Without
+        // this the local falls back to Object and `.length`, indexing and for-in all fail to resolve.
+        if (value.startsWith("[") && value.endsWith("]") && matchingBracket(value, 0) == value.length() - 1) {
+            String inner = value.substring(1, value.length() - 1).trim();
+            if (!inner.isBlank()) {
+                List<String> elements = splitTopLevel(inner, ',').stream().map(String::trim).toList();
+                return TypeGuess.of(inferArrayElementType(elements, context) + "[]");
+            }
         }
-        if (value.matches("-?\\d+\\.\\d+[fF]")) {
-            return TypeGuess.of("float");
-        }
-        if (value.matches("-?\\d+\\.\\d+[dD]?")) {
-            return TypeGuess.of("double");
+
+        // Array/list subscript `receiver[index]` — infer the element type of the receiver so a property
+        // read on an element (`ps[0].name`) resolves its accessor instead of leaking a raw field read.
+        if (value.endsWith("]")) {
+            int open = matchBackward(new StringBuilder(value), value.length() - 1, '[', ']');
+            if (open > 0) {
+                Optional<TypeGuess> element = elementType(inferExpressionType(value.substring(0, open), context));
+                if (element.isPresent()) {
+                    return element.get();
+                }
+            }
         }
 
         Matcher classLiteral = Pattern.compile("^([A-Za-z_$][A-Za-z0-9_.$]*(?:<[^>]+>)?(?:\\[\\])*)\\.class$").matcher(value);
@@ -3899,20 +4399,15 @@ public final class AffogatoTranspiler implements AutoCloseable {
         }
         String owner = expression.substring(0, dot);
         String property = expression.substring(dot + 1);
-        TypeGuess ownerType = inferExpressionType(owner, context);
+        return propertyType(inferExpressionType(owner, context), property, context);
+    }
+
+    private TypeGuess propertyType(TypeGuess ownerType, String property, MethodContext context) {
         if (!ownerType.isKnown() || ownerType.isNullLiteral()) {
             return TypeGuess.unknown();
         }
-        if (isArrayLengthAccess(ownerType.javaType(), property)) {
-            return TypeGuess.of("int");
-        }
-        FieldSymbol field = fieldForOwnerType(ownerType.javaType(), property, context);
-        if (field != null) {
-            return TypeGuess.of(field.type().javaType());
-        }
-        return context.javaResolver.getterReturnType(ownerType.javaType(), property, context.unit)
-                .or(() -> context.javaResolver.fieldType(ownerType.javaType(), property, context.unit))
-                .orElse(TypeGuess.unknown());
+        PropertyHop hop = resolvePropertyHopOnType(ownerType.javaType(), property, context);
+        return hop == null ? TypeGuess.unknown() : hop.resultType();
     }
 
     private FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {
@@ -4077,26 +4572,40 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (value.equals("true") || value.equals("false")) {
             return TypeRef.unspecified("boolean");
         }
-        if (value.matches("-?0[xX][0-9a-fA-F_]+[lL]")) {
-            return TypeRef.unspecified("long");
+        String numericType = numericLiteralType(value);
+        return numericType == null ? null : TypeRef.unspecified(numericType);
+    }
+
+    // Single source of truth for classifying a numeric literal token to its Java type, or null when the
+    // token is not a numeric literal. Handles hexadecimal, digit separators ('1_000'), exponents ('1.5e3')
+    // and type suffixes ('5L', '1.5f', '5d'). Used by every inference path so they cannot drift apart.
+    private static String numericLiteralType(String literal) {
+        String v = literal.trim();
+        if (v.isEmpty()) {
+            return null;
         }
-        if (value.matches("-?0[xX][0-9a-fA-F_]+")) {
-            return TypeRef.unspecified("int");
+        if (v.matches("-?0[xX][0-9a-fA-F_]+[lL]")) {
+            return "long";
         }
-        // Decimal literals may carry digit separators ('1_000') and floats may use an exponent
-        // ('1.5e3') or a bare type suffix ('5d'). The lexer already validated separator placement,
-        // so for inference we accept underscores between digits. Float forms are checked before the
-        // integer forms because a trailing 'd'/'f' must not be misread as a plain integer.
-        if (value.matches("-?\\d[\\d_]*\\.\\d[\\d_]*([eE][+-]?\\d[\\d_]*)?[fFdD]?")
-                || value.matches("-?\\d[\\d_]*[eE][+-]?\\d[\\d_]*[fFdD]?")
-                || value.matches("-?\\d[\\d_]*[fFdD]")) {
-            return TypeRef.unspecified("double");
+        if (v.matches("-?0[xX][0-9a-fA-F_]+")) {
+            return "int";
         }
-        if (value.matches("-?\\d[\\d_]*[lL]")) {
-            return TypeRef.unspecified("long");
+        // Float forms (an 'f'/'F' suffix) are checked before double and integer forms.
+        if (v.matches("-?\\d[\\d_]*\\.\\d[\\d_]*([eE][+-]?\\d[\\d_]*)?[fF]")
+                || v.matches("-?\\d[\\d_]*[eE][+-]?\\d[\\d_]*[fF]")
+                || v.matches("-?\\d[\\d_]*[fF]")) {
+            return "float";
         }
-        if (value.matches("-?\\d[\\d_]*")) {
-            return TypeRef.unspecified("int");
+        if (v.matches("-?\\d[\\d_]*\\.\\d[\\d_]*([eE][+-]?\\d[\\d_]*)?[dD]?")
+                || v.matches("-?\\d[\\d_]*[eE][+-]?\\d[\\d_]*[dD]?")
+                || v.matches("-?\\d[\\d_]*[dD]")) {
+            return "double";
+        }
+        if (v.matches("-?\\d[\\d_]*[lL]")) {
+            return "long";
+        }
+        if (v.matches("-?\\d[\\d_]*")) {
+            return "int";
         }
         return null;
     }

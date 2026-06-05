@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class Inner(let value: String) { }
+
+class Outer(let inner: Inner) { }
+
+class ChainedProperty {
+    static func run() {
+        let o = Outer(Inner("deep"))
+        println(o.inner.value)
+    }
+}

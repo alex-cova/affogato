@@ -1,0 +1,13 @@
+package dev.affogato.exec
+
+class IsAsCallReceiver {
+    static func run() {
+        println(box() is String)
+        let s = box() as String
+        println(s.length())
+    }
+
+    static box(): Object {
+        return "hello"
+    }
+}

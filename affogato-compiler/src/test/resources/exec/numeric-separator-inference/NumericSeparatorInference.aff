@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class NumericSeparatorInference {
+    static func run() {
+        let xs = [1_000, 2_000]
+        println(xs.length)
+        let total = xs[0] + xs[1]
+        println(total)
+        let y = 1_000 * 2
+        println(y)
+    }
+}

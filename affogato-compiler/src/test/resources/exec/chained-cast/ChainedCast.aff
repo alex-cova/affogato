@@ -1,0 +1,10 @@
+package dev.affogato.exec
+
+class ChainedCast {
+    static func run() {
+        let s = "hello"
+        let o: Object = s
+        let back = o as Object as String
+        println(back.length())
+    }
+}
