@@ -57,6 +57,7 @@ BLOCK_COMMENT="/"\*([^*]|\*+[^*/])*\*+"/"
 "return"           { return dev.affogato.intellij.psi.AffogatoTypes.RETURN_KEYWORD; }
 "throw"            { return dev.affogato.intellij.psi.AffogatoTypes.THROW_KEYWORD; }
 "in"               { return dev.affogato.intellij.psi.AffogatoTypes.IN_KEYWORD; }
+"assert"           { return dev.affogato.intellij.psi.AffogatoTypes.ASSERT_KEYWORD; }
 "var"              { return dev.affogato.intellij.psi.AffogatoTypes.VAR_KEYWORD; }
 "let"              { return dev.affogato.intellij.psi.AffogatoTypes.LET_KEYWORD; }
 "override"         { return dev.affogato.intellij.psi.AffogatoTypes.OVERRIDE_KEYWORD; }
@@ -107,6 +108,7 @@ BLOCK_COMMENT="/"\*([^*]|\*+[^*/])*\*+"/"
 "|"                { return dev.affogato.intellij.psi.AffogatoTypes.PIPE; }
 "^"                { return dev.affogato.intellij.psi.AffogatoTypes.CARET; }
 "~"                { return dev.affogato.intellij.psi.AffogatoTypes.TILDE; }
+"&"                { return dev.affogato.intellij.psi.AffogatoTypes.AMPERSAND; }
 "@"                { return dev.affogato.intellij.psi.AffogatoTypes.AT; }
 
 {ID}               { return dev.affogato.intellij.psi.AffogatoTypes.ID; }

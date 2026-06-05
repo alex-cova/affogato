@@ -7,9 +7,11 @@
   elementTypeClass="dev.affogato.intellij.psi.AffogatoElementType"
   tokens=[
     ABSTRACT_KEYWORD='abstract'
+    AMPERSAND='&'
     AND='&&'
     ARROW='->'
     AS_KEYWORD='as'
+    ASSERT_KEYWORD='assert'
     AT='@'
     BAD_CHARACTER='regexp:.'
     BANG='!'
