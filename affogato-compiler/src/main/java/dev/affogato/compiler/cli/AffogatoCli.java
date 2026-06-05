@@ -50,7 +50,13 @@ public final class AffogatoCli {
                         System.err.println("error: --release requires a value");
                         return 2;
                     }
-                    javaRelease = Integer.parseInt(args[++index]);
+                    String releaseValue = args[++index];
+                    try {
+                        javaRelease = Integer.parseInt(releaseValue);
+                    } catch (NumberFormatException notANumber) {
+                        System.err.println("error: --release expects an integer, got: " + releaseValue);
+                        return 2;
+                    }
                 }
                 case "--classpath", "-cp" -> {
                     if (index + 1 >= args.length) {

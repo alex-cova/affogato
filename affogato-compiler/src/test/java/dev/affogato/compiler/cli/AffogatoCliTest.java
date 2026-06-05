@@ -107,6 +107,21 @@ public final class AffogatoCliTest {
                 "Unknown flag should return 2.");
     }
 
+    @Test
+    public void nonNumericReleaseReturnsUsageErrorInsteadOfCrashing() {
+        PrintStream originalErr = System.err;
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+        try {
+            int code = AffogatoCli.run(new String[] {"src", "out", "--release", "abc"});
+            require(code == 2, "Non-numeric --release should return 2, was " + code);
+            require(err.toString(StandardCharsets.UTF_8).contains("--release"),
+                    "Error message should mention --release.");
+        } finally {
+            System.setErr(originalErr);
+        }
+    }
+
     private static void require(boolean condition, String message) {
         if (!condition) {
             throw new AssertionError(message);

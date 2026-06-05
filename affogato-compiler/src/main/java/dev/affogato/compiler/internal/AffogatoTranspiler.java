@@ -27,6 +27,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -65,6 +66,17 @@ public final class AffogatoTranspiler implements AutoCloseable {
             "^([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*([^\\-]+?)\\s*->\\s*(.+)$"
     );
 
+    // Java reserved words and reserved literals that are valid Affogato identifiers (the lexer only
+    // reserves Affogato keywords) but cannot be emitted as a Java declaration name. Many overlap with
+    // Affogato keywords and never reach an Identifier token; they are listed anyway for completeness.
+    private static final Set<String> JAVA_RESERVED_WORDS = Set.of(
+            "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+            "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+            "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+            "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+            "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
+            "volatile", "while", "true", "false", "null", "_");
+
     private final List<AffogatoDiagnostic> diagnostics;
     private final JavaResolver javaResolver;
     private final FlowAnalyzer flow;
@@ -94,14 +106,33 @@ public final class AffogatoTranspiler implements AutoCloseable {
         parser.removeErrorListeners();
         lexer.addErrorListener(syntaxErrors);
         parser.addErrorListener(syntaxErrors);
-        AffogatoParser.CompilationUnitContext tree = parser.compilationUnit();
+
+        AffogatoParser.CompilationUnitContext tree;
+        try {
+            // Recursive-descent parsing (and ANTLR's adaptive prediction) recurses with expression
+            // depth, so pathologically nested input can exhaust the JVM stack. Surface that as a normal
+            // parse diagnostic instead of letting a StackOverflowError escape and crash the process.
+            tree = parser.compilationUnit();
+        } catch (StackOverflowError overflow) {
+            diagnostics.add(error(sourceFile, 1, 1, "AFFOGATO_PARSE",
+                    "Source is too deeply nested to parse; reduce expression or block nesting depth."));
+            return ParsedUnit.empty(sourceFile, source);
+        }
+
+        validateNumericLiterals(sourceFile, tokens);
 
         if (syntaxErrors.hadErrors()) {
             return ParsedUnit.empty(sourceFile, source);
         }
 
-        CompilationUnit unit = buildCompilationUnit(sourceFile, source, tree);
-        return new ParsedUnit(sourceFile, unit);
+        try {
+            CompilationUnit unit = buildCompilationUnit(sourceFile, source, tree);
+            return new ParsedUnit(sourceFile, unit);
+        } catch (StackOverflowError overflow) {
+            diagnostics.add(error(sourceFile, 1, 1, "AFFOGATO_PARSE",
+                    "Source is too deeply nested to compile; reduce expression or block nesting depth."));
+            return ParsedUnit.empty(sourceFile, source);
+        }
     }
 
     private void scanUnsupportedSourceEdges(Path sourceFile, String source) {
@@ -174,6 +205,111 @@ public final class AffogatoTranspiler implements AutoCloseable {
             }
         }
         return new SourceLocation(line, column);
+    }
+
+    // Integer literals are emitted into the generated Java verbatim, so a literal that Java would
+    // reject (or silently reinterpret) must be caught here against the original source. Two cases:
+    //   1. Leading-zero decimals ('010') — Affogato has no octal literals, but Java reads '010' as
+    //      octal 8, a silent value change. Rejected outright.
+    //   2. Out-of-range magnitudes — a decimal/hex literal that does not fit int (or long with an L
+    //      suffix) would make javac fail on the generated file. Rejected with a clear hint.
+    // Floating-point literals are a different token type and are intentionally left untouched.
+    private void validateNumericLiterals(Path sourceFile, CommonTokenStream tokens) {
+        for (Token token : tokens.getTokens()) {
+            if (token.getType() == AffogatoLexer.IntegerLiteral) {
+                validateIntegerLiteral(sourceFile, token);
+            } else if (token.getType() == AffogatoLexer.StringLiteral) {
+                validateStringEscapes(sourceFile, token);
+            }
+        }
+    }
+
+    // A `\\uXXXX` escape is emitted into the generated Java verbatim, but Java performs Unicode-escape
+    // translation on the whole source before lexing. So an escape that decodes to a character which is
+    // significant in Java source — a quote, a backslash, or a line terminator — would corrupt the
+    // generated string literal (e.g. `\\u0022` becomes a `"` that ends the string early). Safe escapes
+    // such as `\\u0041` pass through unchanged; the unsafe ones are rejected with a redirect to the
+    // direct escape form.
+    private void validateStringEscapes(Path sourceFile, Token token) {
+        String text = token.getText();
+        int line = token.getLine();
+        int baseColumn = token.getCharPositionInLine() + 1;
+        int i = 1; // skip opening quote
+        int end = text.length() - 1; // skip closing quote
+        while (i < end) {
+            char c = text.charAt(i);
+            if (c != '\\') {
+                i++;
+                continue;
+            }
+            if (i + 1 >= end) {
+                break;
+            }
+            char next = text.charAt(i + 1);
+            if (next != 'u') {
+                i += 2; // a simple escape (\n, \\, \", …); skip both chars
+                continue;
+            }
+            int cursor = i + 1;
+            while (cursor < end && text.charAt(cursor) == 'u') {
+                cursor++;
+            }
+            if (cursor + 4 <= end) {
+                String hex = text.substring(cursor, cursor + 4);
+                try {
+                    int codePoint = Integer.parseInt(hex, 16);
+                    if (codePoint == '"' || codePoint == '\\' || codePoint == '\n' || codePoint == '\r') {
+                        diagnostics.add(error(sourceFile, line, baseColumn + i, cursor + 4 - i,
+                                "AFFOGATO_PARSE",
+                                "Unicode escape '" + text.substring(i, cursor + 4) + "' decodes to a character "
+                                        + "that is invalid in a string literal; use the direct escape "
+                                        + "(\\\", \\\\, \\n, or \\r) instead."));
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Malformed \\u escapes are a lexer error already; nothing to add here.
+                }
+            }
+            i = cursor + 4;
+        }
+    }
+
+    private void validateIntegerLiteral(Path sourceFile, Token token) {
+        String text = token.getText();
+        int line = token.getLine();
+        int column = token.getCharPositionInLine() + 1;
+        int length = text.length();
+
+        char last = text.charAt(text.length() - 1);
+        boolean isLong = last == 'l' || last == 'L';
+        String core = isLong ? text.substring(0, text.length() - 1) : text;
+        boolean hex = core.length() > 1 && core.charAt(0) == '0' && (core.charAt(1) == 'x' || core.charAt(1) == 'X');
+
+        String digits = (hex ? core.substring(2) : core).replace("_", "");
+
+        if (!hex && digits.length() > 1 && digits.charAt(0) == '0') {
+            diagnostics.add(error(sourceFile, line, column, length, "AFFOGATO_NUMERIC_LITERAL",
+                    "Leading-zero integer literal '" + text + "' is not allowed; octal literals are not "
+                            + "supported. Write the decimal value without a leading zero."));
+            return;
+        }
+
+        BigInteger value;
+        try {
+            value = new BigInteger(digits, hex ? 16 : 10);
+        } catch (NumberFormatException malformed) {
+            return; // The lexer already validated digit shape; nothing more to check.
+        }
+        // Hex literals fill bits (int = 32 bits, long = 64 bits); decimal literals are signed-magnitude
+        // and may reach the negative bound (2^31 / 2^63) so MIN_VALUE survives a later unary minus.
+        BigInteger max = hex
+                ? BigInteger.ONE.shiftLeft(isLong ? 64 : 32).subtract(BigInteger.ONE)
+                : BigInteger.ONE.shiftLeft(isLong ? 63 : 31);
+        if (value.compareTo(max) > 0) {
+            String suffixHint = isLong ? "" : " Add an 'L' suffix to make it a long literal.";
+            diagnostics.add(error(sourceFile, line, column, length, "AFFOGATO_NUMERIC_LITERAL",
+                    "Integer literal '" + text + "' is out of range for " + (isLong ? "long" : "int") + "."
+                            + suffixHint));
+        }
     }
 
     public void registerSymbols(ParsedUnit parsedUnit) {
@@ -381,6 +517,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private ExtensionFuncDecl buildExtension(Path sourceFile, String source, AffogatoParser.ExtensionFuncDeclContext extensionDecl) {
         TypeRef receiverType = receiverTypeRef(extensionDecl.extensionReceiverType());
         String name = extensionDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "extension function",
+                extensionDecl.Identifier().getSymbol().getLine(),
+                extensionDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
         TypeRef returnType = extensionDecl.typeRef() == null ? TypeRef.unspecified("void") : typeRef(extensionDecl.typeRef());
         List<ParamDecl> parameters = extensionDecl.parameterList() == null
                 ? List.of()
@@ -430,6 +569,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private ParsedClass buildClass(Path sourceFile, String source, AffogatoParser.ClassDeclContext classDecl) {
         String access = accessFromClassModifiers(classDecl.classModifier());
         String name = classDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "class",
+                classDecl.Identifier().getSymbol().getLine(),
+                classDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
         List<String> superTypes = classDecl.extendsClause() == null ? List.of()
                 : classDecl.extendsClause().typeRef().stream().map(tr -> typeRef(tr).javaType()).toList();
         List<ParamDecl> compactParameters = classDecl.compactConstructor() == null || classDecl.compactConstructor().parameterList() == null
@@ -479,6 +621,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
         Modifiers modifiers = modifiers(fieldDecl.memberModifier());
         boolean mutable = fieldDecl.variableKind().VAR() != null;
         String name = fieldDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "field",
+                fieldDecl.Identifier().getSymbol().getLine(),
+                fieldDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
         String initializer = fieldDecl.expression() == null ? "" : sourceText(source, fieldDecl.expression()).trim();
         TypeRef type = fieldDecl.typeRef() == null ? inferType(initializer) : typeRef(fieldDecl.typeRef());
         if (type == null) {
@@ -517,6 +662,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
             name = signature.Identifier().getText();
             returnType = typeRef(signature.typeRef());
         }
+        validateDeclaredName(sourceFile, name, "method",
+                signature.Identifier().getSymbol().getLine(),
+                signature.Identifier().getSymbol().getCharPositionInLine() + 1);
         List<ParamDecl> parameters = signature.parameterList() == null
                 ? List.of()
                 : buildParameters(sourceFile, source, signature.parameterList(), false);
@@ -538,6 +686,14 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private ParsedEnum buildEnum(Path sourceFile, String source, AffogatoParser.EnumDeclContext enumDecl) {
         String access = accessFromClassModifiers(enumDecl.classModifier());
         String name = enumDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "enum",
+                enumDecl.Identifier().getSymbol().getLine(),
+                enumDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
+        for (AffogatoParser.EnumConstantContext constant : enumDecl.enumBody().enumConstant()) {
+            validateDeclaredName(sourceFile, constant.Identifier().getText(), "enum constant",
+                    constant.Identifier().getSymbol().getLine(),
+                    constant.Identifier().getSymbol().getCharPositionInLine() + 1);
+        }
         List<String> constants = enumDecl.enumBody().enumConstant().stream()
                 .map(c -> c.Identifier().getText())
                 .toList();
@@ -547,6 +703,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private ParsedRecord buildRecord(Path sourceFile, String source, AffogatoParser.RecordDeclContext recordDecl) {
         String access = accessFromClassModifiers(recordDecl.classModifier());
         String name = recordDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "record",
+                recordDecl.Identifier().getSymbol().getLine(),
+                recordDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
         List<ParamDecl> components = recordDecl.recordHeader().parameterList() == null
                 ? List.of()
                 : buildParameters(sourceFile, source, recordDecl.recordHeader().parameterList(), false);
@@ -573,6 +732,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
     private ParsedInterface buildInterface(Path sourceFile, String source, AffogatoParser.InterfaceDeclContext interfaceDecl) {
         String access = accessFromClassModifiers(interfaceDecl.classModifier());
         String name = interfaceDecl.Identifier().getText();
+        validateDeclaredName(sourceFile, name, "interface",
+                interfaceDecl.Identifier().getSymbol().getLine(),
+                interfaceDecl.Identifier().getSymbol().getCharPositionInLine() + 1);
         List<InterfaceMethod> methods = new ArrayList<>();
         for (AffogatoParser.InterfaceMemberContext member : interfaceDecl.interfaceBody().interfaceMember()) {
             AffogatoParser.MethodSignatureContext sig = member.methodSignature();
@@ -619,6 +781,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
                 propertyKind = parameter.variableKind().VAR() != null ? PropertyKind.VAR : PropertyKind.LET;
             }
             String name = parameter.Identifier().getText();
+            validateDeclaredName(sourceFile, name, "parameter",
+                    parameter.Identifier().getSymbol().getLine(),
+                    parameter.Identifier().getSymbol().getCharPositionInLine() + 1);
             TypeRef type = typeRef(parameter.typeRef());
             if (compact && propertyKind == PropertyKind.NONE) {
                 diagnostics.add(error(
@@ -635,6 +800,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     }
 
     private GeneratedJava generateClass(CompilationUnit unit, ParsedClass clazz) {
+        validateMainSignature(unit.sourceFile(), clazz);
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
             out.append("package ").append(unit.packageName()).append(";").append(System.lineSeparator()).append(System.lineSeparator());
@@ -1508,6 +1674,9 @@ public final class AffogatoTranspiler implements AutoCloseable {
         TypeRef type = declaration.typeRef() == null ? null : typeRef(declaration.typeRef());
         int declLine = declaration.getStart().getLine();
         int declCol = declaration.getStart().getCharPositionInLine() + 1;
+        validateDeclaredName(unit.sourceFile(), name, "local variable",
+                declaration.Identifier().getSymbol().getLine(),
+                declaration.Identifier().getSymbol().getCharPositionInLine() + 1);
         if (!context.declareBlockLocal(name)) {
             diagnostics.add(error(unit.sourceFile(), declLine, declCol, name.length(),
                     "AFFOGATO_DUPLICATE_LOCAL",
@@ -1937,7 +2106,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
         validateExpressionSubset(ast, context, expression);
         validateExpressionSemantics(ast, context, expression);
         String result = expression.trim();
-        result = transformStringInterpolation(result);
+        result = transformStringInterpolation(result, context);
         result = transformReceiverThis(result, context);
         result = transformImplicitReceiver(result, context);
         result = transformTypedLambda(result);
@@ -2498,7 +2667,7 @@ public final class AffogatoTranspiler implements AutoCloseable {
     // "Hi ${user.name}!" becomes "Hi " + (user.name) + "!"; the embedded expression text is
     // left raw so the rest of the transformExpression pipeline (property reads, etc.) processes it.
     // Supports ${expression} for arbitrary expressions and $identifier as shorthand; \$ is a literal dollar.
-    private String transformStringInterpolation(String expression) {
+    private String transformStringInterpolation(String expression, MethodContext context) {
         if (expression.indexOf('$') < 0 || expression.indexOf('"') < 0) {
             return expression;
         }
@@ -2551,12 +2720,27 @@ public final class AffogatoTranspiler implements AutoCloseable {
                         nextIndex = braceEnd + 1;
                     }
                 } else if (idForm) {
+                    // '$' is a legal Java identifier part, so without this guard "$a$b" would read the
+                    // whole "a$b" as one name. The simple form stops at the next '$' so adjacent
+                    // interpolations split correctly; a name containing '$' must use the ${ } form.
                     int idEnd = j + 1;
-                    while (idEnd < n && Character.isJavaIdentifierPart(expression.charAt(idEnd))) {
+                    while (idEnd < n
+                            && expression.charAt(idEnd) != '$'
+                            && Character.isJavaIdentifierPart(expression.charAt(idEnd))) {
                         idEnd++;
                     }
                     exprText = expression.substring(j + 1, idEnd);
                     nextIndex = idEnd;
+                }
+                if (exprText != null && exprText.isBlank()) {
+                    // Empty "${}" has no expression; emitting it would produce invalid Java ("" + ()).
+                    if (context != null) {
+                        diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
+                                "AFFOGATO_PARSE", "Empty interpolation '${}' has no expression."));
+                    }
+                    segment.append(expression, j, nextIndex);
+                    j = nextIndex;
+                    continue;
                 }
                 if (exprText != null) {
                     interpolated = true;
@@ -3899,14 +4083,20 @@ public final class AffogatoTranspiler implements AutoCloseable {
         if (value.matches("-?0[xX][0-9a-fA-F_]+")) {
             return TypeRef.unspecified("int");
         }
-        if (value.matches("-?\\d+[lL]")) {
+        // Decimal literals may carry digit separators ('1_000') and floats may use an exponent
+        // ('1.5e3') or a bare type suffix ('5d'). The lexer already validated separator placement,
+        // so for inference we accept underscores between digits. Float forms are checked before the
+        // integer forms because a trailing 'd'/'f' must not be misread as a plain integer.
+        if (value.matches("-?\\d[\\d_]*\\.\\d[\\d_]*([eE][+-]?\\d[\\d_]*)?[fFdD]?")
+                || value.matches("-?\\d[\\d_]*[eE][+-]?\\d[\\d_]*[fFdD]?")
+                || value.matches("-?\\d[\\d_]*[fFdD]")) {
+            return TypeRef.unspecified("double");
+        }
+        if (value.matches("-?\\d[\\d_]*[lL]")) {
             return TypeRef.unspecified("long");
         }
-        if (value.matches("-?\\d+")) {
+        if (value.matches("-?\\d[\\d_]*")) {
             return TypeRef.unspecified("int");
-        }
-        if (value.matches("-?\\d+\\.\\d+[fFdD]?")) {
-            return TypeRef.unspecified("double");
         }
         return null;
     }
@@ -4508,12 +4698,49 @@ public final class AffogatoTranspiler implements AutoCloseable {
         return "    ".repeat(Math.max(0, level));
     }
 
+    // Rejects declaration names that are Java reserved words; emitting them verbatim would produce
+    // Java that javac rejects ("<identifier> expected"). `kind` names the declaration in the message.
+    private void validateDeclaredName(Path sourceFile, String name, String kind, int line, int column) {
+        if (JAVA_RESERVED_WORDS.contains(name)) {
+            diagnostics.add(error(sourceFile, line, column, name.length(),
+                    "AFFOGATO_RESERVED_IDENTIFIER",
+                    "The " + kind + " name '" + name + "' is a Java reserved word and cannot be used as an identifier."));
+        }
+    }
+
+    // Warns when a static `main` is not the runnable entry point `main(args: String[])`. Such a method
+    // (e.g. zero-arg `main()`) compiles to a non-entry `void main()` that `java` cannot launch, which is
+    // an easy silent trap. A warning (not an error) keeps non-entry helper methods named `main` working.
+    private void validateMainSignature(Path sourceFile, ParsedClass clazz) {
+        for (MethodDecl method : clazz.methods()) {
+            if (!method.isStatic() || !method.name().equals("main")) {
+                continue;
+            }
+            boolean validEntry = method.parameters().size() == 1
+                    && isStringArrayType(method.parameters().get(0).type().javaType());
+            if (!validEntry) {
+                diagnostics.add(warning(sourceFile, method.line(), 1, "AFFOGATO_MAIN_SIGNATURE",
+                        "Static method 'main' is not a valid Java entry point; declare it as "
+                                + "'main(args: String[])' to be runnable with 'java'."));
+            }
+        }
+    }
+
+    private boolean isStringArrayType(String javaType) {
+        String type = stripNullableSuffix(javaType).trim();
+        return type.equals("String[]") || type.equals("java.lang.String[]");
+    }
+
     private AffogatoDiagnostic error(Path sourceFile, int line, int column, String code, String message) {
         return error(sourceFile, line, column, 1, code, message);
     }
 
     private AffogatoDiagnostic error(Path sourceFile, int line, int column, int length, String code, String message) {
         return new AffogatoDiagnostic(AffogatoDiagnostic.Severity.ERROR, code, message, sourceFile, line, column, length);
+    }
+
+    private AffogatoDiagnostic warning(Path sourceFile, int line, int column, String code, String message) {
+        return new AffogatoDiagnostic(AffogatoDiagnostic.Severity.WARNING, code, message, sourceFile, line, column, 1);
     }
 
     public record ParsedUnit(Path sourceFile, CompilationUnit unit) {

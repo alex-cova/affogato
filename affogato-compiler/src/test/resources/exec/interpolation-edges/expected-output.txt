@@ -1,0 +1,4 @@
+XY
+X.b
+end $
+$1 each

@@ -1,0 +1,12 @@
+package dev.affogato.exec
+
+class InterpolationEdges {
+    static func run() {
+        let a = "X"
+        let b = "Y"
+        println("$a$b")
+        println("$a.b")
+        println("end $")
+        println("$1 each")
+    }
+}

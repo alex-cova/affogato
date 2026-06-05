@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class IntOverflow {
+    run(): int {
+        let x: int = 3000000000
+        return x
+    }
+}

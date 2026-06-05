@@ -1,0 +1,11 @@
+package dev.affogato.exec
+
+class DigitSeparator {
+    static func run() {
+        let total = 1_000
+        let next = total + 5
+        println(next)
+        let big = 2_000L
+        println(big)
+    }
+}

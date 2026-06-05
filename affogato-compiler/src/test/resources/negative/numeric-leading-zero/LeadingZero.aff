@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class LeadingZero {
+    run(): int {
+        let x = 010
+        return x
+    }
+}

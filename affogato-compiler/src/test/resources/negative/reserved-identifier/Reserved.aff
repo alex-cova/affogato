@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class Reserved {
+    run(): int {
+        let synchronized = 5
+        return synchronized
+    }
+}

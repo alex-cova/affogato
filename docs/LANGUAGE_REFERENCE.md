@@ -33,6 +33,14 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 - String interpolation: `"Hello ${name}"` and `"count $count"` lower to Java
   string concatenation. Use `\$` for a literal dollar sign. Embedded expressions
   follow normal Affogato expression syntax inside `${ ... }`.
+  - The simple `$name` form reads a single identifier and stops at the next `$` or
+    non-identifier character, so `"$a$b"` interpolates `a` then `b` and `"$a.b"` is
+    `a` followed by the literal text `.b`. Use the `${ ... }` form for member access
+    (`"${a.b}"`) or for a name that contains `$`.
+  - An empty interpolation `"${}"` is a compile error (`AFFOGATO_PARSE`).
+  - Interpolated expressions cannot contain a string literal — the lexer ends the
+    surrounding string at the inner quote. Bind the value to a local first:
+    `let label = greet("x")` then `"${label}"`.
 - Extension functions: `func ReceiverType.member(...): ReturnType { ... }` at
   top level become static methods on a generated holder class; inside the body,
   `this` is the receiver and bare member names resolve on the receiver type.
@@ -42,9 +50,13 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 - Identifiers use ASCII letters, digits, `_` and `$` (same subset as the
   compiler lexer). Unicode identifiers are not supported yet.
 - String literals use `"..."` with escapes `\t`, `\n`, `\b`, `\r`, `\f`, `\"`,
-  `\'`, and `\\`. `\uXXXX` escapes are not supported.
-- Integer literals may use digit separators (`1_000`). Suffixes `l`/`L` mark
-  `long`. Hex, octal and binary literals are not supported.
+  `\'`, and `\\`. `\uXXXX` escapes are supported, except that an escape decoding
+  to `"`, `\`, CR or LF is rejected (`AFFOGATO_PARSE`) — use the direct escape
+  (`\"`, `\\`, `\r`, `\n`) so the generated Java stays well-formed.
+- Integer literals may use digit separators (`1_000`); a separator may not be
+  leading or trailing. Suffixes `l`/`L` mark `long`. Hexadecimal literals
+  (`0xFF`, `0x1FL`) are supported. Leading-zero/octal and binary literals are not
+  (a leading-zero integer such as `010` is rejected as `AFFOGATO_NUMERIC_LITERAL`).
 
 ## Operator Precedence
 
@@ -136,7 +148,9 @@ IntelliJ shows the same hint inline in the annotation tooltip.
 | `AFFOGATO_JAVA_RELEASE` | Unsupported `--release` (currently 21 only) |
 | `AFFOGATO_LET_ASSIGN` | Assignment to immutable `let` or final field |
 | `AFFOGATO_LOCAL_TYPE` | Local needs explicit type (e.g. null init) |
+| `AFFOGATO_MAIN_SIGNATURE` | Static `main` is not the runnable `main(args: String[])` entry point (warning) |
 | `AFFOGATO_NAMED_ARGS` | Named arguments cannot map to callable |
+| `AFFOGATO_NUMERIC_LITERAL` | Leading-zero/octal literal, or integer literal out of range for int/long |
 | `AFFOGATO_OPERATOR_TYPE` | Operator applied to incompatible types |
 | `AFFOGATO_PARSE` | Syntax or lexer error |
 | `AFFOGATO_POLY_TARGET_TYPE` | Lambda/method ref needs target type |

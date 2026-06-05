@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class LongOverflow {
+    run(): long {
+        let x = 99999999999999999999L
+        return x
+    }
+}
