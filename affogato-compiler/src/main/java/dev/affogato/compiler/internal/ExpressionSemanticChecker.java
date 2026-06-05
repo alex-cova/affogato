@@ -394,7 +394,7 @@ final class ExpressionSemanticChecker {
         if (ctx.NULL() != null) {
             return new LiteralExpression(text, TypeGuess.nullLiteral());
         }
-        if (ctx.interpolatedString() != null) {
+        if (ctx.StringLiteral() != null) {
             return new LiteralExpression(text, TypeGuess.of("String"));
         }
         if (ctx.TRUE() != null || ctx.FALSE() != null) {

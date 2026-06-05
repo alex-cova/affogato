@@ -38,9 +38,8 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
     `a` followed by the literal text `.b`. Use the `${ ... }` form for member access
     (`"${a.b}"`) or for a name that contains `$`.
   - An empty interpolation `"${}"` is a compile error (`AFFOGATO_PARSE`).
-  - Interpolated expressions cannot contain a string literal — the lexer ends the
-    surrounding string at the inner quote. Bind the value to a local first:
-    `let label = greet("x")` then `"${label}"`.
+  - Interpolated expressions may contain string literals, including nested
+    interpolation such as `"${greet("${name}")}"`.
 - Extension functions: `func ReceiverType.member(...): ReturnType { ... }` at
   top level become static methods on a generated holder class; inside the body,
   `this` is the receiver and bare member names resolve on the receiver type.

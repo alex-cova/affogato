@@ -469,24 +469,12 @@ argument
     ;
 
 literal
-    : interpolatedString
+    : StringLiteral
     | IntegerLiteral
     | FloatingPointLiteral
     | TRUE
     | FALSE
     | NULL
-    ;
-
-interpolatedString
-    : DQUOTE stringPart* STR_END
-    ;
-
-stringPart
-    : STR_TEXT
-    | STR_ESCAPE
-    | STR_DOLLAR
-    | STR_SIMPLE_INTERP
-    | STR_INTERP_START expression INTERP_END
     ;
 
 terminators

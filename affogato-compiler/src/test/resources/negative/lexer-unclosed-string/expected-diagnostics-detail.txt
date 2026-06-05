@@ -1,2 +1,2 @@
 # Format: CODE line col message-substring
-AFFOGATO_PARSE 5 25 token recognition error
+AFFOGATO_PARSE 5 16 token recognition error

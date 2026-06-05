@@ -1,18 +1,11 @@
 lexer grammar AffogatoLexer;
 
-tokens { INTERP_END }
-
 @members {
     // Tracks open brackets so newlines inside ( ) and [ ] are treated as line
     // continuations (skipped), while newlines inside { } blocks remain real
     // statement separators. The innermost open bracket decides: ( or [ suppress
     // newlines; { does not.
     private final java.util.Deque<Character> openBrackets = new java.util.ArrayDeque<>();
-
-    // Count of open ${ ... } groups (strings may nest arbitrarily). blockDepth tracks
-    // { } inside the innermost interpolation expression (e.g. lambda bodies).
-    private int interpDepth = 0;
-    private int blockDepth = 0;
 
     private void pushBracket(char bracket) {
         openBrackets.push(bracket);
@@ -29,15 +22,6 @@ tokens { INTERP_END }
         return top != null && (top == '(' || top == '[');
     }
 
-    private void enterInterpolation() {
-        interpDepth++;
-        blockDepth = 0;
-    }
-
-    private boolean followedByJavaIdentifierStart() {
-        int next = _input.LA(1);
-        return next != org.antlr.v4.runtime.Token.EOF && Character.isJavaIdentifierStart((char) next);
-    }
 }
 
 PACKAGE: 'package';
@@ -118,26 +102,8 @@ COLON: ':';
 SEMI: ';';
 LPAREN: '(' { pushBracket('('); };
 RPAREN: ')' { popBracket(); };
-LBRACE: '{' {
-        if (interpDepth > 0) {
-            blockDepth++;
-        }
-        pushBracket('{');
-    };
-RBRACE: '}' {
-        if (interpDepth > 0) {
-            if (blockDepth > 0) {
-                blockDepth--;
-                popBracket();
-            } else {
-                setType(INTERP_END);
-                interpDepth--;
-                pushMode(STR);
-            }
-        } else {
-            popBracket();
-        }
-    };
+LBRACE: '{' { pushBracket('{'); };
+RBRACE: '}' { popBracket(); };
 LBRACK: '[' { pushBracket('['); };
 RBRACK: ']' { popBracket(); };
 AT: '@';
@@ -157,8 +123,8 @@ FloatingPointLiteral
     | Digits FloatTypeSuffix
     ;
 
-DQUOTE
-    : '"' -> pushMode(STR)
+StringLiteral
+    : '"' (Interpolation | StringCharacter)* '"'
     ;
 
 NL
@@ -213,22 +179,31 @@ fragment JavaLetterOrDigit
     : [a-zA-Z0-9$_]
     ;
 
-mode STR;
-STR_END
-    : '"' -> popMode
+fragment StringCharacter
+    : ~["\\\r\n]
+    | EscapeSequence
     ;
-STR_ESCAPE
-    : '\\' ([btnfr"'\\] | '$' | 'u'+ HexDigit HexDigit HexDigit HexDigit)
+
+fragment Interpolation
+    : '${' InterpolationCharacter* '}'
     ;
-STR_INTERP_START
-    : '${' { enterInterpolation(); } -> popMode
+
+fragment BalancedBraces
+    : '{' InterpolationCharacter* '}'
     ;
-STR_SIMPLE_INTERP
-    : '$' [a-zA-Z_$] [a-zA-Z0-9_]*
+
+fragment InterpolationCharacter
+    : EscapeSequence
+    | NestedStringLiteral
+    | Interpolation
+    | BalancedBraces
+    | ~["{}\\]
     ;
-STR_DOLLAR
-    : '$' { _input.LA(1) != '{' && !followedByJavaIdentifierStart() }?
+
+fragment NestedStringLiteral
+    : '"' (Interpolation | StringCharacter)* '"'
     ;
-STR_TEXT
-    : ~["\\\r\n$]+
+
+fragment EscapeSequence
+    : '\\' ([btnfr"'\\$] | 'u'+ HexDigit HexDigit HexDigit HexDigit)
     ;
