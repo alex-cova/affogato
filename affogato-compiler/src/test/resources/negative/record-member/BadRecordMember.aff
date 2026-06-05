@@ -1,0 +1,5 @@
+package dev.affogato.negative
+
+record BadRecord(let x: int) {
+    var extra: int = 0
+}

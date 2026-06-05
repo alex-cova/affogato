@@ -1,0 +1,13 @@
+package dev.affogato.exec
+
+class FinallyBlock {
+    static func run() {
+        try {
+            println("try")
+        } catch (RuntimeException e) {
+            println("catch")
+        } finally {
+            println("finally")
+        }
+    }
+}

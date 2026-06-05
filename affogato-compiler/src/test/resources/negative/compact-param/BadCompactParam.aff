@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadCompact(name: String) {
+    run(): String {
+        return name
+    }
+}

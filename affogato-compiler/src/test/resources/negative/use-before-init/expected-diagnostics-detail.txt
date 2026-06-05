@@ -1,2 +1,2 @@
 # Format: CODE line col message-substring
-AFFOGATO_IDENTIFIER_RESOLUTION 5 17 Cannot resolve identifier x
+AFFOGATO_USE_BEFORE_INIT 5 22 Variable 'x' is used before

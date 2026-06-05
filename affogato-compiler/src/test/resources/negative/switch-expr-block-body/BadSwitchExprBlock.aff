@@ -1,0 +1,13 @@
+package dev.affogato.negative
+
+class BadSwitchExprBlock {
+    run(): String {
+        let width = 1
+        return switch width {
+            case 1 -> {
+                return "block"
+            }
+            default -> "ok"
+        }
+    }
+}

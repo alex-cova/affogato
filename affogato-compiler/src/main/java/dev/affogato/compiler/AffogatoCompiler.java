@@ -32,64 +32,77 @@ public final class AffogatoCompiler {
         }
 
         List<AffogatoTranspiler.ParsedUnit> units = new ArrayList<>();
-        AffogatoTranspiler transpiler = new AffogatoTranspiler(diagnostics, options.classpath());
-
-        for (Path sourceRoot : options.sourceRoots()) {
-            if (!Files.exists(sourceRoot)) {
-                continue;
+        try (AffogatoTranspiler transpiler = new AffogatoTranspiler(diagnostics, options.classpath())) {
+            for (Path sourceRoot : options.sourceRoots()) {
+                if (!Files.exists(sourceRoot)) {
+                    continue;
+                }
+                for (Path sourceFile : findAffogatoSources(sourceRoot)) {
+                    try {
+                        String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+                        units.add(transpiler.parse(sourceFile, source));
+                    } catch (IOException exception) {
+                        diagnostics.add(new AffogatoDiagnostic(
+                                AffogatoDiagnostic.Severity.ERROR,
+                                "AFFOGATO_IO",
+                                exception.getMessage(),
+                                sourceFile,
+                                1,
+                                1
+                        ));
+                    }
+                }
             }
-            for (Path sourceFile : findAffogatoSources(sourceRoot)) {
+
+            for (AffogatoTranspiler.ParsedUnit unit : units) {
+                transpiler.registerSymbols(unit);
+            }
+
+            failIfNeeded(options, diagnostics);
+
+            // Generate all Java sources first (collecting diagnostics), then write to disk only if clean.
+            List<AffogatoTranspiler.GeneratedJava> allGenerated = new ArrayList<>();
+            for (AffogatoTranspiler.ParsedUnit unit : units) {
+                allGenerated.addAll(transpiler.generate(unit));
+            }
+
+            failIfNeeded(options, diagnostics);
+
+            List<Path> generatedFiles = new ArrayList<>();
+            Path outputRoot = options.outputDirectory().toAbsolutePath().normalize();
+            for (AffogatoTranspiler.GeneratedJava generated : allGenerated) {
+                Path packageDirectory = packageDirectory(outputRoot, generated.packageName());
+                if (packageDirectory == null) {
+                    diagnostics.add(new AffogatoDiagnostic(
+                            AffogatoDiagnostic.Severity.ERROR,
+                            "AFFOGATO_WRITE",
+                            "Invalid package name '" + generated.packageName() + "' — cannot write generated Java safely.",
+                            outputRoot,
+                            1,
+                            1
+                    ));
+                    continue;
+                }
+                Path outputFile = packageDirectory.resolve(generated.className() + ".java");
                 try {
-                    String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
-                    units.add(transpiler.parse(sourceFile, source));
+                    Files.createDirectories(packageDirectory);
+                    Files.writeString(outputFile, generated.source(), StandardCharsets.UTF_8);
+                    generatedFiles.add(outputFile);
                 } catch (IOException exception) {
                     diagnostics.add(new AffogatoDiagnostic(
                             AffogatoDiagnostic.Severity.ERROR,
-                            "AFFOGATO_IO",
+                            "AFFOGATO_WRITE",
                             exception.getMessage(),
-                            sourceFile,
+                            outputFile,
                             1,
                             1
                     ));
                 }
             }
+
+            failIfNeeded(options, diagnostics);
+            return new AffogatoCompilationResult(generatedFiles, diagnostics);
         }
-
-        for (AffogatoTranspiler.ParsedUnit unit : units) {
-            transpiler.registerSymbols(unit);
-        }
-
-        failIfNeeded(options, diagnostics);
-
-        // Generate all Java sources first (collecting diagnostics), then write to disk only if clean.
-        List<AffogatoTranspiler.GeneratedJava> allGenerated = new ArrayList<>();
-        for (AffogatoTranspiler.ParsedUnit unit : units) {
-            allGenerated.addAll(transpiler.generate(unit));
-        }
-
-        failIfNeeded(options, diagnostics);
-
-        List<Path> generatedFiles = new ArrayList<>();
-        for (AffogatoTranspiler.GeneratedJava generated : allGenerated) {
-            Path packageDirectory = packageDirectory(options.outputDirectory(), generated.packageName());
-            Path outputFile = packageDirectory.resolve(generated.className() + ".java");
-            try {
-                Files.createDirectories(packageDirectory);
-                Files.writeString(outputFile, generated.source(), StandardCharsets.UTF_8);
-                generatedFiles.add(outputFile);
-            } catch (IOException exception) {
-                diagnostics.add(new AffogatoDiagnostic(
-                        AffogatoDiagnostic.Severity.ERROR,
-                        "AFFOGATO_WRITE",
-                        exception.getMessage(),
-                        outputFile,
-                        1,
-                        1
-                ));
-            }
-        }
-
-        return new AffogatoCompilationResult(generatedFiles, diagnostics);
     }
 
     private void failIfNeeded(AffogatoCompilerOptions options, List<AffogatoDiagnostic> diagnostics) {
@@ -120,9 +133,21 @@ public final class AffogatoCompiler {
     }
 
     private Path packageDirectory(Path outputDirectory, String packageName) {
+        Path base = outputDirectory.toAbsolutePath().normalize();
         if (packageName == null || packageName.isBlank()) {
-            return outputDirectory;
+            return base;
         }
-        return outputDirectory.resolve(packageName.replace('.', '/'));
+        Path resolved = base;
+        for (String segment : packageName.split("\\.")) {
+            if (segment.isBlank()) {
+                return null;
+            }
+            resolved = resolved.resolve(segment);
+        }
+        resolved = resolved.normalize();
+        if (!resolved.startsWith(base)) {
+            return null;
+        }
+        return resolved;
     }
 }

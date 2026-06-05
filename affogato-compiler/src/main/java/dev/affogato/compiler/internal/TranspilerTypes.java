@@ -74,11 +74,13 @@ final class TranspilerTypes {
             List<FieldDecl> fields,
             List<ConstructorDecl> constructors,
             List<MethodDecl> methods,
-            List<String> annotations
+            List<String> annotations,
+            int declarationLine,
+            int declarationColumn
     ) {
     }
 
-    record ParsedEnum(String access, String name, List<String> constants, List<String> annotations) {
+    record ParsedEnum(String access, String name, List<String> constants, List<String> annotations, int declarationLine, int declarationColumn) {
     }
 
     record ParsedRecord(
@@ -88,7 +90,9 @@ final class TranspilerTypes {
             List<ParamDecl> components,
             List<String> superTypes,
             List<MethodDecl> methods,
-            List<String> annotations
+            List<String> annotations,
+            int declarationLine,
+            int declarationColumn
     ) {
     }
 
@@ -102,7 +106,7 @@ final class TranspilerTypes {
     ) {
     }
 
-    record ParsedInterface(String access, String name, List<TypeParamDecl> typeParameters, List<InterfaceMethod> methods, List<String> annotations) {
+    record ParsedInterface(String access, String name, List<TypeParamDecl> typeParameters, List<InterfaceMethod> methods, List<String> annotations, int declarationLine, int declarationColumn) {
     }
 
     record FieldDecl(String access, boolean isStatic, boolean mutable, String name, TypeRef type, String initializer, int line, List<String> annotations) {

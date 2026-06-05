@@ -414,6 +414,7 @@ postfixExpression
 postfixPart
     : DOT Identifier
     | LPAREN argumentList? RPAREN
+    | LBRACK expression RBRACK
     | PLUS_PLUS
     | MINUS_MINUS
     ;

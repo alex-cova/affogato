@@ -1,0 +1,20 @@
+package dev.affogato.exec
+
+class BaseRoute {
+    label(value: String): String {
+        return "base:" + value
+    }
+}
+
+class DerivedRoute: BaseRoute {
+    override label(value: String): String {
+        return "derived:" + value
+    }
+}
+
+class InheritanceOverride {
+    static func run() {
+        let route = DerivedRoute()
+        println(route.label(value = "x"))
+    }
+}

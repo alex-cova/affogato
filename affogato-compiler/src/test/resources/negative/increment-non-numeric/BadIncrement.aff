@@ -1,0 +1,9 @@
+package dev.affogato.negative
+
+class BadIncrement {
+    run(): String {
+        let text = "a"
+        ++text
+        return text
+    }
+}

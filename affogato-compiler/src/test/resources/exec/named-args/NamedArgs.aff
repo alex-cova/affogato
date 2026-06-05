@@ -1,0 +1,22 @@
+package dev.affogato.exec
+
+class PairPoint {
+    let x: int
+    let y: int
+
+    init(x: int, y: int) {
+        this.x = x
+        this.y = y
+    }
+
+    sum(): int {
+        return x + y
+    }
+}
+
+class NamedArgs {
+    static func run() {
+        let point = PairPoint(y = 6, x = 5)
+        println(point.sum())
+    }
+}

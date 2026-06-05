@@ -93,8 +93,27 @@ public final class AffogatoNegativeTest {
             checkDiagnosticDetails(detailFile, actualDiagnostics);
         }
 
+        Path strictFile = fixture.resolve("expected-diagnostics-strict.txt");
+        if (Files.isRegularFile(strictFile)) {
+            checkStrictDiagnostics(strictFile, actualDiagnostics);
+        }
+
         require(readJavaFiles(generatedRoot).isEmpty(),
                 "Negative fixture left partial Java output under " + generatedRoot + ".");
+    }
+
+    private static void checkStrictDiagnostics(Path strictFile, List<AffogatoDiagnostic> actuals) throws Exception {
+        Set<String> expected = new TreeSet<>(readExpectedDiagnostics(strictFile));
+        Set<String> actualErrors = new TreeSet<>();
+        for (AffogatoDiagnostic diagnostic : actuals) {
+            if (diagnostic.isError()) {
+                actualErrors.add(diagnostic.code());
+            }
+        }
+        require(actualErrors.equals(expected),
+                "Strict diagnostic set mismatch." + System.lineSeparator()
+                        + "  expected exactly: " + expected + System.lineSeparator()
+                        + "  actual errors:    " + actualErrors);
     }
 
     private static void copyAffogatoSources(Path fixture, Path sourceRoot) throws Exception {

@@ -152,6 +152,7 @@ IntelliJ shows the same hint inline in the annotation tooltip.
 | `AFFOGATO_THROW_TYPE` | Throw expression not a `Throwable` |
 | `AFFOGATO_TYPE_RESOLUTION` | Unknown type reference |
 | `AFFOGATO_UNREACHABLE` | Statement is unreachable (warning) |
+| `AFFOGATO_USE_BEFORE_INIT` | Local used before its declaration in the same block |
 | `AFFOGATO_UNSUPPORTED_ELVIS` | `?:` outside production subset |
 | `AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION` | `!!` outside production subset |
 | `AFFOGATO_UNSUPPORTED_SAFE_CALL` | `?.` outside production subset |

@@ -1,2 +1,2 @@
 # Format: CODE line col message-substring
-AFFOGATO_DUPLICATE_CLASS 1 1 Duplicate type name
+AFFOGATO_DUPLICATE_CLASS 3 7 Duplicate type name

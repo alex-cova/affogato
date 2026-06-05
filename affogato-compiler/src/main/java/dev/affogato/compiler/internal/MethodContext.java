@@ -18,7 +18,7 @@ final class MethodContext {
     final ParsedClass currentClass;
     final String executableName;
     final TypeRef returnType;
-    private final Map<String, ClassSymbol> classSymbols;
+    private final ClassSymbolTable classSymbols;
     private final Map<String, List<ExtensionSymbol>> extensionSymbols;
     final JavaResolver javaResolver;
     final Map<String, String> variableTypes = new LinkedHashMap<>();
@@ -30,13 +30,14 @@ final class MethodContext {
     int currentLine = 1;
     int currentColumn = 1;
     private final Deque<Set<String>> blockLocalNames = new ArrayDeque<>();
+    private Set<String> localsDeclaredLaterInBlock = Set.of();
 
     private MethodContext(
             CompilationUnit unit,
             ParsedClass currentClass,
             String executableName,
             TypeRef returnType,
-            Map<String, ClassSymbol> classSymbols,
+            ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
             JavaResolver javaResolver
     ) {
@@ -54,7 +55,7 @@ final class MethodContext {
             ParsedClass currentClass,
             String executableName,
             TypeRef returnType,
-            Map<String, ClassSymbol> classSymbols,
+            ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
             JavaResolver javaResolver
     ) {
@@ -64,7 +65,7 @@ final class MethodContext {
     static MethodContext empty(
             CompilationUnit unit,
             ParsedClass currentClass,
-            Map<String, ClassSymbol> classSymbols,
+            ClassSymbolTable classSymbols,
             Map<String, List<ExtensionSymbol>> extensionSymbols,
             JavaResolver javaResolver
     ) {
@@ -112,6 +113,14 @@ final class MethodContext {
         variableNullabilities.putAll(snapshot.variableNullabilities());
     }
 
+    void setLocalsDeclaredLaterInBlock(Set<String> names) {
+        localsDeclaredLaterInBlock = names == null ? Set.of() : Set.copyOf(names);
+    }
+
+    boolean isLocalDeclaredLaterInBlock(String name) {
+        return localsDeclaredLaterInBlock.contains(name);
+    }
+
     record ScopeSnapshot(
             Map<String, String> variableTypes,
             Map<String, Boolean> mutableVariables,
@@ -131,7 +140,7 @@ final class MethodContext {
             simpleName = simpleName.substring(0, generic);
         }
 
-        ClassSymbol constructorTarget = classSymbols.get(simpleName);
+        ClassSymbol constructorTarget = classSymbols.lookup(simpleName, unit);
         if (constructorTarget != null) {
             Optional<ScoredAffogatoArguments> constructor = resolveAffogatoCandidates(
                     callName,
@@ -281,7 +290,7 @@ final class MethodContext {
         }
         if ("super".equals(owner) && !currentClass.superTypes().isEmpty()) {
             for (String superType : currentClass.superTypes()) {
-                ClassSymbol symbol = classSymbols.get(superType);
+                ClassSymbol symbol = classSymbols.lookup(superType, unit);
                 if (symbol == null || !symbol.isInterface()) {
                     return superType;
                 }
@@ -470,22 +479,7 @@ final class MethodContext {
     }
 
     private ClassSymbol affogatoClassSymbol(String type, CompilationUnit unit) {
-        String simple = simpleTypeName(type);
-        ClassSymbol symbol = classSymbols.get(type);
-        if (symbol != null) {
-            return symbol;
-        }
-        symbol = classSymbols.get(simple);
-        if (symbol != null) {
-            return symbol;
-        }
-        if (!unit.packageName().isBlank()) {
-            symbol = classSymbols.get(unit.packageName() + "." + simple);
-            if (symbol != null) {
-                return symbol;
-            }
-        }
-        return null;
+        return classSymbols.lookup(type, unit);
     }
 
     private String simpleTypeName(String type) {

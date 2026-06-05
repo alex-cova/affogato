@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class BadArrayIndex {
+    func bad() {
+        let values: int[] = [1, 2, 3]
+        let value = values["1"]
+    }
+}

@@ -47,6 +47,7 @@ public final class AffogatoDiagnosticCodes {
             Map.entry("AFFOGATO_THROW_TYPE", "Throw an expression assignable to java.lang.Throwable."),
             Map.entry("AFFOGATO_TYPE_RESOLUTION", "Import the type, fix the spelling, or add it to the classpath."),
             Map.entry("AFFOGATO_UNREACHABLE", "Remove dead code or reorder statements."),
+            Map.entry("AFFOGATO_USE_BEFORE_INIT", "Declare the variable before use, or reorder the statements in the block."),
             Map.entry("AFFOGATO_UNSUPPORTED_ELVIS", "Use an explicit null check or a ternary expression instead of ?:."),
             Map.entry("AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION", "Use an explicit cast or null check instead of !!."),
             Map.entry("AFFOGATO_UNSUPPORTED_SAFE_CALL", "Use an explicit null check instead of ?."),

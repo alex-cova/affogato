@@ -1,0 +1,18 @@
+package dev.affogato.exec
+
+class BreakContinue {
+    static func run() {
+        let values: int[] = [1, 2, 3, 4, 11, 5]
+        var total = 0
+        for value in values {
+            if value % 2 == 0 {
+                continue
+            }
+            if value > 9 {
+                break
+            }
+            total = total + value
+        }
+        println(total)
+    }
+}

@@ -13,6 +13,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -29,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-final class JavaResolver {
+final class JavaResolver implements AutoCloseable {
     private final URLClassLoader classLoader;
     private final Map<String, Optional<Class<?>>> classCache = new HashMap<>();
     private boolean lastResolutionAmbiguous;
@@ -1430,6 +1431,15 @@ final class JavaResolver {
     }
     private String stripTypeUseAnnotations(String typeName) {
         return typeName.replaceAll("@(?:[A-Za-z_$][A-Za-z0-9_$]*\\.)*[A-Za-z_$][A-Za-z0-9_$]*\\s+", "");
+    }
+
+    @Override
+    public void close() {
+        try {
+            classLoader.close();
+        } catch (IOException ignored) {
+            // Best-effort cleanup for per-compilation class loaders.
+        }
     }
 
 }

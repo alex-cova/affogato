@@ -1,0 +1,8 @@
+package dev.affogato.negative
+
+class BadArrayAccess {
+    func bad() {
+        let text: String = "hello"
+        let value = text[0]
+    }
+}

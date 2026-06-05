@@ -29,7 +29,6 @@ import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,7 +45,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class AffogatoTranspiler {
+public final class AffogatoTranspiler implements AutoCloseable {
     private static final Pattern LOCAL_DECLARATION = Pattern.compile(
             "^(var|let)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::\\s*([^=]+?))?\\s*(?:=\\s*(.+))?$"
     );
@@ -69,7 +68,7 @@ public final class AffogatoTranspiler {
     private final List<AffogatoDiagnostic> diagnostics;
     private final JavaResolver javaResolver;
     private final FlowAnalyzer flow;
-    private final Map<String, ClassSymbol> classSymbols = new LinkedHashMap<>();
+    private final ClassSymbolTable classSymbols = new ClassSymbolTable();
     private final Map<String, List<ExtensionSymbol>> extensionSymbols = new LinkedHashMap<>();
     private Set<String> activeTypeParams = new HashSet<>();
 
@@ -77,6 +76,11 @@ public final class AffogatoTranspiler {
         this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
         this.javaResolver = new JavaResolver(classpath);
         this.flow = new FlowAnalyzer(diagnostics);
+    }
+
+    @Override
+    public void close() {
+        javaResolver.close();
     }
 
     public ParsedUnit parse(Path sourceFile, String source) {
@@ -175,104 +179,65 @@ public final class AffogatoTranspiler {
     public void registerSymbols(ParsedUnit parsedUnit) {
         CompilationUnit unit = parsedUnit.unit();
         for (ParsedClass clazz : unit.classes()) {
-            String fqn = unit.packageName().isBlank() ? clazz.name() : unit.packageName() + "." + clazz.name();
-            if (classSymbols.containsKey(fqn)) {
-                diagnostics.add(error(
-                        unit.sourceFile(), 1, 1,
-                        "AFFOGATO_DUPLICATE_CLASS",
-                        "Duplicate type name '" + fqn + "' — a class, record, interface, or enum with this fully-qualified name is already defined."
-                ));
-            }
-            String extendsType = clazz.superTypes().isEmpty() ? "" : clazz.superTypes().get(0);
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), clazz.name(), extendsType, false,
-                    clazz.typeParameters().stream().map(TypeParamDecl::name).toList());
-            for (FieldDecl field : clazz.fields()) {
-                symbol.fields.put(field.name(), new FieldSymbol(field.name(), field.type(), field.mutable()));
-            }
-            for (MethodDecl method : clazz.methods()) {
-                symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
-                        .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), method.isStatic()));
-            }
-            for (ConstructorDecl constructor : clazz.constructors()) {
-                symbol.constructors.add(new ConstructorSymbol(constructor.parameters()));
-            }
-            if (!clazz.compactParameters().isEmpty()) {
-                symbol.constructors.add(new ConstructorSymbol(clazz.compactParameters()));
-            }
-            if (symbol.constructors.isEmpty()) {
-                symbol.constructors.add(new ConstructorSymbol(List.of()));
-            }
-            classSymbols.put(symbol.name(), symbol);
-            if (!unit.packageName().isBlank()) {
-                classSymbols.put(fqn, symbol);
-            }
+            registerClassSymbol(unit, clazz.name(), clazz.declarationLine(), clazz.declarationColumn(), () -> {
+                String extendsType = clazz.superTypes().isEmpty() ? "" : clazz.superTypes().get(0);
+                ClassSymbol symbol = new ClassSymbol(unit.packageName(), clazz.name(), extendsType, false,
+                        clazz.typeParameters().stream().map(TypeParamDecl::name).toList());
+                for (FieldDecl field : clazz.fields()) {
+                    symbol.fields.put(field.name(), new FieldSymbol(field.name(), field.type(), field.mutable()));
+                }
+                for (MethodDecl method : clazz.methods()) {
+                    symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
+                            .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), method.isStatic()));
+                }
+                for (ConstructorDecl constructor : clazz.constructors()) {
+                    symbol.constructors.add(new ConstructorSymbol(constructor.parameters()));
+                }
+                if (!clazz.compactParameters().isEmpty()) {
+                    symbol.constructors.add(new ConstructorSymbol(clazz.compactParameters()));
+                }
+                if (symbol.constructors.isEmpty()) {
+                    symbol.constructors.add(new ConstructorSymbol(List.of()));
+                }
+                return symbol;
+            });
         }
         for (ParsedEnum parsedEnum : unit.enums()) {
-            String fqn = unit.packageName().isBlank() ? parsedEnum.name() : unit.packageName() + "." + parsedEnum.name();
-            if (classSymbols.containsKey(fqn)) {
-                diagnostics.add(error(
-                        unit.sourceFile(), 1, 1,
-                        "AFFOGATO_DUPLICATE_CLASS",
-                        "Duplicate type name '" + fqn + "' — a class, record, interface, or enum with this fully-qualified name is already defined."
-                ));
-            }
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
-            symbol.constructors.add(new ConstructorSymbol(List.of()));
-            classSymbols.put(symbol.name(), symbol);
-            if (!unit.packageName().isBlank()) {
-                classSymbols.put(fqn, symbol);
-            }
+            registerClassSymbol(unit, parsedEnum.name(), parsedEnum.declarationLine(), parsedEnum.declarationColumn(), () -> {
+                ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedEnum.name(), "", false, List.of());
+                symbol.constructors.add(new ConstructorSymbol(List.of()));
+                return symbol;
+            });
         }
         for (ParsedInterface parsedInterface : unit.interfaces()) {
-            String fqn = unit.packageName().isBlank() ? parsedInterface.name() : unit.packageName() + "." + parsedInterface.name();
-            if (classSymbols.containsKey(fqn)) {
-                diagnostics.add(error(
-                        unit.sourceFile(), 1, 1,
-                        "AFFOGATO_DUPLICATE_CLASS",
-                        "Duplicate type name '" + fqn + "' — a class, record, interface, or enum with this fully-qualified name is already defined."
-                ));
-            }
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedInterface.name(), "", true,
-                    parsedInterface.typeParameters().stream().map(TypeParamDecl::name).toList());
-            for (InterfaceMethod method : parsedInterface.methods()) {
-                symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
-                        .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), false));
-            }
-            classSymbols.put(symbol.name(), symbol);
-            if (!unit.packageName().isBlank()) {
-                classSymbols.put(fqn, symbol);
-            }
+            registerClassSymbol(unit, parsedInterface.name(), parsedInterface.declarationLine(), parsedInterface.declarationColumn(), () -> {
+                ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedInterface.name(), "", true,
+                        parsedInterface.typeParameters().stream().map(TypeParamDecl::name).toList());
+                for (InterfaceMethod method : parsedInterface.methods()) {
+                    symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
+                            .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), false));
+                }
+                return symbol;
+            });
         }
         for (ParsedRecord parsedRecord : unit.records()) {
-            String fqn = unit.packageName().isBlank() ? parsedRecord.name() : unit.packageName() + "." + parsedRecord.name();
-            if (classSymbols.containsKey(fqn)) {
-                diagnostics.add(error(
-                        unit.sourceFile(), 1, 1,
-                        "AFFOGATO_DUPLICATE_CLASS",
-                        "Duplicate type name '" + fqn + "' — a class, record, interface, or enum with this fully-qualified name is already defined."
-                ));
-            }
-            ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedRecord.name(), "", false,
-                    parsedRecord.typeParameters().stream().map(TypeParamDecl::name).toList());
-            symbol.isRecord = true;
-            for (ParamDecl component : parsedRecord.components()) {
-                symbol.fields.put(component.name(), new FieldSymbol(component.name(), component.type(), false));
-            }
-            for (MethodDecl method : parsedRecord.methods()) {
-                symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
-                        .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), method.isStatic()));
-            }
-            symbol.constructors.add(new ConstructorSymbol(parsedRecord.components()));
-            classSymbols.put(symbol.name(), symbol);
-            if (!unit.packageName().isBlank()) {
-                classSymbols.put(fqn, symbol);
-            }
+            registerClassSymbol(unit, parsedRecord.name(), parsedRecord.declarationLine(), parsedRecord.declarationColumn(), () -> {
+                ClassSymbol symbol = new ClassSymbol(unit.packageName(), parsedRecord.name(), "", false,
+                        parsedRecord.typeParameters().stream().map(TypeParamDecl::name).toList());
+                symbol.isRecord = true;
+                for (ParamDecl component : parsedRecord.components()) {
+                    symbol.fields.put(component.name(), new FieldSymbol(component.name(), component.type(), false));
+                }
+                for (MethodDecl method : parsedRecord.methods()) {
+                    symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
+                            .add(new MethodSymbol(method.name(), method.returnType(), method.parameters(), method.isStatic()));
+                }
+                symbol.constructors.add(new ConstructorSymbol(parsedRecord.components()));
+                return symbol;
+            });
         }
         if (!unit.extensions().isEmpty()) {
             String holderSimpleName = extensionsHolderName(unit);
-            // The generated holder is also exposed as a synthetic class symbol holding the extensions as
-            // static methods (receiver as the first parameter). This lets the rewritten call
-            // Holder.method(receiver, args) resolve through the regular static-method machinery.
             ClassSymbol holderSymbol = new ClassSymbol(unit.packageName(), holderSimpleName, "", false, List.of());
             for (ExtensionFuncDecl extension : unit.extensions()) {
                 String receiverKey = simpleTypeName(extension.receiverType().javaType());
@@ -291,11 +256,28 @@ public final class AffogatoTranspiler {
                 holderSymbol.methods.computeIfAbsent(extension.name(), ignored -> new ArrayList<>())
                         .add(new MethodSymbol(extension.name(), extension.returnType(), staticParameters, true));
             }
-            classSymbols.put(holderSymbol.name(), holderSymbol);
-            if (!unit.packageName().isBlank()) {
-                classSymbols.put(unit.packageName() + "." + holderSymbol.name(), holderSymbol);
-            }
+            classSymbols.register(unit.packageName(), holderSymbol);
         }
+    }
+
+    private void registerClassSymbol(
+            CompilationUnit unit,
+            String simpleName,
+            int line,
+            int column,
+            java.util.function.Supplier<ClassSymbol> builder
+    ) {
+        String fqn = unit.packageName().isBlank() ? simpleName : unit.packageName() + "." + simpleName;
+        if (classSymbols.containsFqn(fqn)) {
+            int nameColumn = SourceLocations.columnOfIdentifier(unit.source(), line, simpleName, column);
+            diagnostics.add(error(
+                    unit.sourceFile(), line, nameColumn, simpleName.length(),
+                    "AFFOGATO_DUPLICATE_CLASS",
+                    "Duplicate type name '" + fqn + "' — a class, record, interface, or enum with this fully-qualified name is already defined."
+            ));
+            return;
+        }
+        classSymbols.register(unit.packageName(), builder.get());
     }
 
     public List<GeneratedJava> generate(ParsedUnit parsedUnit) {
@@ -321,6 +303,9 @@ public final class AffogatoTranspiler {
 
     private CompilationUnit buildCompilationUnit(Path sourceFile, String source, AffogatoParser.CompilationUnitContext tree) {
         String packageName = tree.packageDecl() == null ? "" : tree.packageDecl().qualifiedName().getText();
+        if (tree.packageDecl() != null) {
+            validatePackageName(sourceFile, tree.packageDecl(), packageName);
+        }
         List<String> imports = new ArrayList<>();
         Map<String, String> importedSimpleNames = new LinkedHashMap<>();
         for (AffogatoParser.ImportDeclContext importDecl : tree.importDecl()) {
@@ -352,6 +337,24 @@ public final class AffogatoTranspiler {
         }
 
         return new CompilationUnit(sourceFile, source, packageName, imports, classes, enums, interfaces, records, extensions);
+    }
+
+    private void validatePackageName(Path sourceFile, AffogatoParser.PackageDeclContext packageDecl, String packageName) {
+        if (packageName.isBlank()) {
+            return;
+        }
+        for (String segment : packageName.split("\\.")) {
+            if (segment.isBlank()) {
+                diagnostics.add(error(
+                        sourceFile,
+                        packageDecl.getStart().getLine(),
+                        packageDecl.getStart().getCharPositionInLine() + 1,
+                        "AFFOGATO_PARSE",
+                        "Package name contains an empty segment."
+                ));
+                return;
+            }
+        }
     }
 
     private void validateImportConflict(Path sourceFile, AffogatoParser.ImportDeclContext importDecl, String importName, Map<String, String> importedSimpleNames) {
@@ -469,7 +472,7 @@ public final class AffogatoTranspiler {
             }
         }
 
-        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(source, classDecl.annotation()));
+        return new ParsedClass(access, name, buildTypeParams(classDecl.typeParamList()), superTypes, compactParameters, fields, constructors, methods, annotations(source, classDecl.annotation()), classDecl.getStart().getLine(), classDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private FieldDecl buildField(Path sourceFile, String source, AffogatoParser.FieldDeclContext fieldDecl) {
@@ -538,7 +541,7 @@ public final class AffogatoTranspiler {
         List<String> constants = enumDecl.enumBody().enumConstant().stream()
                 .map(c -> c.Identifier().getText())
                 .toList();
-        return new ParsedEnum(access, name, constants, annotations(source, enumDecl.annotation()));
+        return new ParsedEnum(access, name, constants, annotations(source, enumDecl.annotation()), enumDecl.getStart().getLine(), enumDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private ParsedRecord buildRecord(Path sourceFile, String source, AffogatoParser.RecordDeclContext recordDecl) {
@@ -564,7 +567,7 @@ public final class AffogatoTranspiler {
                 ));
             }
         }
-        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(source, recordDecl.annotation()));
+        return new ParsedRecord(access, name, buildTypeParams(recordDecl.typeParamList()), components, superTypes, methods, annotations(source, recordDecl.annotation()), recordDecl.getStart().getLine(), recordDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private ParsedInterface buildInterface(Path sourceFile, String source, AffogatoParser.InterfaceDeclContext interfaceDecl) {
@@ -595,7 +598,7 @@ public final class AffogatoTranspiler {
             AffogatoParser.BlockContext body = isDefault ? member.block() : null;
             methods.add(new InterfaceMethod(isDefault, returnType, methodName, parameters, body, member.getStart().getLine()));
         }
-        return new ParsedInterface(access, name, buildTypeParams(interfaceDecl.typeParamList()), methods, annotations(source, interfaceDecl.annotation()));
+        return new ParsedInterface(access, name, buildTypeParams(interfaceDecl.typeParamList()), methods, annotations(source, interfaceDecl.annotation()), interfaceDecl.getStart().getLine(), interfaceDecl.getStart().getCharPositionInLine() + 1);
     }
 
     private List<TypeParamDecl> buildTypeParams(AffogatoParser.TypeParamListContext ctx) {
@@ -702,7 +705,7 @@ public final class AffogatoTranspiler {
             shapeMethods.add(new MethodDecl("public", true, false, false, List.of(), extension.returnType(), extension.name(),
                     holderParameters(extension), extension.body(), extension.line(), extension.annotations()));
         }
-        ParsedClass shape = new ParsedClass("public", holderName, List.of(), List.of(), List.of(), List.of(), List.of(), shapeMethods, List.of());
+        ParsedClass shape = new ParsedClass("public", holderName, List.of(), List.of(), List.of(), List.of(), List.of(), shapeMethods, List.of(), 1, 1);
 
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
@@ -815,7 +818,7 @@ public final class AffogatoTranspiler {
         Set<String> prevTypeParams = activeTypeParams;
         activeTypeParams = new HashSet<>(prevTypeParams);
         parsedInterface.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
-        ParsedClass dummyClass = new ParsedClass(parsedInterface.access(), parsedInterface.name(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        ParsedClass dummyClass = new ParsedClass(parsedInterface.access(), parsedInterface.name(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 1, 1);
         for (InterfaceMethod method : parsedInterface.methods()) {
             if (method.isDefault()) {
                 out.append("    default ").append(method.returnType().declaration()).append(' ')
@@ -840,7 +843,8 @@ public final class AffogatoTranspiler {
 
     private GeneratedJava generateRecord(CompilationUnit unit, ParsedRecord parsedRecord) {
         ParsedClass shape = new ParsedClass(parsedRecord.access(), parsedRecord.name(), parsedRecord.typeParameters(),
-                parsedRecord.superTypes(), parsedRecord.components(), List.of(), List.of(), parsedRecord.methods(), List.of());
+                parsedRecord.superTypes(), parsedRecord.components(), List.of(), List.of(), parsedRecord.methods(), List.of(),
+                parsedRecord.declarationLine(), parsedRecord.declarationColumn());
 
         StringBuilder out = new StringBuilder();
         if (!unit.packageName().isBlank()) {
@@ -899,21 +903,9 @@ public final class AffogatoTranspiler {
     }
 
     private boolean isInterfaceType(String typeName, CompilationUnit unit) {
-        String raw = typeName;
-        int generic = raw.indexOf('<');
-        if (generic >= 0) {
-            raw = raw.substring(0, generic);
-        }
-        raw = raw.trim();
-        ClassSymbol symbol = classSymbols.get(raw);
+        ClassSymbol symbol = classSymbol(typeName, unit);
         if (symbol != null) {
             return symbol.isInterface();
-        }
-        if (!unit.packageName().isBlank()) {
-            symbol = classSymbols.get(unit.packageName() + "." + raw);
-            if (symbol != null) {
-                return symbol.isInterface();
-            }
         }
         return javaResolver.isInterface(typeName, unit);
     }
@@ -1098,12 +1090,26 @@ public final class AffogatoTranspiler {
         flow.checkUnreachable(unit.sourceFile(), block);
         context.pushBlockScope();
         try {
-            for (AffogatoParser.StatementContext statement : block.statement()) {
-                writeStatement(out, unit, statement, context, indent);
+            List<AffogatoParser.StatementContext> statements = block.statement();
+            for (int index = 0; index < statements.size(); index++) {
+                Set<String> declaredLater = new LinkedHashSet<>();
+                for (int later = index + 1; later < statements.size(); later++) {
+                    declaredLater.addAll(localNamesDeclaredInStatement(statements.get(later)));
+                }
+                context.setLocalsDeclaredLaterInBlock(declaredLater);
+                writeStatement(out, unit, statements.get(index), context, indent);
             }
+            context.setLocalsDeclaredLaterInBlock(Set.of());
         } finally {
             context.popBlockScope();
         }
+    }
+
+    private Set<String> localNamesDeclaredInStatement(AffogatoParser.StatementContext statement) {
+        if (statement.localVarDecl() != null) {
+            return Set.of(statement.localVarDecl().Identifier().getText());
+        }
+        return Set.of();
     }
 
     private void writeStatement(StringBuilder out, CompilationUnit unit, AffogatoParser.StatementContext statement, MethodContext context, int indent) {
@@ -1528,15 +1534,22 @@ public final class AffogatoTranspiler {
             validateAssignment(type, rawInitializer, context, declLine, declCol,
                     "AFFOGATO_ASSIGNMENT_TYPE", "Initializer type is not assignable to " + type.javaType() + ".");
         }
-        if (type != null) {
-            context.declareVariable(name, type, !immutable);
+        TypeRef bindingType = type;
+        if (bindingType == null && typedInit != null && typedInit.resolvedType().isKnown() && !typedInit.resolvedType().isNullLiteral()) {
+            bindingType = TypeRef.unspecified(typedInit.resolvedType().javaType());
+        }
+        if (bindingType == null && !rawInitializer.isBlank()) {
+            bindingType = TypeRef.unspecified("java.lang.Object");
+        }
+        if (bindingType != null) {
+            context.declareVariable(name, bindingType, !immutable);
         }
 
         StringBuilder out = new StringBuilder();
         if (immutable) {
             out.append("final ");
         }
-        out.append(type == null ? "var" : type.declaration()).append(' ').append(name);
+        out.append(type == null ? (bindingType == null ? "var" : bindingType.declaration()) : type.declaration()).append(' ').append(name);
         if (!initializer.isBlank()) {
             out.append(" = ").append(initializer);
         }
@@ -1959,6 +1972,15 @@ public final class AffogatoTranspiler {
                         "AFFOGATO_OPERATOR_TYPE",
                         "Equality operands are not comparable."
                 ));
+            } else if (List.of("&", "|", "^").contains(binary.operator())
+                    && (!isNumericOperand(binary.left(), context) || !isNumericOperand(binary.right(), context))) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Bitwise operators require numeric operands."
+                ));
             }
             return;
         }
@@ -1971,6 +1993,23 @@ public final class AffogatoTranspiler {
                         context.currentColumn,
                         "AFFOGATO_CONDITION_TYPE",
                         "Boolean negation requires a boolean operand."
+                ));
+            } else if (unary.operator().equals("~") && !isNumericOperand(unary.expression(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Bitwise complement requires a numeric operand."
+                ));
+            } else if ((unary.operator().equals("++") || unary.operator().equals("--"))
+                    && !isNumericOperand(unary.expression(), context)) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        context.currentColumn,
+                        "AFFOGATO_OPERATOR_TYPE",
+                        "Increment and decrement require a numeric operand."
                 ));
             }
             return;
@@ -2142,6 +2181,21 @@ public final class AffogatoTranspiler {
         }
         if (ast instanceof IdentifierExpression identifier && !identifier.resolvedType().isKnown()) {
             if (!identifier.name().equals("this")
+                    && !identifier.name().equals("super")
+                    && context.isLocalDeclaredLaterInBlock(identifier.name())) {
+                diagnostics.add(error(
+                        context.unit.sourceFile(),
+                        context.currentLine,
+                        SourceLocations.columnOfIdentifier(
+                                context.unit.source(),
+                                context.currentLine,
+                                identifier.name(),
+                                context.currentColumn),
+                        identifier.name().length(),
+                        "AFFOGATO_USE_BEFORE_INIT",
+                        "Variable '" + identifier.name() + "' is used before it is declared."
+                ));
+            } else if (!identifier.name().equals("this")
                     && !identifier.name().equals("super")
                     && !context.identifierResolvesAsMember(identifier.name())
                     && classSymbol(identifier.name(), context.unit) == null
@@ -3104,18 +3158,7 @@ public final class AffogatoTranspiler {
     }
 
     private ClassSymbol classSymbol(String type, CompilationUnit unit) {
-        String simple = simpleTypeName(type);
-        ClassSymbol direct = classSymbols.get(simple);
-        if (direct != null) {
-            return direct;
-        }
-        if (!unit.packageName().isBlank()) {
-            direct = classSymbols.get(unit.packageName() + "." + simple);
-            if (direct != null) {
-                return direct;
-            }
-        }
-        return classSymbols.get(type);
+        return classSymbols.lookup(type, unit);
     }
 
     // ── FLOW ANALYSIS ────────────────────────────────────────────────────────────

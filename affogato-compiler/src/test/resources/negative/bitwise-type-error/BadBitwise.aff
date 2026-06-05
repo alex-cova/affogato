@@ -1,0 +1,7 @@
+package dev.affogato.negative
+
+class BadBitwise {
+    run(): String {
+        return "a" & "b"
+    }
+}

@@ -450,6 +450,14 @@ final class ExpressionSemanticChecker {
                 TypeGuess type = support.isNumericType(current.resolvedType()) ? current.resolvedType() : TypeGuess.unknown();
                 current = new UnaryExpression(srcBetween(whole, ctx, part), "--", current, type);
                 index++;
+            } else if (part.LBRACK() != null) {
+                AstExpression indexExpr = buildExpression(part.expression(), whole);
+                current = new ArrayAccessExpression(
+                        srcBetween(whole, ctx, part),
+                        current,
+                        indexExpr,
+                        arrayElementType(current.resolvedType()));
+                index++;
             } else if (part.LPAREN() != null) {
                 // A call applied directly to the primary, e.g. `foo(args)` or `Foo(args)`.
                 List<AstExpression> arguments = buildArguments(part.argumentList(), whole);

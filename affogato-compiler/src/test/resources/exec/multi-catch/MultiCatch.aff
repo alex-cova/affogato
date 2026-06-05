@@ -1,0 +1,28 @@
+package dev.affogato.exec
+
+class MultiCatch {
+    static func run() {
+        println(recoverStatic(kind = 1))
+        println(recoverStatic(kind = 2))
+        println(recoverStatic(kind = 3))
+    }
+
+    static recoverStatic(kind: int): String {
+        try {
+            if kind == 1 {
+                throw new IllegalArgumentException("arg")
+            }
+            if kind == 2 {
+                throw new IllegalStateException("state")
+            }
+            if kind == 3 {
+                throw new RuntimeException("runtime")
+            }
+            return "ok"
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return e.getMessage()
+        } catch (RuntimeException e) {
+            return "runtime"
+        }
+    }
+}
