@@ -3,7 +3,9 @@ package dev.affogato.compiler.internal;
 import dev.affogato.compiler.parser.AffogatoLexer;
 import dev.affogato.compiler.parser.AffogatoParser;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
@@ -53,9 +55,24 @@ final class ExpressionSemanticChecker {
     }
 
     private final Support support;
+    /**
+     * Shared ANTLR parse-tree cache. Keyed by expression source string. The parse tree is
+     * structurally deterministic (no external state), so it is safe to reuse across calls that
+     * supply different {@link Support} instances (e.g. typecheck pass vs. generate pass).
+     * {@link #buildExpression} still runs fresh each time to apply context-dependent type
+     * resolution via the current {@code Support}.
+     */
+    private final Map<String, AffogatoParser.ExpressionContext> antlrCache;
 
-    ExpressionSemanticChecker(Support support) {
+    /** Constructor used by production code — pass a shared cache to amortise ANTLR sub-parses. */
+    ExpressionSemanticChecker(Support support, Map<String, AffogatoParser.ExpressionContext> antlrCache) {
         this.support = support;
+        this.antlrCache = antlrCache;
+    }
+
+    /** Convenience constructor that creates a fresh (non-shared) cache — used in tests. */
+    ExpressionSemanticChecker(Support support) {
+        this(support, new HashMap<>());
     }
 
     AstExpression parse(String expression) {
@@ -94,6 +111,18 @@ final class ExpressionSemanticChecker {
     // original source text (preserving spacing that downstream string consumers rely on).
 
     private AstExpression parseViaAntlr(String value) {
+        // Fast path: ANTLR parse tree already cached — skip re-lexing and re-parsing.
+        // buildExpression is always re-run because it performs context-dependent type resolution
+        // (e.g. variable types from the current method scope).
+        AffogatoParser.ExpressionContext cachedTree = antlrCache.get(value);
+        if (cachedTree != null) {
+            try {
+                return buildExpression(cachedTree, value);
+            } catch (RuntimeException failure) {
+                return null;
+            }
+        }
+        // Slow path: full ANTLR lex + parse.
         try {
             AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(value));
             SyntaxFlag flag = new SyntaxFlag();
@@ -107,6 +136,7 @@ final class ExpressionSemanticChecker {
             if (flag.errors || parser.getCurrentToken().getType() != Token.EOF) {
                 return null;
             }
+            antlrCache.put(value, tree); // cache for future calls (e.g. generate pass)
             return buildExpression(tree, value);
         } catch (RuntimeException failure) {
             return null;
@@ -335,6 +365,16 @@ final class ExpressionSemanticChecker {
                 // A call applied directly to the primary, e.g. `foo(args)` or `Foo(args)`.
                 List<AstExpression> arguments = buildArguments(part.argumentList(), whole);
                 current = makeCall(current.source(), new UnknownExpression(""), arguments, srcBetween(whole, ctx, part));
+                index++;
+            } else if (part.QUESTION_DOT() != null) {
+                // Safe-call (?.) is not in the production subset. If it somehow reaches
+                // the semantic checker (e.g., the pre-scan missed it inside a complex
+                // string interpolation), wrap it as an UnsupportedExpression so that the
+                // semantic checker can emit AFFOGATO_UNSUPPORTED_SAFE_CALL rather than
+                // silently treating it as a plain property access.
+                current = new UnsupportedExpression(srcBetween(whole, ctx, part),
+                        "AFFOGATO_UNSUPPORTED_SAFE_CALL",
+                        "Safe-call expressions are not in the production subset; use an explicit null check.");
                 index++;
             } else {
                 String name = part.Identifier() != null ? part.Identifier().getText() : part.IN().getText();

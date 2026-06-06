@@ -228,7 +228,14 @@ final class ExpressionRenderer {
                             return receiverText + "." + setter + "(" + valueText + ")";
                         } else {
                             String op = assignment.operator().substring(0, assignment.operator().length() - 1);
-                            return receiverText + "." + setter + "(" + receiverText + "." + accessor + "() " + op + " (" + valueText + "))";
+                            if (!receiverText.contains("(")) {
+                                // Simple receiver: safe to reference twice.
+                                return receiverText + "." + setter + "(" + receiverText + "." + accessor + "() " + op + " (" + valueText + "))";
+                            } else {
+                                // Complex receiver (method call): hoist to temp var to avoid double evaluation.
+                                return "var $affogato$recv$ = " + receiverText + "; $affogato$recv$." + setter
+                                        + "($affogato$recv$." + accessor + "() " + op + " (" + valueText + "))";
+                            }
                         }
                     }
                 }
@@ -324,39 +331,17 @@ final class ExpressionRenderer {
         if (ast instanceof SwitchExpressionNode switchNode) {
             return services.buildSwitchExpressionNode(switchNode.source(), context).javaSource();
         }
-        if (ast instanceof SafeCallExpression safeCall) {
-            String receiverText = render(safeCall.receiver(), context);
-            TypeGuess receiverType = safeCall.receiver().resolvedType().isKnown() ? safeCall.receiver().resolvedType() : services.inferExpressionType(receiverText, context);
-            String property = safeCall.property();
-            
-            // Simple desugaring: (temp = receiver) != null ? temp.property : null
-            // We need a unique temporary variable name. For now, let's use a simple scheme.
-            String temp = "$safe_" + Math.abs(receiverText.hashCode() % 1000);
-            
-            // If it's a method call, it will be in the property string as "name(args)"
-            String access = property.contains("(") ? "." + property : "." + property;
-            // Actually, for records/classes it might be .property() or .property.
-            // PropertyHop can help here too.
-            if (!property.contains("(")) {
-                 String ownerType = receiverType.javaType();
-                 String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
-                 AffogatoSymbolResolver.PropertyHop hop = services.resolvePropertyHopOnType(resolvedOwner, property, context);
-                 if (hop != null) {
-                     access = "." + hop.accessor() + (hop.call() ? "()" : "");
-                 } else {
-                     access = "." + property;
-                 }
-            } else {
-                access = "." + property;
-            }
-
-            return "((" + temp + " = " + receiverText + ") != null ? " + temp + access + " : null)";
+        if (ast instanceof SafeCallExpression) {
+            // SafeCall (?.) is rejected by scanUnsupportedSourceEdges before codegen runs.
+            // If we somehow reach this branch, return the raw source so javac surfaces the issue
+            // rather than generating silently invalid Java (the previous hash-named temp variable
+            // was never declared, making the generated code syntactically broken).
+            return ast.source();
         }
-        if (ast instanceof ElvisExpression elvis) {
-            String leftText = render(elvis.left(), context);
-            String rightText = render(elvis.right(), context);
-            String temp = "$elvis_" + Math.abs(leftText.hashCode() % 1000);
-            return "((" + temp + " = " + leftText + ") != null ? " + temp + " : " + rightText + ")";
+        if (ast instanceof ElvisExpression) {
+            // Elvis (?:) is rejected by scanUnsupportedSourceEdges before codegen runs.
+            // Same defensive fallback as SafeCallExpression above.
+            return ast.source();
         }
         if (ast instanceof UnknownExpression unknown) {
             return unknown.source();

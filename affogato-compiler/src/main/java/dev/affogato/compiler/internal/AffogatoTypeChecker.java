@@ -9,6 +9,7 @@ import static dev.affogato.compiler.internal.TranspilerTypes.*;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,6 +40,12 @@ final class AffogatoTypeChecker {
     private final ExpressionRenderServices renderServices;
     private final AffogatoParserRunner parserRunner;
     private Set<String> activeTypeParams = new HashSet<>();
+    /**
+     * Shared ANTLR parse-tree cache passed to every {@link ExpressionSemanticChecker}. Populated
+     * during the typecheck pass; reused (read-only) during the generate pass, halving the number
+     * of full ANTLR sub-parses per expression from 2 to 1 for large files.
+     */
+    private final Map<String, AffogatoParser.ExpressionContext> antlrParseCache = new HashMap<>();
 
     AffogatoTypeChecker(
             List<AffogatoDiagnostic> diagnostics,
@@ -90,7 +97,7 @@ final class AffogatoTypeChecker {
             }
         }
         for (ConstructorDecl constructor : clazz.constructors()) {
-            typeCheckExecutable(unit, clazz, "<init>", TypeRef.unspecified("void"), constructor.parameters(), constructor.body());
+            typeCheckExecutable(unit, clazz, "<init>", TypeRef.unspecified("void"), constructor.parameters(), constructor.body(), constructor.line());
         }
         for (MethodDecl method : clazz.methods()) {
             Set<String> methodTypeParams = new HashSet<>(activeTypeParams);
@@ -99,7 +106,7 @@ final class AffogatoTypeChecker {
             }
             activeTypeParams = methodTypeParams;
             if (method.body() != null) {
-                typeCheckExecutable(unit, clazz, method.name(), method.returnType(), method.parameters(), method.body());
+                typeCheckExecutable(unit, clazz, method.name(), method.returnType(), method.parameters(), method.body(), method.line());
             }
         }
         activeTypeParams = prev;
@@ -113,7 +120,7 @@ final class AffogatoTypeChecker {
         parsedInterface.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
         for (InterfaceMethod method : parsedInterface.methods()) {
             if (method.body() != null) {
-                typeCheckExecutable(unit, shape, method.name(), method.returnType(), method.parameters(), method.body());
+                typeCheckExecutable(unit, shape, method.name(), method.returnType(), method.parameters(), method.body(), method.line());
             }
         }
         activeTypeParams = prev;
@@ -131,7 +138,7 @@ final class AffogatoTypeChecker {
         parsedRecord.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
         for (MethodDecl method : parsedRecord.methods()) {
             if (method.body() != null) {
-                typeCheckExecutable(unit, shape, method.name(), method.returnType(), method.parameters(), method.body());
+                typeCheckExecutable(unit, shape, method.name(), method.returnType(), method.parameters(), method.body(), method.line());
             }
         }
         activeTypeParams = prev;
@@ -144,7 +151,7 @@ final class AffogatoTypeChecker {
             List<ParamDecl> parameters = new ArrayList<>();
             parameters.add(new ParamDecl("$this", extension.receiverType(), PropertyKind.NONE, List.of()));
             parameters.addAll(extension.parameters());
-            typeCheckExecutable(unit, shape, extension.name(), extension.returnType(), parameters, extension.body(), extension.receiverType().javaType());
+            typeCheckExecutable(unit, shape, extension.name(), extension.returnType(), parameters, extension.body(), extension.line(), extension.receiverType().javaType());
         }
     }
 
@@ -156,28 +163,28 @@ final class AffogatoTypeChecker {
     }
 
     private void typeCheckExecutable(CompilationUnit unit, ParsedClass clazz, String name, TypeRef returnType,
-                                     List<ParamDecl> parameters, AffogatoParser.BlockContext body) {
-        typeCheckExecutable(unit, clazz, name, returnType, parameters, body, null);
+                                     List<ParamDecl> parameters, AffogatoParser.BlockContext body, int declarationLine) {
+        typeCheckExecutable(unit, clazz, name, returnType, parameters, body, declarationLine, null);
     }
 
     private void typeCheckExecutable(CompilationUnit unit, ParsedClass clazz, String name, TypeRef returnType,
-                                     List<ParamDecl> parameters, AffogatoParser.BlockContext body, String receiverType) {
+                                     List<ParamDecl> parameters, AffogatoParser.BlockContext body, int declarationLine, String receiverType) {
         MethodContext context = MethodContext.forExecutable(unit, clazz, name, returnType, classSymbols, extensionSymbols, javaResolver, activeTypeParams);
         if (receiverType != null) {
             context.receiverType = receiverType;
         }
         for (ParamDecl parameter : parameters) {
-            validateTypeRef(parameter.type(), unit, 1, 1);
+            validateTypeRef(parameter.type(), unit, declarationLine, 1);
             if (context.variableTypes.containsKey(parameter.name())) {
-                diagnostics.add(error(unit.sourceFile(), 1, 1, parameter.name().length(),
+                diagnostics.add(error(unit.sourceFile(), declarationLine, 1, parameter.name().length(),
                         "AFFOGATO_DUPLICATE_LOCAL",
                         "Duplicate local variable '" + parameter.name() + "' shadows another parameter or local in the generated Java scope."));
             }
             context.declareVariable(parameter.name(), parameter.type(), true);
         }
-        validateTypeRef(returnType, unit, 1, 1);
+        validateTypeRef(returnType, unit, declarationLine, 1);
         if (!returnType.javaType().equals("void") && !flow.blockExits(body)) {
-            diagnostics.add(error(unit.sourceFile(), 1, 1, "AFFOGATO_RETURN_FLOW", "Method " + name + " must exit with a value on all paths."));
+            diagnostics.add(error(unit.sourceFile(), declarationLine, 1, "AFFOGATO_RETURN_FLOW", "Method " + name + " must exit with a value on all paths."));
         }
         checkBlock(unit, body, context);
     }
@@ -1633,7 +1640,7 @@ final class AffogatoTypeChecker {
         return TypeGuess.unknown();
     }
     AstExpression expressionAst(String expression, MethodContext context) {
-        return new ExpressionSemanticChecker(new TypeCheckerExpressionSupport(context)).parse(expression);
+        return new ExpressionSemanticChecker(new TypeCheckerExpressionSupport(context), antlrParseCache).parse(expression);
     }
     boolean astTypeCanShortCircuitInference(AstExpression ast) {
         // The ANTLR-backed AST resolves these node types reliably, including cases the regex inference

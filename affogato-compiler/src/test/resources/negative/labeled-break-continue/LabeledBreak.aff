@@ -1,0 +1,15 @@
+package dev.affogato.negative
+
+// Labeled break and continue are not in the Affogato grammar.
+// The label syntax `name:` before a statement does not exist.
+// This fixture confirms that labeled break produces AFFOGATO_PARSE.
+class LabeledBreak {
+    func run() {
+        let values: int[] = [1, 2, 3]
+        outer: for value in values {
+            if value == 2 {
+                break outer
+            }
+        }
+    }
+}

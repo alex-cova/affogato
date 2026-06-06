@@ -269,15 +269,6 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
             for (ParamDecl parameter : parameters) {
                 writeNullCheck(out, parameter.name(), parameter.type(), 2);
             }
-            if (!extension.returnType().javaType().equals("void") && !blockExits(extension.body())) {
-                diagnostics.add(error(
-                        unit.sourceFile(),
-                        extension.line(),
-                        1,
-                        "AFFOGATO_RETURN_FLOW",
-                        "Extension function " + extension.name() + " must exit with a value on all paths."
-                ));
-            }
             writeBlockStatements(out, unit, extension.body(), context, 2);
             out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
         }
@@ -509,7 +500,9 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
     private void writeAccessors(StringBuilder out, ParsedClass clazz) {
         for (FieldDecl field : clazz.fields()) {
             String getter = getterName(field.name(), field.type());
-            out.append("    public ")
+            // Respect field access modifier (not always public) and static modifier.
+            String staticMod = field.isStatic() ? " static" : "";
+            out.append("    ").append(field.access()).append(staticMod).append(' ')
                     .append(field.type().declaration())
                     .append(' ')
                     .append(getter)
@@ -524,15 +517,16 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                     .append(System.lineSeparator());
 
             if (field.mutable()) {
-                out.append("    public void ")
+                out.append("    ").append(field.access()).append(staticMod).append(" void ")
                         .append(setterName(field.name()))
                         .append('(')
                         .append(field.type().declaration())
                         .append(" value) {")
                         .append(System.lineSeparator());
                 writeNullCheck(out, "value", field.type(), 2);
-                out.append("        this.")
-                        .append(field.name())
+                // Static fields must not use `this.` — use bare field name assignment.
+                String assignTarget = field.isStatic() ? field.name() : "this." + field.name();
+                out.append("        ").append(assignTarget)
                         .append(" = value;")
                         .append(System.lineSeparator())
                         .append("    }")
@@ -584,15 +578,6 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                 out.append(" {").append(System.lineSeparator());
                 for (ParamDecl parameter : method.parameters()) {
                     writeNullCheck(out, parameter.name(), parameter.type(), 2);
-                }
-                if (!method.returnType().javaType().equals("void") && !blockExits(method.body())) {
-                    diagnostics.add(error(
-                            unit.sourceFile(),
-                            method.line(),
-                            1,
-                            "AFFOGATO_RETURN_FLOW",
-                            "Method " + method.name() + " must exit with a value on all paths."
-                    ));
                 }
                 writeBlockStatements(out, unit, method.body(), context, 2);
                 out.append("    }").append(System.lineSeparator()).append(System.lineSeparator());
@@ -1299,16 +1284,22 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         String loweredReceiver = transformExpression(receiver, context);
         String value = transformExpression(rawValue, context);
 
+        // Hoist complex receivers (method calls etc.) to a temp var to avoid double evaluation
+        // in read-modify-write operations. e.g., `make().n += 1` must not call `make()` twice.
+        boolean hoistReceiver = readModify && loweredReceiver.contains("(");
+        String recv = hoistReceiver ? "$affogato$recv$" : loweredReceiver;
+        String hoistPrefix = hoistReceiver ? "var $affogato$recv$ = " + loweredReceiver + "; " : "";
+
         FieldSymbol field = fieldForOwnerType(type, property, context);
         if (field != null) {
             if (!field.mutable()) {
                 diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
                         "AFFOGATO_LET_ASSIGN", "Cannot assign to let property " + property + "."));
-                return loweredReceiver + "." + property + " = " + value + ";";
+                return recv + "." + property + " = " + value + ";";
             }
-            String read = loweredReceiver + "." + getterName(property, field.type()) + "()";
+            String read = recv + "." + getterName(property, field.type()) + "()";
             String setValue = readModify ? read + " " + operator + " (" + value + ")" : value;
-            return loweredReceiver + "." + setterName(property) + "(" + setValue + ");";
+            return hoistPrefix + recv + "." + setterName(property) + "(" + setValue + ");";
         }
         if (context.javaResolver.setterExists(type, property, context.unit)) {
             String setValue = value;
@@ -1318,15 +1309,16 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                 }
                 String getter = context.javaResolver.getterInvocationName(type, property, context.unit)
                         .orElse(getterName(property, TypeRef.unspecified("Object")));
-                setValue = loweredReceiver + "." + getter + "() " + operator + " (" + value + ")";
+                setValue = recv + "." + getter + "() " + operator + " (" + value + ")";
             }
-            return loweredReceiver + "." + setterName(property) + "(" + setValue + ");";
+            return hoistPrefix + recv + "." + setterName(property) + "(" + setValue + ");";
         }
         if (context.javaResolver.fieldExists(type, property, context.unit)) {
             if (!context.javaResolver.fieldMutable(type, property, context.unit)) {
                 diagnostics.add(error(context.unit.sourceFile(), context.currentLine, context.currentColumn,
                         "AFFOGATO_LET_ASSIGN", "Cannot assign to final Java field " + property + "."));
             }
+            // Java's compound assignment (`+=`) evaluates the receiver only once; no hoisting needed.
             String assignOp = readModify ? " " + operator + "= " : " = ";
             return loweredReceiver + "." + property + assignOp + value + ";";
         }
@@ -1343,7 +1335,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         for (int index = 0; index < expression.length(); index++) {
             char current = expression.charAt(index);
             char previous = index > 0 ? expression.charAt(index - 1) : '\0';
-            if (current == '"' && previous != '\\') {
+            if (current == '"' && !isEscapedQuote(expression, index)) {
                 inString = !inString;
                 continue;
             }
@@ -1385,8 +1377,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         int last = -1;
         for (int index = 0; index < text.length(); index++) {
             char current = text.charAt(index);
-            char previous = index > 0 ? text.charAt(index - 1) : '\0';
-            if (current == '"' && previous != '\\') {
+            if (current == '"' && !isEscapedQuote(text, index)) {
                 inString = !inString;
                 continue;
             }
@@ -2194,8 +2185,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         boolean inString = false;
         for (int index = 0; index < text.length(); index++) {
             char current = text.charAt(index);
-            char previous = index > 0 ? text.charAt(index - 1) : '\0';
-            if (current == '"' && previous != '\\') {
+            if (current == '"' && !isEscapedQuote(text, index)) {
                 inString = !inString;
             }
             if (inString) {
@@ -2224,8 +2214,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         boolean inString = false;
         for (int index = 0; index < text.length(); index++) {
             char current = text.charAt(index);
-            char previous = index > 0 ? text.charAt(index - 1) : '\0';
-            if (current == '"' && previous != '\\') {
+            if (current == '"' && !isEscapedQuote(text, index)) {
                 inString = !inString;
             }
             if (inString) {
@@ -2261,8 +2250,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         boolean inString = false;
         for (int index = openIndex; index < text.length(); index++) {
             char current = text.charAt(index);
-            char previous = index > 0 ? text.charAt(index - 1) : '\0';
-            if (current == '"' && previous != '\\') {
+            if (current == '"' && !isEscapedQuote(text, index)) {
                 inString = !inString;
             }
             if (inString) {
@@ -2278,6 +2266,19 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
             }
         }
         return -1;
+    }
+
+    /**
+     * Returns {@code true} when the {@code '"'} at {@code index} is preceded by an odd number of
+     * backslashes, meaning it is an escaped quote and does NOT toggle string-literal mode.
+     * Handles the {@code \\"} case: two backslashes then a real quote is NOT escaped.
+     */
+    private static boolean isEscapedQuote(String text, int index) {
+        int backslashes = 0;
+        for (int k = index - 1; k >= 0 && text.charAt(k) == '\\'; k--) {
+            backslashes++;
+        }
+        return (backslashes & 1) == 1;
     }
 
     private String callNameBefore(String expression, int openIndex) {

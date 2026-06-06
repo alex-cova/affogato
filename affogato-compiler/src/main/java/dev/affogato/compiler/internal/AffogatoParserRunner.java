@@ -161,34 +161,43 @@ final class AffogatoParserRunner {
     }
 
     private void scanUnsupportedSourceEdges(Path sourceFile, String source) {
-        scanUnsupportedToken(sourceFile, source, "?.", "AFFOGATO_UNSUPPORTED_SAFE_CALL", "Safe-call expressions are not in the production subset; use an explicit null check.");
-        scanUnsupportedToken(sourceFile, source, "?:", "AFFOGATO_UNSUPPORTED_ELVIS", "Elvis expressions are not in the production subset; use a ternary expression.");
-        scanUnsupportedToken(sourceFile, source, "!!", "AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION", "Not-null assertion expressions are not in the production subset; use an explicit cast or null check.");
-    }
-
-    private void scanUnsupportedToken(Path sourceFile, String source, String token, String code, String message) {
+        // All three unsupported tokens are scanned in a single interpolation-aware pass so that
+        // string literals — including those with nested quotes inside ${...} interpolations — are
+        // correctly skipped and no false positives (or missed detections) occur.
+        //
+        // The stack tracks the current lexical context using the same 'S'/'I'/'B' encoding as
+        // deepInterpolationIndex:
+        //   'S' — inside a string literal (double-quoted)
+        //   'I' — inside a ${...} string interpolation expression
+        //   'B' — inside a { } block nested within an interpolation (e.g. a lambda body)
+        //
+        // Tokens are only checked when we are NOT inside a string literal (top != 'S').
+        StringBuilder stack = new StringBuilder();
         int index = 0;
         int length = source.length();
         while (index < length) {
             char c = source.charAt(index);
-            // Skip string literals — handle \\ so "test\\" is not mistakenly left open.
-            if (c == '"') {
-                index++;
-                while (index < length) {
-                    char d = source.charAt(index);
-                    if (d == '\\') {
-                        index += 2;
-                        continue;
-                    }
-                    if (d == '"') {
-                        index++;
-                        break;
-                    }
+            char top = stack.isEmpty() ? '\0' : stack.charAt(stack.length() - 1);
+
+            // ── Inside a string literal ──────────────────────────────────────────────────────────
+            if (top == 'S') {
+                if (c == '\\') {
+                    // Escape sequence: skip two chars so neither the backslash nor the escaped
+                    // char is mistaken for a structural character.
+                    index += 2;
+                } else if (c == '"') {
+                    stack.setLength(stack.length() - 1); // close the string literal
+                    index++;
+                } else if (c == '$' && index + 1 < length && source.charAt(index + 1) == '{') {
+                    stack.append('I'); // enter a string interpolation expression
+                    index += 2;
+                } else {
                     index++;
                 }
                 continue;
             }
-            // Skip line comments.
+
+            // ── Line comment ─────────────────────────────────────────────────────────────────────
             if (c == '/' && index + 1 < length && source.charAt(index + 1) == '/') {
                 index += 2;
                 while (index < length && source.charAt(index) != '\n') {
@@ -196,7 +205,8 @@ final class AffogatoParserRunner {
                 }
                 continue;
             }
-            // Skip block comments.
+
+            // ── Block comment ────────────────────────────────────────────────────────────────────
             if (c == '/' && index + 1 < length && source.charAt(index + 1) == '*') {
                 index += 2;
                 while (index + 1 < length) {
@@ -208,11 +218,43 @@ final class AffogatoParserRunner {
                 }
                 continue;
             }
-            if (source.startsWith(token, index)) {
-                SourceLocation location = sourceLocation(source, index);
-                diagnostics.add(error(sourceFile, location.line(), location.column(), token.length(), code, message));
-                index += token.length();
+
+            // ── Unsupported token checks (only in code contexts, never inside 'S') ─────────────
+            if (source.startsWith("?.", index)) {
+                SourceLocation loc = sourceLocation(source, index);
+                diagnostics.add(error(sourceFile, loc.line(), loc.column(), 2, "AFFOGATO_UNSUPPORTED_SAFE_CALL",
+                        "Safe-call expressions are not in the production subset; use an explicit null check."));
+                index += 2;
                 continue;
+            }
+            if (source.startsWith("?:", index)) {
+                SourceLocation loc = sourceLocation(source, index);
+                diagnostics.add(error(sourceFile, loc.line(), loc.column(), 2, "AFFOGATO_UNSUPPORTED_ELVIS",
+                        "Elvis expressions are not in the production subset; use a ternary expression."));
+                index += 2;
+                continue;
+            }
+            if (source.startsWith("!!", index)) {
+                SourceLocation loc = sourceLocation(source, index);
+                diagnostics.add(error(sourceFile, loc.line(), loc.column(), 2, "AFFOGATO_UNSUPPORTED_NOT_NULL_ASSERTION",
+                        "Not-null assertion expressions are not in the production subset; use an explicit cast or null check."));
+                index += 2;
+                continue;
+            }
+
+            // ── Structural character tracking ────────────────────────────────────────────────────
+            if (c == '"') {
+                stack.append('S'); // enter a string literal
+            } else if (c == '{' && (top == 'I' || top == 'B')) {
+                // A '{' inside interpolation code opens a nested block (e.g. a lambda body).
+                // Top-level '{' blocks (method bodies, if-blocks, etc.) are not pushed because
+                // their matching '}' would otherwise corrupt the interpolation depth counter.
+                stack.append('B');
+            } else if (c == '}') {
+                if (top == 'I' || top == 'B') {
+                    stack.setLength(stack.length() - 1); // close the interpolation or nested block
+                }
+                // A '}' at the top level (top == '\0') is ignored — it's a method/block closer.
             }
             index++;
         }
