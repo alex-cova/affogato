@@ -1,8 +1,0 @@
-package dev.affogato.negative
-
-class BadUnicode {
-    run(): int {
-        let café = 1
-        return café
-    }
-}

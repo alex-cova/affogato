@@ -500,9 +500,9 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
     private void writeAccessors(StringBuilder out, ParsedClass clazz) {
         for (FieldDecl field : clazz.fields()) {
             String getter = getterName(field.name(), field.type());
-            // Respect field access modifier (not always public) and static modifier.
-            String staticMod = field.isStatic() ? " static" : "";
-            out.append("    ").append(field.access()).append(staticMod).append(' ')
+            // Accessors are always public instance methods so Affogato property syntax works across classes,
+            // even for static fields (Java allows this.field on static members).
+            out.append("    public ")
                     .append(field.type().declaration())
                     .append(' ')
                     .append(getter)
@@ -517,7 +517,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                     .append(System.lineSeparator());
 
             if (field.mutable()) {
-                out.append("    ").append(field.access()).append(staticMod).append(" void ")
+                out.append("    public void ")
                         .append(setterName(field.name()))
                         .append('(')
                         .append(field.type().declaration())
@@ -1287,8 +1287,8 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         // Hoist complex receivers (method calls etc.) to a temp var to avoid double evaluation
         // in read-modify-write operations. e.g., `make().n += 1` must not call `make()` twice.
         boolean hoistReceiver = readModify && loweredReceiver.contains("(");
-        String recv = hoistReceiver ? "$affogato$recv$" : loweredReceiver;
-        String hoistPrefix = hoistReceiver ? "var $affogato$recv$ = " + loweredReceiver + "; " : "";
+        String recv = hoistReceiver ? context.nextRecvTempName() : loweredReceiver;
+        String hoistPrefix = hoistReceiver ? "var " + recv + " = " + loweredReceiver + "; " : "";
 
         FieldSymbol field = fieldForOwnerType(type, property, context);
         if (field != null) {
@@ -1420,6 +1420,9 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
 
 
     private void validateReturn(String rawExpression, MethodContext context, int line, int column) {
+        if (session.typesChecked()) {
+            return;
+        }
         typeChecker.validateReturn(rawExpression, context, line, column);
     }
 
@@ -2055,7 +2058,8 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                 ? sourceText(source, closure.lambdaParameters()).trim()
                 : "()";
         AffogatoParser.ClosureBodyContext body = closure.closureBody();
-        String bodyText = closureBodyText(body, source, context);
+        // Keep Affogato syntax here: the merged expression is parsed again by the type checker.
+        String bodyText = closureBodyAffogatoText(body, source);
         String lambda = params + " -> " + bodyText;
         return appendClosureArgument(exprText, lambda);
     }
@@ -2131,6 +2135,27 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
             return false;
         }
         return body.statement().stream().anyMatch(statement -> statement.separators() == null);
+    }
+
+    /** Affogato source for a closure body, used when re-parsing a trailing-closure merge. */
+    private String closureBodyAffogatoText(AffogatoParser.ClosureBodyContext body, String source) {
+        if (body == null) {
+            return "{}";
+        }
+        if (body.lambdaBody() != null) {
+            return sourceText(source, body.lambdaBody()).trim();
+        }
+        if (!hasClosureStatements(body)) {
+            return "{}";
+        }
+        StringBuilder block = new StringBuilder("{").append(System.lineSeparator());
+        for (AffogatoParser.StatementContext statement : body.statement()) {
+            if (statement.separators() == null) {
+                block.append(sourceText(source, statement)).append(System.lineSeparator());
+            }
+        }
+        block.append("}");
+        return block.toString();
     }
 
     /** Renders a closure body as a Java lambda body: a single expression/block, or a generated statement block. */

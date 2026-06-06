@@ -157,6 +157,7 @@ final class AffogatoSymbolResolver implements AutoCloseable {
             // enum-typed receiver (the symbol has no extends chain the resolver could walk to Enum).
             registerEnumMethod(symbol, "name", "String");
             registerEnumMethod(symbol, "ordinal", "int");
+            registerEnumMethod(symbol, "toString", "String");
             return symbol;
         });
     }

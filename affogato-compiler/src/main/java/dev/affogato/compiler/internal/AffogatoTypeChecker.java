@@ -91,6 +91,7 @@ final class AffogatoTypeChecker {
         clazz.typeParameters().forEach(tp -> activeTypeParams.add(tp.name()));
         MethodContext fieldContext = MethodContext.empty(unit, clazz, classSymbols, extensionSymbols, javaResolver, activeTypeParams);
         for (FieldDecl field : clazz.fields()) {
+            validateTypeRef(field.type(), unit, field.line(), 1);
             if (field.initializer() != null && !field.initializer().isBlank()) {
                 validateAssignment(field.type(), field.initializer(), fieldContext, field.line(), 1,
                         "AFFOGATO_FIELD_TYPE", "Field initializer type is not assignable to " + field.type().javaType() + ".");
@@ -426,7 +427,13 @@ final class AffogatoTypeChecker {
         }
         if (type == null && typedInit != null) {
             TypeGuess inferred = typedInit.resolvedType();
-            if (inferred.isKnown() && !inferred.isNullLiteral()) {
+            if (inferred.isLambda()) {
+                diagnostics.add(error(unit.sourceFile(), declLine, declCol, "AFFOGATO_POLY_TARGET_TYPE",
+                        "Lambda and method-reference expressions need an explicit target type."));
+            } else if (inferred.isNullLiteral()) {
+                diagnostics.add(error(unit.sourceFile(), declLine, declCol, "AFFOGATO_LOCAL_TYPE",
+                        "Local variables initialized with null need an explicit type."));
+            } else if (inferred.isKnown()) {
                 type = TypeRef.unspecified(inferred.javaType());
             }
         }
@@ -434,7 +441,8 @@ final class AffogatoTypeChecker {
         if (bindingType == null && typedInit != null && typedInit.resolvedType().isKnown() && !typedInit.resolvedType().isNullLiteral()) {
             bindingType = TypeRef.unspecified(typedInit.resolvedType().javaType());
         }
-        if (bindingType == null && !rawInitializer.isBlank()) {
+        if (bindingType == null && !rawInitializer.isBlank()
+                && (typedInit == null || !typedInit.resolvedType().isNullLiteral())) {
             bindingType = TypeRef.unspecified("java.lang.Object");
         }
         if (bindingType != null) {
@@ -460,7 +468,8 @@ final class AffogatoTypeChecker {
         if (variableAssignment.matches()) {
             validateVariableAssignment(variableAssignment, context, statement.getStart().getLine(), statement.getStart().getCharPositionInLine() + 1);
         }
-        validateExpressionTyped(expression, context, statement.expressionStatement().expression());
+        // Top-level expression statements may mutate getter/setter-backed properties (c.n++, c.n += 1).
+        validateExpressionTyped(expression, context, statement.expressionStatement().expression(), true);
     }
 
     private TypeGuess validateSwitchExpression(CompilationUnit unit, AffogatoParser.SwitchExpressionContext switchExpression,
@@ -492,10 +501,15 @@ final class AffogatoTypeChecker {
     }
 
     TypedExpression validateExpressionTyped(String expression, MethodContext context) {
-        return validateExpressionTyped(expression, context, null);
+        return validateExpressionTyped(expression, context, null, false);
     }
 
     TypedExpression validateExpressionTyped(String expression, MethodContext context, ParserRuleContext expressionAnchor) {
+        return validateExpressionTyped(expression, context, expressionAnchor, false);
+    }
+
+    TypedExpression validateExpressionTyped(String expression, MethodContext context, ParserRuleContext expressionAnchor,
+                                            boolean allowTopLevelPropertyMutation) {
         int savedExpressionLine = context.expressionLine;
         int savedExpressionColumn = context.expressionColumn;
         if (expressionAnchor != null && expressionAnchor.getStart() != null) {
@@ -508,7 +522,7 @@ final class AffogatoTypeChecker {
         try {
             AstExpression ast = expressionAst(expression, context);
             validateExpressionSubset(ast, context, expression);
-            validateExpressionSemantics(ast, context, expression);
+            validateExpressionSemantics(ast, context, expression, allowTopLevelPropertyMutation);
             TypeGuess resolvedType = ast.resolvedType().isKnown() && astTypeCanShortCircuitInference(ast)
                     ? ast.resolvedType()
                     : inferExpressionType(expression.trim(), context);
@@ -745,6 +759,7 @@ final class AffogatoTypeChecker {
     }
     void validateCondition(String rawExpression, MethodContext context, int line, int column) {
         AstExpression ast = expressionAst(rawExpression, context);
+        validateExpressionSemantics(ast, context, rawExpression);
         TypeGuess type = ast.resolvedType().isKnown() ? ast.resolvedType() : inferExpressionType(rawExpression, context);
         if ((type.isKnown() && !isBooleanType(type)) || !isBooleanConditionAst(ast, context)) {
             diagnostics.add(error(
@@ -965,22 +980,27 @@ final class AffogatoTypeChecker {
         }
     }
     void validateExpressionSemantics(AstExpression ast, MethodContext context, String rawExpression) {
+        validateExpressionSemantics(ast, context, rawExpression, false);
+    }
+
+    void validateExpressionSemantics(AstExpression ast, MethodContext context, String rawExpression,
+                                     boolean allowTopLevelPropertyMutation) {
         if (ast instanceof NamedArgumentExpression named) {
-            validateExpressionSemantics(named.expression(), context, rawExpression);
+            validateExpressionSemantics(named.expression(), context, rawExpression, false);
             return;
         }
         if (ast instanceof SafeCallExpression safeCall) {
-            validateExpressionSemantics(safeCall.receiver(), context, rawExpression);
+            validateExpressionSemantics(safeCall.receiver(), context, rawExpression, false);
             return;
         }
         if (ast instanceof ElvisExpression elvis) {
-            validateExpressionSemantics(elvis.left(), context, rawExpression);
-            validateExpressionSemantics(elvis.right(), context, rawExpression);
+            validateExpressionSemantics(elvis.left(), context, rawExpression, false);
+            validateExpressionSemantics(elvis.right(), context, rawExpression, false);
             return;
         }
         if (ast instanceof BinaryExpression binary) {
-            validateExpressionSemantics(binary.left(), context, rawExpression);
-            validateExpressionSemantics(binary.right(), context, rawExpression);
+            validateExpressionSemantics(binary.left(), context, rawExpression, false);
+            validateExpressionSemantics(binary.right(), context, rawExpression, false);
             if ((binary.operator().equals("||") || binary.operator().equals("&&"))
                     && (!isBooleanOperand(binary.left(), context) || !isBooleanOperand(binary.right(), context))) {
                 expressionSemanticError(context, rawExpression, binary, "AFFOGATO_CONDITION_TYPE",
@@ -1023,7 +1043,8 @@ final class AffogatoTypeChecker {
                     && !isNumericOperand(unary.expression(), context)) {
                 expressionSemanticError(context, rawExpression, unary, "AFFOGATO_OPERATOR_TYPE",
                         "Increment and decrement require a numeric operand.");
-            } else if ((unary.operator().equals("++") || unary.operator().equals("--"))
+            } else if (!allowTopLevelPropertyMutation
+                    && (unary.operator().equals("++") || unary.operator().equals("--"))
                     && unary.expression() instanceof PropertyAccessExpression property
                     && isGetterSetterBackedPropertyAccess(property, context)) {
                 expressionSemanticError(context, rawExpression, property, "AFFOGATO_PROPERTY_MUTATION_EXPR",
@@ -1163,18 +1184,25 @@ final class AffogatoTypeChecker {
             if (!isExtension) {
                 if (call.receiver() != null && !(call.receiver() instanceof UnknownExpression)) {
                     String receiverText = new ExpressionRenderer(renderServices).render(call.receiver(), context);
-                    TypeGuess receiverType = call.receiver().resolvedType().isKnown() ? call.receiver().resolvedType() : inferExpressionType(receiverText, context);
-                    if (receiverType.isKnown()) {
-                        TypeGuess returnType = context.returnTypeForReceiverType(receiverType.javaType(), simpleName, typedArgs);
-                        if (!returnType.isKnown()) {
-                            diagnostics.add(error(
-                                    context.unit.sourceFile(),
-                                    context.currentLine,
-                                    context.currentColumn,
-                                    "AFFOGATO_CALL_RESOLUTION",
-                                    "Cannot resolve call " + simpleName + " on " + receiverType.javaType() + "."
-                            ));
-                        }
+                    TypeGuess receiverType = call.receiver().resolvedType().isKnown()
+                            ? call.receiver().resolvedType()
+                            : inferExpressionType(receiverText, context);
+                    TypeGuess returnType = receiverType.isKnown()
+                            ? context.returnTypeForReceiverType(receiverType.javaType(), simpleName, typedArgs)
+                            : context.returnType(call.name(), typedArgs);
+                    if (!returnType.isKnown() || context.javaResolver.lastResolutionAmbiguous()) {
+                        String failure = context.resolutionFailure();
+                        diagnostics.add(error(
+                                context.unit.sourceFile(),
+                                context.currentLine,
+                                context.currentColumn,
+                                "AFFOGATO_CALL_RESOLUTION",
+                                failure.isBlank()
+                                        ? (receiverType.isKnown()
+                                        ? "Cannot resolve call " + simpleName + " on " + receiverType.javaType() + "."
+                                        : "Cannot resolve call " + call.name() + ".")
+                                        : failure
+                        ));
                     }
                 } else {
                     int openIndex = call.source().indexOf('(');
@@ -1183,13 +1211,14 @@ final class AffogatoTypeChecker {
                     }
                     if (shouldValidateCall(call.name(), call.source(), openIndex, context)) {
                         TypeGuess returnType = context.returnType(call.name(), typedArgs);
-                        if (!returnType.isKnown()) {
+                        if (!returnType.isKnown() || context.javaResolver.lastResolutionAmbiguous()) {
+                            String failure = context.resolutionFailure();
                             diagnostics.add(error(
                                     context.unit.sourceFile(),
                                     context.currentLine,
                                     context.currentColumn,
                                     "AFFOGATO_CALL_RESOLUTION",
-                                    "Cannot resolve call " + call.name() + "."
+                                    failure.isBlank() ? "Cannot resolve call " + call.name() + "." : failure
                             ));
                         }
                     }
@@ -1218,7 +1247,10 @@ final class AffogatoTypeChecker {
             String displayType = constructor.typeName();
             String impl = constructorImplementation(displayType);
             
-            if (symbols.lookupClass(displayType, context.unit) == null && !context.javaResolver.typeExists(impl, context.unit)) {
+            boolean primitiveArray = isPrimitiveArrayType(displayType);
+            if (!primitiveArray
+                    && symbols.lookupClass(displayType, context.unit) == null
+                    && !context.javaResolver.typeExists(impl, context.unit)) {
                 diagnostics.add(error(
                         context.unit.sourceFile(),
                         context.currentLine,
@@ -1232,7 +1264,10 @@ final class AffogatoTypeChecker {
             ClassSymbol affogatoTarget = symbols.lookupClass(displayType, context.unit);
             boolean resolvedOk = false;
             boolean isAmbiguous = false;
-            if (affogatoTarget != null) {
+            if (primitiveArray) {
+                resolvedOk = typedArgs.size() == 1
+                        && isNumericOperand(typedArgs.getFirst().ast(), context);
+            } else if (affogatoTarget != null) {
                 Optional<ResolvedArguments> resolved = context.resolveArguments(displayType, typedArgs);
                 if (resolved.isPresent()) {
                     resolvedOk = true;
@@ -1274,7 +1309,8 @@ final class AffogatoTypeChecker {
         if (ast instanceof AssignmentExpression assignment) {
             validateExpressionSemantics(assignment.target(), context, rawExpression);
             validateExpressionSemantics(assignment.value(), context, rawExpression);
-            if (isCompoundAssignmentSource(assignment.source())
+            if (!allowTopLevelPropertyMutation
+                    && isCompoundAssignmentSource(assignment.source())
                     && assignment.target() instanceof PropertyAccessExpression property
                     && isGetterSetterBackedPropertyAccess(property, context)) {
                 expressionSemanticError(context, rawExpression, property, "AFFOGATO_PROPERTY_MUTATION_EXPR",
@@ -1382,6 +1418,7 @@ final class AffogatoTypeChecker {
                 ));
             } else if (!identifier.name().equals("this")
                     && !identifier.name().equals("super")
+                    && !isQualifiedTypePrefix(identifier.name(), rawExpression, context)
                     && !context.identifierResolvesAsMember(identifier.name())
                     && symbols.lookupClass(identifier.name(), context.unit) == null
                     && !context.javaResolver.typeExists(identifier.name(), context.unit)) {
@@ -1400,6 +1437,45 @@ final class AffogatoTypeChecker {
                 ));
             }
         }
+    }
+
+  private boolean isQualifiedTypePrefix(String identifier, String rawExpression, MethodContext context) {
+        int start = rawExpression.indexOf(identifier);
+        while (start >= 0) {
+            int end = start + identifier.length();
+            if (end < rawExpression.length() && rawExpression.charAt(end) == '.') {
+                int cursor = end;
+                while (cursor < rawExpression.length()) {
+                    if (rawExpression.charAt(cursor) == '.') {
+                        cursor++;
+                        while (cursor < rawExpression.length()
+                                && (Character.isJavaIdentifierPart(rawExpression.charAt(cursor))
+                                || rawExpression.charAt(cursor) == '$')) {
+                            cursor++;
+                        }
+                    } else if (Character.isJavaIdentifierStart(rawExpression.charAt(cursor))
+                            || rawExpression.charAt(cursor) == '$') {
+                        while (cursor < rawExpression.length()
+                                && (Character.isJavaIdentifierPart(rawExpression.charAt(cursor))
+                                || rawExpression.charAt(cursor) == '$')) {
+                            cursor++;
+                        }
+                    } else {
+                        break;
+                    }
+                    String candidate = rawExpression.substring(start, cursor);
+                    if (symbols.lookupClass(candidate, context.unit) != null
+                            || context.javaResolver.typeExists(candidate, context.unit)) {
+                        return true;
+                    }
+                    if (cursor >= rawExpression.length() || rawExpression.charAt(cursor) != '.') {
+                        break;
+                    }
+                }
+            }
+            start = rawExpression.indexOf(identifier, start + 1);
+        }
+        return false;
     }
 
     private List<String> identifierSuggestionCandidates(MethodContext context) {
@@ -2256,6 +2332,13 @@ final class AffogatoTypeChecker {
         int dot = cleaned.lastIndexOf('.');
         return dot >= 0 ? cleaned.substring(dot + 1) : cleaned;
     }
+    static boolean isPrimitiveArrayType(String typeName) {
+        if (typeName == null || !typeName.endsWith("[]")) {
+            return false;
+        }
+        return PRIMITIVES.contains(typeName.substring(0, typeName.length() - 2));
+    }
+
     String constructorImplementation(String typeName) {
         if (typeName.startsWith("Map<")) {
             return "java.util.HashMap" + typeName.substring("Map".length());
@@ -2575,5 +2658,26 @@ final class AffogatoTypeChecker {
         public String variableType(String name) {
             return context.identifierType(name).orElse(null);
         }
+
+        @Override
+        public boolean typeExists(String qualifiedName) {
+            return symbols.lookupClass(qualifiedName, context.unit) != null
+                    || context.javaResolver.typeExists(qualifiedName, context.unit);
+        }
+
+        @Override
+        public TypeGuess propertyResultType(TypeGuess receiverType, String property) {
+            if (!receiverType.isKnown()) {
+                return TypeGuess.unknown();
+            }
+            AffogatoSymbolResolver.PropertyHop hop = symbols.resolvePropertyHopOnType(receiverType.javaType(), property, context);
+            return hop != null ? hop.resultType() : TypeGuess.unknown();
+        }
+    }
+
+    static CompilationUnit withSource(CompilationUnit unit, String source) {
+        return new CompilationUnit(
+                unit.sourceFile(), source, unit.packageName(), unit.imports(),
+                unit.classes(), unit.enums(), unit.interfaces(), unit.records(), unit.extensions());
     }
 }

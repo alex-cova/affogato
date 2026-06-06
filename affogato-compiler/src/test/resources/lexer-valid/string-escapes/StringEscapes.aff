@@ -4,4 +4,9 @@ class StringEscapes {
     run(): String {
         return "tab:\there\nquote:\"\\backslash"
     }
+
+    // \\u0022 decodes to a quote; codegen must re-escape so generated Java stays valid.
+    unsafeUnicode(): String {
+        return "x\u0022y"
+    }
 }

@@ -1,0 +1,21 @@
+Reusing configuration cache.
+> Task :affogato-compiler:generateTestGrammarSource NO-SOURCE
+> Task :affogato-compiler:processResources NO-SOURCE
+> Task :affogato-runtime:processResources NO-SOURCE
+> Task :affogato-compiler:generateLexerGrammarSource UP-TO-DATE
+> Task :affogato-runtime:compileJava UP-TO-DATE
+> Task :affogato-runtime:classes UP-TO-DATE
+> Task :affogato-runtime:jar UP-TO-DATE
+> Task :affogato-compiler:generateGrammarSource UP-TO-DATE
+> Task :affogato-compiler:compileJava UP-TO-DATE
+> Task :affogato-compiler:classes UP-TO-DATE
+> Task :affogato-compiler:compileTestJava UP-TO-DATE
+> Task :affogato-compiler:processTestResources UP-TO-DATE
+> Task :affogato-compiler:testClasses UP-TO-DATE
+
+> Task :affogato-compiler:test FAILED
+
+AffogatoGoldenTest > goldenFixturesMatchGeneratedJava FAILED
+    java.lang.AssertionError at AffogatoGoldenTest.java:255
+8 actionable tasks: 1 executed, 7 up-to-date
+Configuration cache entry reused.

@@ -52,6 +52,10 @@ final class ExpressionSemanticChecker {
         String promotedNumericType(String left, String right);
 
         String variableType(String name);
+
+        boolean typeExists(String qualifiedName);
+
+        TypeGuess propertyResultType(TypeGuess receiverType, String property);
     }
 
     private final Support support;
@@ -386,7 +390,15 @@ final class ExpressionSemanticChecker {
                     current = makeCall(callName, current, arguments, srcBetween(whole, ctx, callPart));
                     index += 2;
                 } else {
-                    current = new PropertyAccessExpression(srcBetween(whole, ctx, part), current, name, TypeGuess.unknown());
+                    String qualified = current.source() + "." + name;
+                    if (support.typeExists(qualified)) {
+                        current = new IdentifierExpression(srcBetween(whole, ctx, part), qualified, TypeGuess.of(qualified));
+                    } else {
+                        TypeGuess resultType = support.propertyResultType(current.resolvedType(), name);
+                        current = new PropertyAccessExpression(
+                                srcBetween(whole, ctx, part), current, name,
+                                resultType.isKnown() ? resultType : TypeGuess.unknown());
+                    }
                     index++;
                 }
             }

@@ -1,7 +1,0 @@
-package dev.affogato.negative
-
-class UnsafeUnicode {
-    run(): String {
-        return "x\u0022y"
-    }
-}

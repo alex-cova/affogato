@@ -50,8 +50,8 @@ Affogato currently targets small JVM apps and libraries. The compiler emits Java
 
 ## Identifiers And Literals
 
-- Identifiers use ASCII letters, digits, `_` and `$` (same subset as the
-  compiler lexer). Unicode identifiers are not supported yet.
+- Identifiers use Java-style Unicode letters, digits, `_` and `$` (the lexer
+  accepts non-ASCII identifier characters per `JavaLetter` / `JavaLetterOrDigit`).
 - String literals use `"..."` with escapes `\t`, `\n`, `\b`, `\r`, `\f`, `\"`,
   `\'`, and `\\`. `\uXXXX` escapes are supported, except that an escape decoding
   to `"`, `\`, CR or LF is rejected (`AFFOGATO_PARSE`) — use the direct escape

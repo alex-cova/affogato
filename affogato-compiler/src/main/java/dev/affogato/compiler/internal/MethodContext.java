@@ -36,6 +36,7 @@ final class MethodContext {
     int expressionColumn;
     private final Deque<Set<String>> blockLocalNames = new ArrayDeque<>();
     private Set<String> localsDeclaredLaterInBlock = Set.of();
+    private int recvTempCounter = 0;
 
     private MethodContext(
             CompilationUnit unit,
@@ -128,6 +129,10 @@ final class MethodContext {
 
     boolean isLocalDeclaredLaterInBlock(String name) {
         return localsDeclaredLaterInBlock.contains(name);
+    }
+
+    String nextRecvTempName() {
+        return "$affogato$recv$" + recvTempCounter++;
     }
 
     record ScopeSnapshot(

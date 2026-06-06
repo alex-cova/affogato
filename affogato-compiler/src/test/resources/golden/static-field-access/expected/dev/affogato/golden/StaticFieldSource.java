@@ -13,7 +13,7 @@ public class StaticFieldSource {
     }
 
     public void setCounter(int value) {
-        this.counter = value;
+        counter = value;
     }
 
 }

@@ -1,9 +1,0 @@
-package dev.affogato.lexer
-
-/* outer /* inner */ now outer is unclosed
-
-class BadUnclosedNestedComment {
-    run(): int {
-        return 1
-    }
-}

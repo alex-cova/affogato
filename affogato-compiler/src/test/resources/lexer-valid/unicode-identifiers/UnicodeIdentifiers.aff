@@ -1,6 +1,6 @@
-package dev.affogato.lexer
+package dev.affogato.lexer.valid
 
-class BadUnicode {
+class UnicodeIdentifiers {
     run(): int {
         let café = 1
         return café

@@ -25,13 +25,24 @@ final class ExpressionRenderer {
             return source;
         }
         if (ast instanceof ArrayLiteralExpression arrayLiteral) {
+            if (arrayLiteral.resolvedType().isKnown() && arrayLiteral.resolvedType().javaType().endsWith("[]")) {
+                String arrayType = formatGenericCommas(arrayLiteral.resolvedType().javaType());
+                List<String> innerRendered = new ArrayList<>();
+                for (AstExpression el : arrayLiteral.elements()) {
+                    if (el instanceof ArrayLiteralExpression nested) {
+                        innerRendered.add(renderNestedArrayInitializer(nested, context));
+                    } else {
+                        innerRendered.add(render(el, context));
+                    }
+                }
+                return "new " + arrayType + "{" + String.join(", ", innerRendered) + "}";
+            }
             List<String> renderedElements = new ArrayList<>();
             for (AstExpression el : arrayLiteral.elements()) {
                 renderedElements.add(render(el, context));
             }
             String expected = services.getExpectedArrayElementType();
             String elementType = expected != null ? expected : services.inferArrayElementType(renderedElements, context);
-            // clear expected array type during recursion to match old behavior
             String savedExpected = services.getExpectedArrayElementType();
             services.setExpectedArrayElementType(null);
             List<String> innerRendered = new ArrayList<>();
@@ -39,7 +50,7 @@ final class ExpressionRenderer {
                 innerRendered.add(render(el, context));
             }
             services.setExpectedArrayElementType(savedExpected);
-            return "new " + elementType + "[]{" + String.join(", ", innerRendered) + "}";
+            return "new " + formatGenericCommas(elementType) + "[]{" + String.join(", ", innerRendered) + "}";
         }
         if (ast instanceof ArrayAccessExpression arrayAccess) {
             return render(arrayAccess.receiver(), context) + "[" + render(arrayAccess.index(), context) + "]";
@@ -183,7 +194,11 @@ final class ExpressionRenderer {
                 }
             }
 
-            return "new " + impl + "(" + String.join(", ", renderedArgs) + ")";
+            if (AffogatoTypeChecker.isPrimitiveArrayType(impl) && renderedArgs.size() == 1) {
+                String elementType = impl.substring(0, impl.length() - 2);
+                return "new " + elementType + "[" + renderedArgs.getFirst() + "]";
+            }
+            return "new " + formatGenericCommas(impl) + "(" + String.join(", ", renderedArgs) + ")";
         }
         if (ast instanceof PropertyAccessExpression property) {
             String receiverText = render(property.receiver(), context);
@@ -233,8 +248,9 @@ final class ExpressionRenderer {
                                 return receiverText + "." + setter + "(" + receiverText + "." + accessor + "() " + op + " (" + valueText + "))";
                             } else {
                                 // Complex receiver (method call): hoist to temp var to avoid double evaluation.
-                                return "var $affogato$recv$ = " + receiverText + "; $affogato$recv$." + setter
-                                        + "($affogato$recv$." + accessor + "() " + op + " (" + valueText + "))";
+                                String recv = context.nextRecvTempName();
+                                return "var " + recv + " = " + receiverText + "; " + recv + "." + setter
+                                        + "(" + recv + "." + accessor + "() " + op + " (" + valueText + "))";
                             }
                         }
                     }
@@ -246,10 +262,10 @@ final class ExpressionRenderer {
             return render(ternary.condition(), context) + " ? " + render(ternary.thenExpression(), context) + " : " + render(ternary.elseExpression(), context);
         }
         if (ast instanceof InstanceOfExpression instanceOf) {
-            return render(instanceOf.expression(), context) + " instanceof " + instanceOf.targetType();
+            return render(instanceOf.expression(), context) + " instanceof " + erasedInstanceOfType(instanceOf.targetType());
         }
         if (ast instanceof BinaryExpression binary) {
-            return render(binary.left(), context) + " " + binary.operator() + " " + render(binary.right(), context);
+            return renderBinary(binary, context);
         }
         if (ast instanceof UnaryExpression unary) {
             if (unary.operator().equals("++") || unary.operator().equals("--")) {
@@ -289,12 +305,17 @@ final class ExpressionRenderer {
                 }
             }
             if (unary.operator().equals("!")) {
-                return "!(" + render(unary.expression(), context) + ")";
+                AstExpression operand = unary.expression();
+                if (operand instanceof IdentifierExpression || operand instanceof PropertyAccessExpression
+                        || operand instanceof LiteralExpression) {
+                    return "!" + render(operand, context);
+                }
+                return "!(" + render(operand, context) + ")";
             }
             return unary.operator() + render(unary.expression(), context);
         }
         if (ast instanceof CastExpression cast) {
-            return "((" + cast.targetType() + ") " + render(cast.expression(), context) + ")";
+            return "((" + formatGenericCommas(cast.targetType()) + ") " + render(cast.expression(), context) + ")";
         }
         if (ast instanceof LambdaExpression lambda) {
             if (!lambda.parametersSource().isBlank() && lambda.expressionBody() != null) {
@@ -313,7 +334,8 @@ final class ExpressionRenderer {
                 } else if (bodyCtx.block() != null) {
                     StringBuilder blockSb = new StringBuilder();
                     blockSb.append("{\n");
-                    services.writeBlockStatements(blockSb, context.unit, bodyCtx.block(), context, 1);
+                    CompilationUnit lambdaUnit = AffogatoTypeChecker.withSource(context.unit, lambda.source());
+                    services.writeBlockStatements(blockSb, lambdaUnit, bodyCtx.block(), context, 1);
                     blockSb.append("}");
                     String blockStr = blockSb.toString();
                     // Collapse empty blocks to `{}`
@@ -447,6 +469,14 @@ final class ExpressionRenderer {
         };
     }
 
+    private String renderNestedArrayInitializer(ArrayLiteralExpression array, MethodContext context) {
+        List<String> elements = new ArrayList<>();
+        for (AstExpression element : array.elements()) {
+            elements.add(render(element, context));
+        }
+        return "{" + String.join(", ", elements) + "}";
+    }
+
     private String renderListBuilder(LambdaExpression lambda, String elementType, MethodContext context) {
         String lambdaSource = lambda.source();
         AffogatoLexer lexer = new AffogatoLexer(CharStreams.fromString(lambdaSource));
@@ -471,7 +501,8 @@ final class ExpressionRenderer {
                         String renderedChild = render(childExpr, context);
                         blockSb.append("$children.add(").append(renderedChild).append(");\n");
                     } else {
-                        services.writeStatement(blockSb, context.unit, statement, context, 0);
+                        CompilationUnit lambdaUnit = AffogatoTypeChecker.withSource(context.unit, lambdaSource);
+                        services.writeStatement(blockSb, lambdaUnit, statement, context, 0);
                     }
                 }
                 blockSb.append("return $children;\n");
@@ -480,5 +511,76 @@ final class ExpressionRenderer {
             }
         }
         return render(lambda, context);
+    }
+
+    private String renderBinary(BinaryExpression binary, MethodContext context) {
+        String operator = binary.operator();
+        int parentPrec = operatorPrecedence(operator);
+        String left = renderBinaryOperand(binary.left(), parentPrec, true, operator, context);
+        String right = renderBinaryOperand(binary.right(), parentPrec, false, operator, context);
+        return left + " " + operator + " " + right;
+    }
+
+    private String renderBinaryOperand(AstExpression operand, int parentPrec, boolean leftSide, String parentOp, MethodContext context) {
+        if (operand instanceof BinaryExpression child) {
+            int childPrec = operatorPrecedence(child.operator());
+            boolean needsParen = childPrec < parentPrec
+                    || (childPrec == parentPrec && !leftSide && !isRightAssociative(parentOp));
+            if (needsParen) {
+                return "(" + render(child, context) + ")";
+            }
+        }
+        return render(operand, context);
+    }
+
+    private static int operatorPrecedence(String operator) {
+        return switch (operator) {
+            case "*", "/", "%" -> 60;
+            case "+", "-" -> 50;
+            case "<<", ">>", ">>>" -> 45;
+            case "<", "<=", ">", ">=" -> 40;
+            case "==", "!=" -> 35;
+            case "&" -> 30;
+            case "^" -> 25;
+            case "|" -> 20;
+            case "&&" -> 15;
+            case "||" -> 10;
+            default -> 0;
+        };
+    }
+
+    private static boolean isRightAssociative(String operator) {
+        return "=".equals(operator) || operator.endsWith("=");
+    }
+
+    static String formatGenericCommas(String type) {
+        if (type == null || type.indexOf('<') < 0) {
+            return type;
+        }
+        StringBuilder out = new StringBuilder();
+        int depth = 0;
+        for (int index = 0; index < type.length(); index++) {
+            char current = type.charAt(index);
+            if (current == '<') {
+                depth++;
+            } else if (current == '>') {
+                depth--;
+            } else if (current == ',' && depth > 0) {
+                out.append(", ");
+                if (index + 1 < type.length() && type.charAt(index + 1) == ' ') {
+                    index++;
+                }
+                continue;
+            }
+            out.append(current);
+        }
+        return out.toString();
+    }
+
+    /** Java rejects parameterized types in {@code instanceof}; emit the erasure instead. */
+    private static String erasedInstanceOfType(String targetType) {
+        String trimmed = targetType.trim();
+        int generic = trimmed.indexOf('<');
+        return generic > 0 ? trimmed.substring(0, generic) : trimmed;
     }
 }

@@ -120,5 +120,15 @@ public final class ExpressionSemanticCheckerTest {
         public String variableType(String name) {
             return null;
         }
+
+        @Override
+        public boolean typeExists(String qualifiedName) {
+            return false;
+        }
+
+        @Override
+        public TypeGuess propertyResultType(TypeGuess receiverType, String property) {
+            return TypeGuess.unknown();
+        }
     }
 }
