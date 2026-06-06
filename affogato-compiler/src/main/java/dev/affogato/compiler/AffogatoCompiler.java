@@ -147,8 +147,8 @@ public final class AffogatoCompiler {
             return base;
         }
         Path resolved = base;
-        for (String segment : packageName.split("\\.")) {
-            if (segment.isBlank()) {
+        for (String segment : packageName.split("\\.", -1)) {
+            if (segment.isBlank() || segment.equals(".") || segment.equals("..")) {
                 return null;
             }
             resolved = resolved.resolve(segment);
