@@ -1,0 +1,77 @@
+package com.alexcova.teenyjson
+
+import java.lang.reflect.Type
+import java.lang.reflect.WildcardType
+import java.util.Arrays
+import java.util.Objects
+
+class ParameterizedTypeHelper: Type {
+    let firstType: Class
+    let parentType: Class?
+    let typeArguments: Type[]?
+
+    init(firstType: Class, parentType: Class?) {
+        this.firstType = firstType
+        this.parentType = parentType
+        this.typeArguments = null
+    }
+
+    init(parentType: Class?, arguments: Type[]) {
+        this.firstType = getRealClass(arguments[0])
+        this.parentType = parentType
+        this.typeArguments = arguments
+    }
+
+    private getRealClass(type: Type): Class {
+        if type is WildcardType {
+            let wildcardType = type as WildcardType
+            return wildcardType.getUpperBounds()[0] as Class
+        }
+        return type as Class
+    }
+
+    withFirstType(firstType: Class): ParameterizedTypeHelper {
+        if typeArguments == null {
+            return ParameterizedTypeHelper(firstType = firstType, parentType = parentType)
+        }
+
+        let args = java.lang.reflect.Array.newInstance(Type.class, typeArguments.length) as Type[]
+        args[0] = firstType
+        System.arraycopy(typeArguments, 1, args, 1, typeArguments.length - 1)
+
+        return ParameterizedTypeHelper(parentType = parentType, arguments = args)
+    }
+
+    override getTypeName(): String {
+        return getClass().getSimpleName()
+    }
+
+    isParentTypeOf(type: Class): boolean {
+        return parentType != null && type.isAssignableFrom(parentType)
+    }
+
+    getTypeArguments(): Type[]? {
+        return typeArguments
+    }
+
+    getFirstType(): Class {
+        return firstType
+    }
+
+    getSecondType(): Class {
+        Objects.requireNonNull(typeArguments, "Type is not a ParameterizedType")
+        return getRealClass(typeArguments[1])
+    }
+
+    getParentType(): Class? {
+        return parentType
+    }
+
+    override toString(): String {
+        return "ParameterizedTypeHelper{" +
+                "firstType=" + firstType +
+                ", parentType=" + parentType +
+                ", typeArguments=" + Arrays.toString(typeArguments) +
+                "}"
+    }
+}

@@ -191,7 +191,8 @@ continueStatement ::= 'continue'
 localVarDecl ::= variableKind identifier (':' typeRef)? ('=' (switchExpression | expression))? trailingClosure?
 condition ::= '(' expression ')' | expression
 forCondition ::= '(' forContent ')' | forContent
-forContent ::= variableKind? identifier 'in' expression | expression
+forContent ::= variableKind? identifier 'in' expression | forCStyleInit? ';' expression? ';' expression? | expression
+forCStyleInit ::= variableKind identifier (':' typeRef)? '=' expression | expression
 
 expression ::= lambdaExpression | expressionAtom+
 lambdaExpression ::= (identifier | callGroup) '->' expression

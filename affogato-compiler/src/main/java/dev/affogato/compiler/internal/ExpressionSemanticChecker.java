@@ -381,7 +381,7 @@ final class ExpressionSemanticChecker {
                         "Safe-call expressions are not in the production subset; use an explicit null check.");
                 index++;
             } else {
-                String name = part.Identifier() != null ? part.Identifier().getText() : part.IN().getText();
+                String name = part.memberName().getText();
                 if (index + 1 < parts.size() && parts.get(index + 1).LPAREN() != null) {
                     // `receiver.name(args)` — a method (or qualified constructor) call.
                     AffogatoParser.PostfixPartContext callPart = parts.get(index + 1);
@@ -461,6 +461,9 @@ final class ExpressionSemanticChecker {
         }
         if (ctx.StringLiteral() != null) {
             return new LiteralExpression(text, TypeGuess.of("String"));
+        }
+        if (ctx.CharLiteral() != null) {
+            return new LiteralExpression(text, TypeGuess.of("char"));
         }
         if (ctx.TRUE() != null || ctx.FALSE() != null) {
             return new LiteralExpression(text, TypeGuess.of("boolean"));

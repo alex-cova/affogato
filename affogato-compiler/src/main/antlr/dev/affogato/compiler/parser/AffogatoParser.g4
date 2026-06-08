@@ -95,7 +95,7 @@ methodDecl
     ;
 
 methodSignature
-    : FUNC Identifier typeParamList? LPAREN parameterList? RPAREN
+    : FUNC Identifier typeParamList? LPAREN parameterList? RPAREN (COLON typeRef)?
     | typeRef Identifier typeParamList? LPAREN parameterList? RPAREN
     | Identifier typeParamList? LPAREN parameterList? RPAREN COLON typeRef
     ;
@@ -303,9 +303,9 @@ continueStatement
     ;
 
 localVarDecl
-    : variableKind Identifier (COLON typeRef)? ASSIGN switchExpression
-    | variableKind Identifier (COLON typeRef)? ASSIGN expression trailingClosure
-    | variableKind Identifier (COLON typeRef)? (ASSIGN expression)?
+    : variableKind Identifier (COLON declaredType=typeRef)? ASSIGN switchExpression
+    | variableKind Identifier (COLON declaredType=typeRef)? ASSIGN expression trailingClosure (AS castType=typeRef)?
+    | variableKind Identifier (COLON declaredType=typeRef)? (ASSIGN expression)?
     ;
 
 expressionStatement
@@ -333,6 +333,12 @@ forCondition
 
 forContent
     : variableKind? Identifier IN expression
+    | forCStyleInit? SEMI cStyleCond=expression? SEMI cStyleUpdate=expression?
+    | expression
+    ;
+
+forCStyleInit
+    : variableKind Identifier (COLON typeRef)? ASSIGN expression
     | expression
     ;
 
@@ -446,12 +452,20 @@ postfixExpression
     ;
 
 postfixPart
-    : DOT (Identifier | IN)
-    | QUESTION_DOT (Identifier | IN)
+    : DOT memberName
+    | QUESTION_DOT memberName
     | LPAREN argumentList? RPAREN
     | LBRACK expression RBRACK
     | PLUS_PLUS
     | MINUS_MINUS
+    ;
+
+// Keywords that are valid Java method/field names and may appear after '.' in
+// interop calls (e.g. annotation.as(), iterator.next(), stream.default()).
+memberName
+    : Identifier
+    | IN | AS | IS | DEFAULT | NEW | STATIC | ABSTRACT | RECORD
+    | INTERFACE | ENUM | GUARD | OVERRIDE | IMPORT | PACKAGE
     ;
 
 primaryExpression
@@ -485,6 +499,7 @@ argument
 
 literal
     : StringLiteral
+    | CharLiteral
     | IntegerLiteral
     | FloatingPointLiteral
     | TRUE

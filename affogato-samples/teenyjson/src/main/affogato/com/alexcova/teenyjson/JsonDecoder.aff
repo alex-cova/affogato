@@ -1,0 +1,229 @@
+package com.alexcova.teenyjson
+
+import java.util.HashMap
+import java.util.LinkedList
+import java.util.List
+import java.util.Map
+
+class JsonDecoder {
+    let buffer: Buffer
+
+    init(json: String) {
+        this.buffer = Buffer(json)
+    }
+
+    func read(): Object? {
+        let current = buffer.current()
+
+        if current == '{' {
+            return readObject()
+        }
+
+        if current == '"' {
+            return readString()
+        }
+
+        if current == '[' {
+            return readArray()
+        }
+
+        if Character.isDigit(current) ||
+                current == '-' ||
+                current == '+' ||
+                current == '.' {
+            return readNumber()
+        }
+
+        if current == 'n' || current == 'N' {
+            buffer.next(4)
+            return null
+        }
+
+        if current == 'f' || current == 'F' ||
+                current == 't' || current == 'T' {
+            return readBoolean(current)
+        }
+
+        if JsonDecoder.shouldSkip(current) {
+            buffer.advanceSpaces()
+            return read()
+        }
+
+        return null
+    }
+
+    static func shouldSkip(current: char): boolean {
+        return current == ' ' || current == '\n' || current == '\t' || current == '\r'
+    }
+
+    private func readBoolean(current: char): boolean {
+        if current == 't' || current == 'T' {
+            return Boolean.parseBoolean(buffer.next(4))
+        }
+
+        return Boolean.parseBoolean(buffer.next(5))
+    }
+
+    private func readNumber(): String {
+        let sb = new StringBuilder()
+
+        if buffer.current() != '+' {
+            sb.append(buffer.current())
+        }
+
+        var temp: char = ' '
+
+        while buffer.next() {
+            temp = buffer.current()
+
+            if (temp == '}' || temp == ']') || temp == ',' {
+                break
+            } else {
+                sb.append(temp)
+            }
+        }
+
+        buffer.back()
+
+        return sb.toString()
+    }
+
+    private func readArray(): List<Object> {
+        let result = new LinkedList<Object>()
+
+        var hasNext = true
+        while hasNext {
+            buffer.next()
+            if buffer.current() == ']' {
+                return result
+            }
+
+            let obj = read()
+            if obj != null {
+                result.add(obj)
+            } else {
+                result.add(null)
+            }
+
+            if buffer.current() == ']' {
+                hasNext = false
+            }
+
+            buffer.next()
+
+            if buffer.current() == ']' {
+                hasNext = false
+            }
+        }
+
+        return result
+    }
+
+    private func readString(): String {
+        let sb = new StringBuilder()
+        buffer.advanceSpaces()
+
+        if buffer.current() == '"' {
+            while buffer.next() {
+                let temp = buffer.current()
+
+                if '"' == temp {
+                    if '\\' != buffer.readBefore() {
+                        break
+                    }
+                }
+                sb.append(temp)
+            }
+        } else {
+            return ""
+        }
+
+        return sb.toString()
+    }
+
+    private func readObject(): Map<String, Object> {
+        let result = new HashMap<String, Object>()
+
+        var hasNext = true
+
+        while hasNext {
+            buffer.next()
+
+            if buffer.current() == '}' {
+                return result
+            }
+
+            if buffer.last() == '"' {
+                buffer.back()
+            }
+
+            let key = readString()
+
+            while buffer.next() {
+                let temp = buffer.current()
+                if temp == ':' {
+                    buffer.next()
+                    buffer.advanceSpaces()
+                    break
+                }
+            }
+
+            let value = read()
+            result.put(key, value)
+            buffer.next()
+
+            if buffer.current() == '}' {
+                hasNext = false
+            }
+        }
+
+        return result
+    }
+}
+
+class Buffer {
+    let json: String
+    var index: int
+
+    init(json: String) {
+        this.json = json
+        this.index = 0
+    }
+
+    func current(): char {
+        return json.charAt(index)
+    }
+
+    func last(): char {
+        return json.charAt(index - 1)
+    }
+
+    func back() {
+        index = index - 1
+    }
+
+    func readBefore(): char {
+        return json.charAt(index - 1)
+    }
+
+    func next(): boolean {
+        if index + 1 >= json.length() {
+            return false
+        } else {
+            index = index + 1
+            return true
+        }
+    }
+
+    func advanceSpaces() {
+        while JsonDecoder.shouldSkip(json.charAt(index)) {
+            index = index + 1
+        }
+    }
+
+    func next(i: int): String {
+        let value = json.substring(index, index + i)
+        index = index + i
+        return value
+    }
+}

@@ -1,0 +1,12 @@
+package com.alexcova.teenyjson
+
+class JsonParsingException: Exception {
+
+    init(message: String) {
+        super(message)
+    }
+
+    init(message: String, cause: Throwable) {
+        super(message, cause)
+    }
+}

@@ -1,0 +1,35 @@
+package com.alexcova.teenyjson
+
+import java.lang.annotation.Annotation
+import java.lang.reflect.Method
+import java.util.function.Function
+import java.util.logging.Logger
+
+class AccessorInvoker {
+    let method: Method
+    let function: Function<Object, Object>
+
+    init(method: Method, function: Function<Object, Object>) {
+        this.method = method;
+        this.function = function;
+    }
+
+    invoke(instance: Object): Object? {
+        try {
+            return function.apply(instance)
+        } catch (Exception ex) {
+            Logger.getLogger(AccessorInvoker.class.getName())
+                    .severe("Error invoking method: " + method.getName())
+        }
+
+        return null
+    }
+
+    isAnnotationPresent(annotation: Class): boolean {
+        return method.isAnnotationPresent(annotation)
+    }
+
+    getAnnotation<T: Annotation>(annotation: Class): T {
+        return method.getAnnotation(annotation) as T
+    }
+}

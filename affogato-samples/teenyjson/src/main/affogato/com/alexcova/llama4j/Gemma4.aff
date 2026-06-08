@@ -1,4 +1,4 @@
-package com.llama4j
+package com.alexcova.llama4j
 
 import java.io.IOException
 import java.io.PrintStream
@@ -232,7 +232,7 @@ class ToppSampler: Sampler {
         var head = 0
         var tail = n - 1
         let cutoff = (1.0f - topp) / (n - 1)
-        
+
         var i = 0
         while i < indices.length {
             if logits.getFloat(i) >= cutoff {
@@ -424,7 +424,7 @@ class GGUF {
     private readArray(reader: ChannelReader): Object{
         let valueType = readMetadataValueType(reader)
         let len = Math.toIntExact(readLong(reader))
-        
+
         switch valueType {
             case MetadataValueType.UINT8, MetadataValueType.INT8 -> {
                 return readBytes(reader, len)
@@ -688,9 +688,9 @@ class ModelLoader {
         let headSizeFull = (metadata.get("gemma4.attention.key_length") as int)
         let headSizeSWA = (metadata.get("gemma4.attention.key_length_swa") as int)
         let slidingWindow = (metadata.get("gemma4.attention.sliding_window") as int)
-        
+
         let logitSoftcapping = metadata.containsKey("gemma4.final_logit_softcapping") ? (metadata.get("gemma4.final_logit_softcapping") as float) : 0.0f
-        
+
         let rmsNormEps = metadata.containsKey("gemma4.attention.layer_norm_rms_epsilon") ? (metadata.get("gemma4.attention.layer_norm_rms_epsilon") as float) : 1e-6f
 
         let ropeTheta = metadata.containsKey("gemma4.rope.freq_base") ? (metadata.get("gemma4.rope.freq_base") as float) : 1000000.0f
@@ -1116,7 +1116,7 @@ class State {
         let maxQueryDim = config.numberOfHeads * config.headSizeFull
         let maxKVDim = IntStream.range(0, config.numberOfLayers).map(idx -> config.kvDim(idx)).max().orElse(0)
         let maxHiddenDim = config.maxHiddenDim()
-        
+
         this.x = ArrayFloatTensor.allocate(config.embeddingLength)
         this.xb = ArrayFloatTensor.allocate(config.embeddingLength)
         this.xb_k = ArrayFloatTensor.allocate(maxQueryDim)
@@ -1128,7 +1128,7 @@ class State {
         this.v = ArrayFloatTensor.allocate(maxKVDim)
         this.att = ArrayFloatTensor.allocate(             config.numberOfHeads,             config.contextLength         )
         this.logits = ArrayFloatTensor.allocate(config.vocabularySize)
-        
+
         let plDim = config.embeddingLengthPerLayer
         this.perLayerInputs = plDim > 0 ? ArrayFloatTensor.allocate(plDim * config.numberOfLayers) : null
         this.plGate = plDim > 0 ? ArrayFloatTensor.allocate(plDim) : null
@@ -1491,7 +1491,7 @@ class Q4_0FloatTensor: FloatTensor {
             let wBytes = ByteVector.fromMemorySegment(                 ByteVector.SPECIES_128,                 thiz.memorySegment,                 blockOffset + Float16.BYTES,                 ByteOrder.LITTLE_ENDIAN             )
             let loBytes = wBytes.and((0xF as byte)).sub((8 as byte))
             let hiBytes = wBytes.lanewise(VectorOperators.LSHR, 4).sub((8 as byte))
-            
+
             let fSize = FloatTensor.F_SPECIES.vectorBitSize()
             if fSize == 512 {
                 let s0 = that.getFloatVector(FloatTensor.F_SPECIES, thatOffset + j).mul(loBytes.castShape(FloatTensor.F_SPECIES, 0))
@@ -1521,7 +1521,7 @@ class Q4_0FloatTensor: FloatTensor {
             j = j + GGMLType.Q4_0.getBlockSize()
             blockOffset = blockOffset + GGMLType.Q4_0.getTypeSize()
         }
-        
+
         result = result + val.reduceLanes(VectorOperators.ADD)
 
         if j < size {
@@ -1605,7 +1605,7 @@ class Q4_1FloatTensor: FloatTensor {
             let wBytes = ByteVector.fromMemorySegment(                 ByteVector.SPECIES_128,                 thiz.memorySegment,                 blockOffset + 2 * Float16.BYTES,                 ByteOrder.LITTLE_ENDIAN             )
             let loBytes = wBytes.and((0xF as byte))
             let hiBytes = wBytes.lanewise(VectorOperators.LSHR, 4)
-            
+
             let fSize = FloatTensor.F_SPECIES.vectorBitSize()
             if fSize == 512 {
                 let that0 = that.getFloatVector(FloatTensor.F_SPECIES, thatOffset + j)
@@ -1738,7 +1738,7 @@ class Q5_1FloatTensor: FloatTensor {
         let decoded = new float[](GGMLType.Q5_1.getBlockSize())
         let upperBound = j + ((size - j) / GGMLType.Q5_1.getBlockSize()) * GGMLType.Q5_1.getBlockSize()
         let vecUpper = FloatTensor.F_SPECIES.loopBound(GGMLType.Q5_1.getBlockSize())
-        
+
         while j < upperBound {
             assert (thisOffset + j) % GGMLType.Q5_1.getBlockSize() == 0
             let blockOffset = (((thisOffset + j) as long) / GGMLType.Q5_1.getBlockSize()) * GGMLType.Q5_1.getTypeSize()
@@ -1928,12 +1928,12 @@ class Q4_KFloatTensor: FloatTensor {
 
                     let loIdx = loBase + c * 16
                     let hiIdx = hiBase + c * 16
-                    
+
                     let fSize = FloatTensor.F_SPECIES.vectorBitSize()
                     if fSize == 512 {
                         let loQ = loBytes.castShape(FloatTensor.F_SPECIES, 0).reinterpretAsFloats()
                         val = loQ.fma(d1Vec, negM1Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, loIdx), val)
-                        
+
                         let hiQ = hiBytes.castShape(FloatTensor.F_SPECIES, 0).reinterpretAsFloats()
                         val2 = hiQ.fma(d2Vec, negM2Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, hiIdx), val2)
                     } else if fSize == 256 {
@@ -1941,7 +1941,7 @@ class Q4_KFloatTensor: FloatTensor {
                         let loQ1 = loBytes.castShape(FloatTensor.F_SPECIES, 1).reinterpretAsFloats()
                         val = loQ0.fma(d1Vec, negM1Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, loIdx), val)
                         val2 = loQ1.fma(d1Vec, negM1Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, loIdx + FloatTensor.F_SPECIES.length()), val2)
-                        
+
                         let hiQ0 = hiBytes.castShape(FloatTensor.F_SPECIES, 0).reinterpretAsFloats()
                         let hiQ1 = hiBytes.castShape(FloatTensor.F_SPECIES, 1).reinterpretAsFloats()
                         val = hiQ0.fma(d2Vec, negM2Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, hiIdx), val)
@@ -1951,7 +1951,7 @@ class Q4_KFloatTensor: FloatTensor {
                         while p < 4 {
                             let loQ = loBytes.castShape(FloatTensor.F_SPECIES, p).reinterpretAsFloats()
                             val = loQ.fma(d1Vec, negM1Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, loIdx + p * FloatTensor.F_SPECIES.length()), val)
-                            
+
                             let hiQ = hiBytes.castShape(FloatTensor.F_SPECIES, p).reinterpretAsFloats()
                             val2 = hiQ.fma(d2Vec, negM2Vec).fma(that.getFloatVector(FloatTensor.F_SPECIES, hiIdx + p * FloatTensor.F_SPECIES.length()), val2)
                             p = p + 1
@@ -2418,7 +2418,7 @@ class Q8_0FloatTensor: FloatTensor {
         while j < upperBound {
             let wScaleValue = FloatTensor.readFloat16(thiz.memorySegment, blockOffset)
             let wScale = FloatVector.broadcast(FloatTensor.F_SPECIES, wScaleValue)
-            
+
             let fSize = FloatTensor.F_SPECIES.vectorBitSize()
             if fSize == 512 {
                 let wBytes = ByteVector.fromMemorySegment(                     ByteVector.SPECIES_256,                     thiz.memorySegment,                     blockOffset + Float16.BYTES,                     ByteOrder.LITTLE_ENDIAN                 )
@@ -2655,7 +2655,7 @@ class BF16FloatTensor: FloatTensor {
         assert FloatTensor.S_SPECIES_HALF.length() == FloatTensor.F_SPECIES.length()
         var val = FloatVector.zero(FloatTensor.F_SPECIES)
         let upperBound = FloatTensor.F_SPECIES.loopBound(size)
-        
+
         var i = 0
         while i < upperBound {
             let thatVector = that.getFloatVector(FloatTensor.F_SPECIES, thatOffset + i)
@@ -2728,7 +2728,7 @@ class F16FloatTensor: FloatTensor {
         assert FloatTensor.S_SPECIES_HALF.length() == FloatTensor.F_SPECIES.length()
         var val = FloatVector.zero(FloatTensor.F_SPECIES)
         let upperBound = FloatTensor.F_SPECIES.loopBound(size)
-        
+
         var i = 0
         while i < upperBound {
             let thatVector = that.getFloatVector(FloatTensor.F_SPECIES, thatOffset + i)
@@ -3315,7 +3315,7 @@ class Options {
                     nextArg = args[i + 1]
                     i = i + 1
                 }
-                
+
                 if optionName == "--prompt" || optionName == "-p" {
                     prompt = nextArg
                 } else if optionName == "--suffix" {
@@ -3354,7 +3354,7 @@ class Options {
             }
             i = i + 1
         }
-        
+
         let validColors = List.of("on", "off", "auto")
         Options.require(             validColors.contains(colorMode),             "Invalid argument: --color must be one of on|off|auto"         )
         let color = Gemma4.supportsAnsiColors(colorMode)
@@ -3519,7 +3519,7 @@ class Gemma4 {
         var state: State = null
         let chatFormat = GemmaChatFormat(model.tokenizer())
         let conversationTokens = ArrayList<Integer>()
-        
+
         if options.think {
             conversationTokens.addAll(                 chatFormat.encodeSystemThinkingTurn(options.systemPrompt)             )
         } else if options.systemPrompt != null {
@@ -3539,11 +3539,11 @@ class Gemma4 {
                 System.out.printf(                     "%d out of %d context tokens used (%d tokens remaining)%n",                     conversationTokens.size(),                     options.maxTokens,                     options.maxTokens - conversationTokens.size()                 )
                 continue
             }
-            
+
             if state == null {
                 state = model.createNewState()
             }
-            
+
             conversationTokens.addAll(                 chatFormat.encodeMessage(Message(Role.USER, userText))             )
             conversationTokens.addAll(                 chatFormat.encodeHeader(Message(Role.MODEL, ""))             )
 
@@ -3565,7 +3565,7 @@ class Gemma4 {
                     conversationTokens.addAll(model.tokenizer().encode("\n"))
                 }
             }
-            
+
             startPosition = conversationTokens.size()
             if not(options.stream) {
                 let responseText = model.tokenizer().decode(visibleResponseTokens)
@@ -3637,7 +3637,7 @@ func Llama.generateTokens(     model: Llama,     state: State,     startPosition
     var token = state.latestToken
     var nextToken = 0
     var promptIndex = 0
-    
+
     var position = startPosition
     while position < limitTokens {
         Gemma4_Runner.forward(model, state, token, position)
@@ -3911,7 +3911,7 @@ class Gemma4_Runner {
                     state.xb2.setFloat(                         i,                         state.x.getFloat((i as long)) *                         rmsScale *                         weights.ffnGateInpScale[l].get(i)                     )
                     i = i + 1
                 }
-                
+
                 weights.ffnGateInp[l].matmul(                     state.xb2,                     state.routerLogits,                     config.expertCount,                     dim                 )
 
                 state.routerLogits.softmaxInPlace(0, config.expertCount)
@@ -4002,7 +4002,7 @@ class Gemma4_Runner {
             if scale != 1.0f {
                 state.x.mapInPlace(0, dim, v -> v * scale)
             }
-            
+
             l = l + 1
         }
 

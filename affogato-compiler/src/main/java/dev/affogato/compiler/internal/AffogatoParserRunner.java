@@ -629,7 +629,7 @@ final class AffogatoParserRunner {
         TypeRef returnType;
         if (signature.FUNC() != null) {
             name = signature.Identifier().getText();
-            returnType = TypeRef.unspecified("void");
+            returnType = signature.typeRef() != null ? typeRef(signature.typeRef()) : TypeRef.unspecified("void");
         } else if (signature.COLON() != null) {
             name = signature.Identifier().getText();
             returnType = typeRef(signature.typeRef());
@@ -724,7 +724,7 @@ final class AffogatoParserRunner {
             TypeRef returnType;
             if (sig.FUNC() != null) {
                 methodName = sig.Identifier().getText();
-                returnType = TypeRef.unspecified("void");
+                returnType = sig.typeRef() != null ? typeRef(sig.typeRef()) : TypeRef.unspecified("void");
             } else if (sig.COLON() != null) {
                 methodName = sig.Identifier().getText();
                 returnType = typeRef(sig.typeRef());

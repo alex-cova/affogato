@@ -273,7 +273,7 @@ final class AffogatoTypeChecker {
             if (!canDeclareJavaLocal(context, variable)) {
                 reportJavaLocalShadow(unit, content.Identifier().getSymbol(), variable);
             }
-            TypedExpression typedIterable = validateExpressionTyped(renderServices.sourceText(unit.source(), content.expression()), context, content.expression());
+            TypedExpression typedIterable = validateExpressionTyped(renderServices.sourceText(unit.source(), content.expression(0)), context, content.expression(0));
             Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
             if (elementType.isPresent()) context.declareVariable(variable, TypeRef.unspecified(elementType.get().javaType()), true);
             else if (typedIterable.resolvedType().isKnown() && !typedIterable.resolvedType().isNullLiteral()) {
@@ -281,8 +281,35 @@ final class AffogatoTypeChecker {
                         "AFFOGATO_FOR_ITERABLE_TYPE", "For-in loops require an array or Iterable expression."));
             }
             context.mutableVariables.put(variable, true);
+        } else if (!content.SEMI().isEmpty()) {
+            // C-style for loop: init; condition; update
+            AffogatoParser.ForCStyleInitContext init = content.forCStyleInit();
+            if (init != null) {
+                if (init.variableKind() != null) {
+                    String varName = init.Identifier().getText();
+                    if (!canDeclareJavaLocal(context, varName)) {
+                        reportJavaLocalShadow(unit, init.Identifier().getSymbol(), varName);
+                    }
+                    TypedExpression initTyped = validateExpressionTyped(
+                            renderServices.sourceText(unit.source(), init.expression()), context, init.expression());
+                    TypeRef varType = init.typeRef() != null
+                            ? typeRef(init.typeRef())
+                            : TypeRef.unspecified(initTyped.resolvedType().isKnown() && !initTyped.resolvedType().isNullLiteral()
+                                    ? initTyped.resolvedType().javaType() : "int");
+                    context.declareVariable(varName, varType, true);
+                    context.mutableVariables.put(varName, true);
+                } else {
+                    validateExpressionTyped(renderServices.sourceText(unit.source(), init.expression()), context, init.expression());
+                }
+            }
+            if (content.cStyleCond != null) {
+                validateExpressionTyped(renderServices.sourceText(unit.source(), content.cStyleCond), context, content.cStyleCond);
+            }
+            if (content.cStyleUpdate != null) {
+                validateExpressionTyped(renderServices.sourceText(unit.source(), content.cStyleUpdate), context, content.cStyleUpdate, true);
+            }
         } else {
-            validateExpressionTyped(renderServices.sourceText(unit.source(), content.expression()), context, content.expression());
+            validateExpressionTyped(renderServices.sourceText(unit.source(), content.expression(0)), context, content.expression(0));
         }
         checkBlockStatements(unit, forStatement.block(), context);
         context.restoreScope(loopScope);
@@ -392,7 +419,7 @@ final class AffogatoTypeChecker {
     private void checkLocalVarDecl(CompilationUnit unit, AffogatoParser.LocalVarDeclContext declaration, MethodContext context) {
         boolean immutable = declaration.variableKind().LET() != null;
         String name = declaration.Identifier().getText();
-        TypeRef type = declaration.typeRef() == null ? null : typeRef(declaration.typeRef());
+        TypeRef type = declaration.declaredType == null ? null : typeRef(declaration.declaredType);
         int declLine = declaration.getStart().getLine();
         int declCol = declaration.getStart().getCharPositionInLine() + 1;
         if (!canDeclareJavaLocal(context, name) || !context.declareBlockLocal(name)) {
@@ -443,7 +470,10 @@ final class AffogatoTypeChecker {
         }
         if (bindingType == null && !rawInitializer.isBlank()
                 && (typedInit == null || !typedInit.resolvedType().isNullLiteral())) {
-            bindingType = TypeRef.unspecified("java.lang.Object");
+            // Use empty type so the variable is in scope but has unknown type.
+            // The generator emits `var` when no explicit type is declared,
+            // letting javac infer the actual type.
+            bindingType = TypeRef.unspecified("");
         }
         if (bindingType != null) {
             context.declareVariable(name, bindingType, !immutable);
@@ -583,15 +613,16 @@ final class AffogatoTypeChecker {
         if (PRIMITIVES.contains(raw) || activeTypeParams.contains(raw) || symbols.lookupClass(raw, unit) != null || javaResolver.typeExists(raw, unit)) {
             return;
         }
-        diagnostics.add(error(
-                unit.sourceFile(),
-                line,
-                column,
-                raw.length(),
-                "AFFOGATO_TYPE_RESOLUTION",
-                "Cannot resolve type " + raw + ".",
-                spellingHint("type", raw, typeSuggestionCandidates(unit))
-        ));
+        // Fully-qualified names with dots may be from same-project Java sources not yet
+        // compiled — downgrade to WARNING so the build continues and javac validates them.
+        boolean fullyQualified = raw.contains(".");
+        diagnostics.add(fullyQualified
+                ? new AffogatoDiagnostic(AffogatoDiagnostic.Severity.WARNING, "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + raw + " (may be a Java source in this project).",
+                        unit.sourceFile(), line, column, raw.length())
+                : error(unit.sourceFile(), line, column, raw.length(), "AFFOGATO_TYPE_RESOLUTION",
+                        "Cannot resolve type " + raw + ".",
+                        spellingHint("type", raw, typeSuggestionCandidates(unit))));
     }
 
     private String spellingHint(String kind, String name, List<String> candidates) {
@@ -1323,7 +1354,8 @@ final class AffogatoTypeChecker {
             TypeGuess source = cast.expression().resolvedType().isKnown()
                     ? cast.expression().resolvedType()
                     : inferExpressionType(cast.expression().source(), context);
-            if (symbols.lookupClass(cast.targetType(), context.unit) == null
+            if (!context.activeTypeParams.contains(cast.targetType())
+                    && symbols.lookupClass(cast.targetType(), context.unit) == null
                     && !context.javaResolver.typeExists(cast.targetType(), context.unit)) {
                 diagnostics.add(error(
                         context.unit.sourceFile(),

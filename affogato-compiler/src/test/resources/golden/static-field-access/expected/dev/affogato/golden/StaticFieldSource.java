@@ -4,15 +4,15 @@ public class StaticFieldSource {
     public static final String DEFAULT_LABEL = "static";
     public static int counter = 1;
 
-    public String getDEFAULT_LABEL() {
+    public static String getDEFAULT_LABEL() {
         return DEFAULT_LABEL;
     }
 
-    public int getCounter() {
+    public static int getCounter() {
         return counter;
     }
 
-    public void setCounter(int value) {
+    public static void setCounter(int value) {
         counter = value;
     }
 

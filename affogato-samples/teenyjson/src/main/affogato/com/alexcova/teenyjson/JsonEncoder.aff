@@ -1,0 +1,393 @@
+package com.alexcova.teenyjson
+
+import java.lang.reflect.Method
+import java.text.SimpleDateFormat
+import java.util.ArrayList
+import java.util.Arrays
+import java.util.Collection
+import java.util.Map
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Function
+import java.util.logging.Logger
+import java.util.stream.Collectors
+
+class JsonEncoder {
+    let cache: Map<Class, Mapper>
+    let serializers: Map<Class, com.alexcova.teenyjson.api.ValueSerializer>
+    let dateFormatter: SimpleDateFormat
+
+    init() {
+        this.cache = new ConcurrentHashMap<Class, Mapper>()
+        this.serializers = new ConcurrentHashMap<Class, com.alexcova.teenyjson.api.ValueSerializer>()
+        this.dateFormatter = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
+    }
+
+    func getDateFormatter(): SimpleDateFormat {
+        return dateFormatter
+    }
+
+    func registerSerializer<T>(clazz: Class, serializer: com.alexcova.teenyjson.api.ValueSerializer) {
+        serializers.put(clazz, serializer)
+    }
+
+    func writeValueAsString(value: Object?): String? {
+        if value == null {
+            return null
+        }
+        if value is String {
+            return value as String
+        }
+        if value is Collection {
+            let collection = value as Collection
+            let list = new ArrayList<String>()
+            for item in collection {
+                let serializedItem = serialize(item)
+                if serializedItem != null {
+                    list.add(serializedItem)
+                }
+            }
+            return "[" + String.join(", ", list) + "]"
+        }
+        return serialize(value)
+    }
+
+    func serialize(object: Object?): String {
+        if object == null {
+            return "null"
+        }
+
+        let cachedMapper = cache.get(object.getClass())
+        if cachedMapper != null {
+            return cachedMapper.serialize(object, this)
+        }
+
+        if object is Map {
+            let map = object as Map
+            let list = new ArrayList<String>()
+            for entry in map.entrySet() {
+                let entryMap = entry as java.util.Map.Entry
+                list.add("\"" + entryMap.getKey() + "\":" + serialize(entryMap.getValue()))
+            }
+            return "{" + String.join(",", list) + "}"
+        }
+
+        if object is Collection {
+            let list = object as Collection
+            let strList = new ArrayList<String>()
+            for item in list {
+                strList.add(serialize(item))
+            }
+            return "[" + String.join(",", strList) + "]"
+        }
+
+        if object.getClass().isArray() {
+            return serializeArray(object)
+        }
+
+        let clazz = object.getClass()
+        if clazz.getName().startsWith("java.lang") {
+            let valStr = writeValue(object)
+            return valStr != null ? valStr : "null"
+        }
+
+        let methods = clazz.getDeclaredMethods()
+        let mapper = Mapper(clazz)
+        cache.put(clazz, mapper)
+
+        for method in methods {
+            try {
+                if method.getName().equals("hashCode") {
+                    continue
+                }
+                if method.getName().equals("toString") {
+                    continue
+                }
+
+                mapper.put(method)
+            } catch (Throwable e) {
+                Logger.getLogger(JsonEncoder.class.getName())
+                        .log(java.util.logging.Level.SEVERE, "Error serializing object: " + object.getClass().getName(), e)
+            }
+        }
+
+        return mapper.serialize(object, this)
+    }
+
+    private func serializeArray(object: Object?): String {
+        if object == null {
+            return "null"
+        }
+
+        if object is Object[] {
+            let array = object as Object[]
+            let list = new ArrayList<String>()
+            for item in array {
+                list.add(serialize(item))
+            }
+            return "[" + String.join(", ", list) + "]"
+        }
+        if object is int[] {
+            return Arrays.toString(object as int[]).replace(" ", "")
+        }
+        if object is double[] {
+            return Arrays.toString(object as double[]).replace(" ", "")
+        }
+        if object is long[] {
+            return Arrays.toString(object as long[]).replace(" ", "")
+        }
+        if object is char[] {
+            return Arrays.toString(object as char[]).replace(" ", "")
+        }
+        if object is float[] {
+            return Arrays.toString(object as float[]).replace(" ", "")
+        }
+        if object is boolean[] {
+            return Arrays.toString(object as boolean[]).replace(" ", "")
+        }
+        if object is byte[] {
+            return Arrays.toString(object as byte[]).replace(" ", "")
+        }
+        if object is short[] {
+            return Arrays.toString(object as short[]).replace(" ", "")
+        }
+
+        throw new IllegalArgumentException("Unknown array type: " + object.getClass().getName())
+    }
+
+    func writeField(name: String, value: Object?, includeNonNull: boolean, invoker: AccessorInvoker): String? {
+        if includeNonNull && value == null {
+            return null
+        }
+
+        if invoker.isAnnotationPresent(com.alexcova.teenyjson.api.JsonRaw.class) && value is String {
+            let rawAnn = invoker.getAnnotation(com.alexcova.teenyjson.api.JsonRaw.class) as com.alexcova.teenyjson.api.JsonRaw?
+            if rawAnn != null && rawAnn.includeKey() {
+                return "\"" + name + "\":" + (value as String)
+            }
+            return value as String
+        }
+
+        if invoker.isAnnotationPresent(com.alexcova.teenyjson.api.JsonIncludeNonNull.class) && value == null {
+            return null
+        }
+
+        let sb = new StringBuilder()
+
+        try {
+            sb.append("\"").append(name).append("\":")
+
+            if value is Map {
+                sb.append("{")
+
+                let map = value as Map
+                let list = new ArrayList<String>()
+                for entry in map.entrySet() {
+                    let entryMap = entry as java.util.Map.Entry
+                    list.add("\"" + entryMap.getKey() + "\":" + serialize(entryMap.getValue()))
+                }
+
+                sb.append(String.join(", ", list))
+                return sb.append("}").toString()
+            }
+
+            if value is Collection {
+                sb.append("[")
+
+                let collection = value as Collection
+                let list = new ArrayList<String>()
+                for item in collection {
+                    list.add(serialize(item))
+                }
+
+                sb.append(String.join(",", list))
+                return sb.append("]").toString()
+            }
+
+            sb.append(writeValue(value))
+        } catch (Exception e) {
+            Logger.getLogger(JsonEncoder.class.getName())
+                    .log(java.util.logging.Level.SEVERE, null, e)
+        }
+
+        return sb.toString()
+    }
+
+    static func getFieldName(method: Method): String {
+        if method.isAnnotationPresent(com.alexcova.teenyjson.api.JsonAlias.class) {
+            let jsonAlias = method.getAnnotation(com.alexcova.teenyjson.api.JsonAlias.class) as com.alexcova.teenyjson.api.JsonAlias?
+            if jsonAlias != null {
+                let alias = jsonAlias.value()
+                if not(alias.isEmpty()) {
+                    return alias
+                }
+            }
+        }
+
+        var name = method.getName()
+
+        if name.startsWith("get") || name.startsWith("set") {
+            name = name.substring(3)
+        }
+
+        if name.startsWith("is") {
+            name = name.substring(2)
+        }
+
+        return name.substring(0, 1).toLowerCase() + name.substring(1)
+    }
+
+    private func writeValue(value: Object?): String? {
+        if value == null {
+            return "null"
+        }
+
+        let serializer = serializers.get(value.getClass()) as com.alexcova.teenyjson.api.ValueSerializer?
+        if serializer != null {
+            return serializer.serialize(value)
+        }
+
+        if value is String {
+            return "\"" + escapeJsonString(value as String) + "\""
+        }
+        if value is Number {
+            return (value as Number).toString()
+        }
+        if value is Boolean {
+            return (value as Boolean).toString()
+        }
+        if value is java.util.Date {
+            return "\"" + dateFormatter.format(value as java.util.Date) + "\""
+        }
+        if value is Character {
+            return "\"" + (value as Character) + "\""
+        }
+        if value is java.time.LocalDate {
+            return "\"" + (value as java.time.LocalDate) + "\""
+        }
+        if value is java.time.LocalDateTime {
+            return "\"" + (value as java.time.LocalDateTime) + "\""
+        }
+        if value is java.time.LocalTime {
+            return "\"" + (value as java.time.LocalTime) + "\""
+        }
+
+        if value.getClass().isEnum() {
+            return "\"" + value + "\""
+        }
+
+        if not(value.getClass().getName().startsWith("java.lang")) && not(value.getClass().getName().startsWith("java.time")) {
+            return serialize(value)
+        }
+
+        System.err.println("Unknown type: " + value.getClass().getName())
+        return null
+    }
+
+    private func escapeJsonString(s: String): String {
+        let sb = new StringBuilder()
+        var i = 0
+        let len = s.length()
+        while i < len {
+            let ch = s.charAt(i)
+            i = i + 1
+            switch ch {
+                case '"', '\\' -> {
+                    sb.append('\\')
+                    sb.append(ch)
+                }
+                case '\b' -> sb.append("\\b")
+                case '\f' -> sb.append("\\f")
+                case '\n' -> sb.append("\\n")
+                case '\r' -> sb.append("\\r")
+                case '\t' -> sb.append("\\t")
+                default -> {
+                    if ch <= 0x1F {
+                        let ss = Integer.toHexString(ch as int)
+                        sb.append("\\u")
+                        sb.append("0".repeat(4 - ss.length()))
+                        sb.append(ss.toUpperCase())
+                    } else {
+                        sb.append(ch)
+                    }
+                }
+            }
+        }
+        return sb.toString()
+    }
+
+    static func createFunction(targetClass: Class, method: Method): AccessorInvoker {
+        try {
+            let lookup = JsonEncoder.getLookup(targetClass)
+            let virtualMethodHandle = lookup.findVirtual(targetClass, method.getName(), java.lang.invoke.MethodType.methodType(method.getReturnType()))
+            let site = java.lang.invoke.LambdaMetafactory.metafactory(
+                    lookup,
+                    "apply",
+                    java.lang.invoke.MethodType.methodType(Function.class),
+                    java.lang.invoke.MethodType.methodType(Object.class, Object.class),
+                    virtualMethodHandle,
+                    java.lang.invoke.MethodType.methodType(method.getReturnType(), targetClass)
+            )
+            let getterFunction = site.getTarget().invokeExact() as Function<Object, Object>
+            return AccessorInvoker(method, getterFunction)
+        } catch (Throwable e) {
+            throw new IllegalArgumentException("Unable to create function for " + targetClass + " at " + method.getName(), e)
+        }
+    }
+
+    static func getLookup(targetClass: Class): java.lang.invoke.MethodHandles.Lookup {
+        let lookupMe = java.lang.invoke.MethodHandles.lookup()
+        try {
+            return java.lang.invoke.MethodHandles.privateLookupIn(targetClass, lookupMe)
+        } catch (IllegalAccessException e) {
+            return lookupMe
+        }
+    }
+}
+
+class Mapper: ConcurrentHashMap<String, AccessorInvoker> {
+    let target: Class
+    let includeNonNull: boolean
+
+    init(target: Class) {
+        super()
+        this.target = target
+        this.includeNonNull = target.isAnnotationPresent(com.alexcova.teenyjson.api.JsonIncludeNonNull.class)
+    }
+
+    func put(method: Method) {
+        if method.isAnnotationPresent(com.alexcova.teenyjson.api.JsonIgnore.class) {
+            return
+        }
+        if java.lang.reflect.Modifier.isStatic(method.getModifiers()) {
+            return
+        }
+        if method.getParameterCount() > 0 {
+            return
+        }
+
+        let fieldName = JsonEncoder.getFieldName(method)
+        put(fieldName, JsonEncoder.createFunction(target, method))
+    }
+
+    func serialize(object: Object, encoder: JsonEncoder): String {
+        let properties = new java.util.LinkedList<String>()
+
+        for entry in entrySet() {
+            let entryMap = entry as java.util.Map.Entry
+            let key = entryMap.getKey() as String
+            let invoker = entryMap.getValue() as AccessorInvoker
+            let value = invoker.invoke(object)
+            if value == null && not(includeNonNull) {
+                continue
+            }
+            let field = encoder.writeField(key, value, includeNonNull, invoker)
+            if field == null {
+                continue
+            }
+
+            properties.add(field)
+        }
+
+        return "{" + String.join(",", properties) + "}"
+    }
+}

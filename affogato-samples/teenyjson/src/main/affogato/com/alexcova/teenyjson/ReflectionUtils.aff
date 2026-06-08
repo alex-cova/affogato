@@ -1,0 +1,140 @@
+package com.alexcova.teenyjson
+
+import java.lang.reflect.Method
+import java.lang.reflect.Type
+import java.util.Arrays
+import java.util.HashMap
+import java.util.Map
+import java.util.Objects
+import java.util.stream.Collectors
+
+class ReflectionUtils {
+
+    static func newInstance<T>(clazz: Class): T {
+        let constructor = Arrays.stream(clazz.getDeclaredConstructors())
+                .filter(cons -> cons.getParameterCount() == 0)
+                .findFirst()
+                .orElseThrow { new IllegalArgumentException("No default constructor found for " + clazz.getName()) } as java.lang.reflect.Constructor
+
+        try {
+            constructor.setAccessible(true)
+            return constructor.newInstance() as T
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to create new instance of " + clazz.getName(), e)
+        }
+    }
+
+    static func getParameterType(parameter: java.lang.reflect.Parameter): ParameterizedTypeHelper? {
+        return ReflectionUtils.getParameterType(parameter.getParameterizedType())
+    }
+
+    static func getParameterType(field: java.lang.reflect.Field): ParameterizedTypeHelper? {
+        return ReflectionUtils.getParameterType(field.getGenericType())
+    }
+
+    static func getParameterType(type: Type): ParameterizedTypeHelper? {
+        if not(type is java.lang.reflect.ParameterizedType) {
+            return null
+        }
+
+        let parameterizedType = type as java.lang.reflect.ParameterizedType
+        return ParameterizedTypeHelper(
+            parentType = parameterizedType.getRawType() as Class,
+            arguments = parameterizedType.getActualTypeArguments()
+        )
+    }
+
+    static func getArrayType(type: Type): Class? {
+        if type is java.lang.reflect.GenericArrayType {
+            return (type as java.lang.reflect.GenericArrayType).getGenericComponentType() as Class
+        }
+
+        if type is Class {
+            return (type as Class).getComponentType()
+        }
+
+        return null
+    }
+
+    static func isEnum(type: Type): boolean {
+        if type is Class {
+            return (type as Class).isEnum()
+        }
+        return false
+    }
+
+    static func getFields(clazz: Class): Map<String, java.lang.reflect.Field> {
+        let methodMap = Arrays.stream(clazz.getDeclaredMethods())
+                .collect(Collectors.toMap(m -> m.getName(), m -> m)) as Map<String, Method>
+
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(f -> ReflectionUtils.isWritable(f))
+                .collect(Collectors.toMap(field -> ReflectionUtils.getFieldName(field, methodMap), f -> f)) as Map<String, java.lang.reflect.Field>
+    }
+
+    private static func getFieldName(field: java.lang.reflect.Field, methodMap: Map<String, Method>): String {
+        let baseName = field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1)
+        let alias = ReflectionUtils.findAlias(methodMap, baseName, field.getType())
+
+        return Objects.requireNonNullElse(alias, field.getName())
+    }
+
+    private static func getMutatorName(method: Method, methodMap: Map<String, Method>): String {
+        let baseName = method.getName().substring(3)
+        let alias = ReflectionUtils.findAlias(methodMap, baseName, method.getParameterTypes()[0])
+        if alias != null {
+            return alias
+        }
+
+        return method.getName().substring(3, 4).toLowerCase() + method.getName().substring(4)
+    }
+
+    private static func findAlias(methodMap: Map<String, Method>, baseName: String, type: Class): String? {
+        var accessorMethod: Method? = null
+
+        if type == boolean.class {
+            accessorMethod = methodMap.get("is" + baseName)
+        } else {
+            accessorMethod = methodMap.get("get" + baseName)
+        }
+
+        if accessorMethod != null {
+            let jsonAlias = accessorMethod.getAnnotation(com.alexcova.teenyjson.api.JsonAlias.class) as com.alexcova.teenyjson.api.JsonAlias?
+
+            if jsonAlias != null {
+                return jsonAlias.value()
+            }
+        }
+
+        return null
+    }
+
+    static func getMutators(clazz: Class): Map<String, Method> {
+        let methodMap = Arrays.stream(clazz.getDeclaredMethods())
+                .collect(Collectors.toMap(m -> m.getName(), m -> m)) as Map<String, Method>
+
+        let resultMap = new HashMap<String, Method>()
+
+        for method in methodMap.values() {
+            if not(ReflectionUtils.isMutator(method)) {
+                continue
+            }
+
+            let mutatorName = ReflectionUtils.getMutatorName(method, methodMap)
+            resultMap.put(mutatorName, method)
+        }
+
+        return resultMap
+    }
+
+    private static func isMutator(method: Method): boolean {
+        return method.getName().startsWith("set") && method.getParameterCount() == 1
+    }
+
+    private static func isWritable(field: java.lang.reflect.Field): boolean {
+        if java.lang.reflect.Modifier.isStatic(field.getModifiers()) {
+            return false
+        }
+        return not(java.lang.reflect.Modifier.isFinal(field.getModifiers()))
+    }
+}

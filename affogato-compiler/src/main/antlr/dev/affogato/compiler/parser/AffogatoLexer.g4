@@ -22,6 +22,55 @@ lexer grammar AffogatoLexer;
         return top != null && (top == '(' || top == '[');
     }
 
+    // Suppress NL when the next non-whitespace character is '.' so that
+    // multi-line method chains like:
+    //   logger.getLogger(...)
+    //       .severe(...)
+    // are parsed as a single expression.
+    private boolean nextNonWhitespaceIsDot() {
+        int i = 1;
+        while (true) {
+            int c = _input.LA(i);
+            if (c == ' ' || c == '\t' || c == '\r') {
+                i++;
+            } else {
+                return c == '.';
+            }
+        }
+    }
+
+    // Track the last token emitted on the default channel so we can detect
+    // lines ending with a binary operator (trailing-operator continuation).
+    private int lastDefaultChannelToken = -1;
+
+    @Override
+    public org.antlr.v4.runtime.Token emit() {
+        org.antlr.v4.runtime.Token t = super.emit();
+        if (t.getChannel() == org.antlr.v4.runtime.Token.DEFAULT_CHANNEL) {
+            lastDefaultChannelToken = t.getType();
+        }
+        return t;
+    }
+
+    // Returns true when the last real token was a binary operator that can
+    // trail a line, e.g.:
+    //   if a ||
+    //       b { ... }
+    //   return "x" +
+    //       "y"
+    private boolean prevIsBinaryOp() {
+        // Only include operators that are unambiguously binary and cannot appear
+        // at the end of a complete expression (e.g. GT/LT excluded — used in generics).
+        return lastDefaultChannelToken == OR
+            || lastDefaultChannelToken == AND
+            || lastDefaultChannelToken == PLUS
+            || lastDefaultChannelToken == PIPE
+            || lastDefaultChannelToken == AMPERSAND
+            || lastDefaultChannelToken == CARET
+            || lastDefaultChannelToken == EQ
+            || lastDefaultChannelToken == NE;
+    }
+
 }
 
 PACKAGE: 'package';
@@ -129,8 +178,12 @@ StringLiteral
     : '"' (Interpolation | StringCharacter)* '"'
     ;
 
+CharLiteral
+    : '\'' (~['\\] | EscapeSequence) '\''
+    ;
+
 NL
-    : '\r'? '\n' { if (newlineSuppressed()) skip(); }
+    : '\r'? '\n' { if (newlineSuppressed() || nextNonWhitespaceIsDot() || prevIsBinaryOp()) skip(); }
     ;
 
 WS

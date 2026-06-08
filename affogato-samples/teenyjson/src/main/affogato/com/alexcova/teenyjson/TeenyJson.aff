@@ -1,0 +1,429 @@
+package com.alexcova.teenyjson
+
+import java.io.BufferedOutputStream
+import java.lang.reflect.Type
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.util.ArrayList
+import java.util.Collection
+import java.util.Date
+import java.util.HashMap
+import java.util.HashSet
+import java.util.List
+import java.util.Map
+import java.util.Set
+import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
+
+class TeenyJson {
+    let encoder: JsonEncoder
+    let parsers: Map<Class, com.alexcova.teenyjson.api.ValueParser>
+
+    init() {
+        this.encoder = JsonEncoder()
+        this.parsers = new ConcurrentHashMap<Class, com.alexcova.teenyjson.api.ValueParser>()
+    }
+
+    func writeValueAsString(value: Object?): String? {
+        return encoder.writeValueAsString(value)
+    }
+
+    func writeValue(outputStream: BufferedOutputStream, value: Object?) {
+        if value == null {
+            return
+        }
+        let str = writeValueAsString(value)
+        if str != null {
+            outputStream.write(str.getBytes())
+        }
+    }
+
+    func readCollection<T, K>(json: String?, collectionType: Class, type: Class): K? {
+        if json == null {
+            return null
+        }
+
+        let result = JsonDecoder(json).read()
+        if result == null {
+            return null
+        }
+
+        let list = result as List
+
+        if java.util.List.class.isAssignableFrom(collectionType) {
+            let resList = new ArrayList<Object>()
+            for o in list {
+                resList.add(parseObject(o, type))
+            }
+            return resList as K
+        }
+
+        if java.util.Set.class.isAssignableFrom(collectionType) {
+            let resSet = new HashSet<Object>()
+            for o in list {
+                resSet.add(parseObject(o, type))
+            }
+            return resSet as K
+        }
+
+        throw new IllegalStateException("Unsupported collection type: " + collectionType.getName())
+    }
+
+    func readValue<T>(json: String?, type: Class): T? {
+        if json == null {
+            return null
+        }
+
+        if type == java.lang.String.class {
+            return json as T
+        }
+
+        let result = JsonDecoder(json).read()
+        if result == null {
+            return null
+        }
+
+        if type == java.util.Map.class && result is Map {
+            return result as T
+        }
+
+        return parseObject(result, type) as T
+    }
+
+    func readValueWithType<T>(json: String?, type: Type): T? {
+        if json == null {
+            return null
+        }
+        if type == java.lang.String.class {
+            return json as T
+        }
+
+        let result = JsonDecoder(json).read()
+        if result == null {
+            return null
+        }
+
+        if type is Class {
+            return parse(result, type) as T
+        }
+
+        throw new JsonParsingException("Unsupported type: " + type.getTypeName() + " " + type.getClass().getName())
+    }
+
+    func registerSerializer<T>(clazz: Class, serializer: com.alexcova.teenyjson.api.ValueSerializer) {
+        encoder.registerSerializer(clazz, serializer)
+    }
+
+    func registerParser<T>(clazz: Class, parser: com.alexcova.teenyjson.api.ValueParser) {
+        parsers.put(clazz, parser)
+    }
+
+    private func parseObject<T>(object: Object?, type: Class): T? {
+        if object == null {
+            return null
+        }
+
+        let instance = ReflectionUtils.newInstance(type) as T
+        let fields = ReflectionUtils.getFields(type) as Map<String, java.lang.reflect.Field>
+        let mutators = ReflectionUtils.getMutators(type) as Map<String, Method>
+        let map = object as Map<String, Object>
+
+        for entry in fields.entrySet() {
+            let entryMap = entry as java.util.Map.Entry
+            let key = entryMap.getKey() as String
+            let field = entryMap.getValue() as java.lang.reflect.Field
+            let source = map.get(key)
+
+            if source == null {
+                continue
+            }
+
+            write(field, mutators.get(key), source, instance)
+        }
+
+        return instance
+    }
+
+    private func write(field: java.lang.reflect.Field, method: Method?, value: Object?, instance: Object) {
+        try {
+            if method != null {
+                method.setAccessible(true)
+
+                if method.isAnnotationPresent(com.alexcova.teenyjson.api.JsonDeserialize.class) {
+                    let annotation = method.getAnnotation(com.alexcova.teenyjson.api.JsonDeserialize.class) as com.alexcova.teenyjson.api.JsonDeserialize?
+                    if annotation != null {
+                        if annotation.as() != Object.class {
+                            method.invoke(instance, parse(value, annotation.as()))
+                        } else if annotation.contentAs() != Object.class {
+                            var helper = ReflectionUtils.getParameterType(method.getGenericParameterTypes()[0])
+                            if helper != null {
+                                helper = helper.withFirstType(annotation.contentAs())
+                                method.invoke(instance, parse(value, helper))
+                            }
+                        }
+                    }
+                    return
+                }
+
+                try {
+                    method.invoke(instance, parse(value, method.getGenericParameterTypes()[0]))
+                } catch (JsonParsingException e) {
+                    throw new JsonParsingException("Failed to write field: " + field.getName() + " on " + field.getDeclaringClass(), e)
+                }
+                return
+            }
+
+            field.setAccessible(true)
+            field.set(instance, parse(value, field.getType()))
+        } catch (Exception ex) {
+            Logger.getLogger("com.alexcova.teenyjson.TeenyJson")
+                    .log(java.util.logging.Level.SEVERE, "Failed to set field " + field.getName() + " on " + instance.getClass().getName(), ex)
+        }
+    }
+
+    private func parse(value: Object?, target: Type): Object? {
+        if target is java.lang.reflect.ParameterizedType {
+            let helper = ReflectionUtils.getParameterType(target)
+            if helper != null {
+                return parseCollectionOrMap(value, helper)
+            }
+            throw new JsonParsingException("Type is not parameterized: " + target)
+        }
+
+        if target is ParameterizedTypeHelper {
+            return parseCollectionOrMap(value, target as ParameterizedTypeHelper)
+        }
+
+        if target is Class {
+            let targetClass = target as Class
+
+            if targetClass.isInterface() {
+                throw new JsonParsingException("Unsupported type: " + target.getTypeName() + " " + target.getClass().getName())
+            }
+
+            if targetClass.isPrimitive() {
+                return parseSimple(value, targetClass)
+            }
+
+            if targetClass.isArray() {
+                let arrayType = ReflectionUtils.getArrayType(target)
+                if arrayType != null {
+                    return parseArray(value, arrayType)
+                }
+                throw new JsonParsingException("Unsupported array type: " + target)
+            }
+
+            if ReflectionUtils.isEnum(targetClass) {
+                return Enum.valueOf(targetClass, value.toString())
+            }
+
+            if not(targetClass.getName().startsWith("java")) {
+                return parseObject(value, targetClass)
+            }
+
+            return parseSimple(value, targetClass)
+        }
+
+        throw new JsonParsingException("Unsupported type: " + target.getTypeName() + " " + target.getClass().getName())
+    }
+
+    private func parseArray(value: Object?, componentType: Class): Object? {
+        if value == null {
+            return null
+        }
+
+        let list = value as List
+        let array = java.lang.reflect.Array.newInstance(componentType, list.size())
+
+        var i = 0
+        let len = list.size()
+        while i < len {
+            java.lang.reflect.Array.set(array, i, parse(list.get(i), componentType))
+            i = i + 1
+        }
+
+        return array
+    }
+
+    private func parseCollectionOrMap(value: Object?, helper: ParameterizedTypeHelper): Object {
+        if helper.getParentType() == null {
+            throw new JsonParsingException("Type is not a ParameterizedType: " + helper)
+        }
+
+        if helper.isParentTypeOf(java.util.List.class) {
+            let list = value as List
+            var parsedList: List<Object>? = null
+
+            if helper.getParentType() == java.util.ArrayList.class || helper.getParentType() == java.util.List.class {
+                parsedList = new ArrayList<Object>()
+            } else {
+                parsedList = ReflectionUtils.newInstance(helper.getParentType()) as List<Object>
+            }
+
+            for o in list {
+                parsedList.add(parse(o, helper.getFirstType()))
+            }
+
+            return parsedList
+        }
+
+        if helper.isParentTypeOf(java.util.Set.class) {
+            let list = value as List
+            var parsedSet: Set<Object>? = null
+
+            if helper.getParentType() == java.util.HashSet.class || helper.getParentType() == java.util.Set.class {
+                parsedSet = new HashSet<Object>()
+            } else {
+                parsedSet = ReflectionUtils.newInstance(helper.getParentType()) as Set<Object>
+            }
+
+            for o in list {
+                parsedSet.add(parse(o, helper.getFirstType()))
+            }
+
+            return parsedSet
+        }
+
+        if helper.isParentTypeOf(java.util.Map.class) {
+            let map = value as Map
+            let result = new HashMap<String, Object>()
+
+            for entry in map.entrySet() {
+                let entryMap = entry as java.util.Map.Entry
+                result.put(entryMap.getKey().toString(), parse(entryMap.getValue(), helper.getSecondType()))
+            }
+
+            return result
+        }
+
+        throw new JsonParsingException("Unsupported parameterized type: " + helper.getParentType())
+    }
+
+    private func parsePrimitive(obj: Object?, target: Class): Object {
+        let value = obj == null ? null : obj.toString().trim()
+
+        if target == int.class {
+            if value == null {
+                return 0
+            }
+            return Integer.parseInt(value)
+        }
+
+        if target == long.class {
+            if value == null {
+                return 0L
+            }
+            return Long.parseLong(value)
+        }
+
+        if target == double.class {
+            if value == null {
+                return 0.0
+            }
+            return Double.parseDouble(value)
+        }
+
+        if target == float.class {
+            if value == null {
+                return 0.0f
+            }
+            return Float.parseFloat(value)
+        }
+
+        if target == boolean.class {
+            if value == null {
+                return false
+            }
+            return Boolean.parseBoolean(value)
+        }
+
+        throw new IllegalStateException("Unsupported primitive type: " + target.getName())
+    }
+
+    private static func classForName(name: String): Class {
+        try {
+            return Class.forName(name)
+        } catch (Exception e) {
+            throw new RuntimeException(e)
+        }
+    }
+
+    private func parseSimple(value: Object?, target: Class): Object? {
+        if value == null {
+            return null
+        }
+
+        if target == TeenyJson.classForName("java.lang.String") {
+            return value.toString()
+        }
+
+        if target.isPrimitive() {
+            return parsePrimitive(value, target)
+        }
+
+        if target == TeenyJson.classForName("java.lang.Integer") {
+            return Integer.parseInt(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.math.BigDecimal") {
+            return BigDecimal(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.math.BigInteger") {
+            return BigInteger(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.lang.Long") {
+            return Long.parseLong(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.lang.Double") {
+            return Double.parseDouble(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.lang.Float") {
+            return Float.parseFloat(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.lang.Boolean") {
+            return Boolean.parseBoolean(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.time.LocalDateTime") {
+            return LocalDateTime.parse(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.time.LocalDate") {
+            return LocalDate.parse(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.time.LocalTime") {
+            return LocalTime.parse(value.toString())
+        }
+
+        if target == TeenyJson.classForName("java.util.Date") {
+            try {
+                return encoder.getDateFormatter().parse(value.toString())
+            } catch (Exception e) {
+                return null
+            }
+        }
+
+        if target.isEnum() {
+            return Enum.valueOf(target, value.toString())
+        }
+
+        let parser = parsers.get(target) as com.alexcova.teenyjson.api.ValueParser?
+        if parser != null {
+            return parser.parse(value)
+        }
+
+        Logger.getLogger("com.alexcova.teenyjson.TeenyJson")
+                .log(java.util.logging.Level.WARNING, "not implemented: " + target.getName())
+
+        return null
+    }
+}

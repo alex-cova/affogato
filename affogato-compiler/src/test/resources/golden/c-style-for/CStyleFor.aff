@@ -1,0 +1,19 @@
+package dev.affogato.golden
+
+class CStyleFor {
+    sumToN(n: int): int {
+        var total = 0
+        for (var i = 0; i < n; i++) {
+            total = total + i
+        }
+        return total
+    }
+
+    countdown(n: int): int {
+        var result = 0
+        for (var i: int = n; i > 0; i--) {
+            result = result + i
+        }
+        return result
+    }
+}

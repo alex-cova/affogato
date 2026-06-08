@@ -500,9 +500,9 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
     private void writeAccessors(StringBuilder out, ParsedClass clazz) {
         for (FieldDecl field : clazz.fields()) {
             String getter = getterName(field.name(), field.type());
-            // Accessors are always public instance methods so Affogato property syntax works across classes,
-            // even for static fields (Java allows this.field on static members).
-            out.append("    public ")
+            // Accessors are always public; static fields get static accessors.
+            String staticMod = field.isStatic() ? " static" : "";
+            out.append("    public").append(staticMod).append(' ')
                     .append(field.type().declaration())
                     .append(' ')
                     .append(getter)
@@ -517,7 +517,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
                     .append(System.lineSeparator());
 
             if (field.mutable()) {
-                out.append("    public void ")
+                out.append("    public").append(staticMod).append(" void ")
                         .append(setterName(field.name()))
                         .append('(')
                         .append(field.type().declaration())
@@ -822,8 +822,8 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         MethodContext.ScopeSnapshot loopScope = context.snapshotScope();
         if (content.IN() != null) {
             String variable = content.Identifier().getText();
-            String rawIterable = sourceText(unit.source(), content.expression());
-            TypedExpression typedIterable = transformExpressionTyped(rawIterable, context, content.expression());
+            String rawIterable = sourceText(unit.source(), content.expression(0));
+            TypedExpression typedIterable = transformExpressionTyped(rawIterable, context, content.expression(0));
             String iterable = typedIterable.javaSource();
             Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
             if (elementType.isPresent()) {
@@ -840,8 +840,44 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
             context.mutableVariables.put(variable, true);
             out.append(indent(indent)).append("for (var ").append(variable).append(" : ").append(iterable).append(") {")
                     .append(System.lineSeparator());
+        } else if (!content.SEMI().isEmpty()) {
+            // C-style for loop: init; condition; update
+            StringBuilder forHeader = new StringBuilder("for (");
+            AffogatoParser.ForCStyleInitContext init = content.forCStyleInit();
+            if (init != null) {
+                if (init.variableKind() != null) {
+                    String varName = init.Identifier().getText();
+                    TypedExpression initTyped = transformExpressionTyped(
+                            sourceText(unit.source(), init.expression()), context, init.expression());
+                    if (init.typeRef() != null) {
+                        TypeRef explicitType = typeRef(init.typeRef());
+                        context.declareVariable(varName, explicitType, true);
+                        forHeader.append(explicitType.javaType()).append(" ").append(varName)
+                                .append(" = ").append(initTyped.javaSource());
+                    } else {
+                        TypeRef varType = TypeRef.unspecified(
+                                initTyped.resolvedType().isKnown() && !initTyped.resolvedType().isNullLiteral()
+                                        ? initTyped.resolvedType().javaType() : "int");
+                        context.declareVariable(varName, varType, true);
+                        forHeader.append("var ").append(varName).append(" = ").append(initTyped.javaSource());
+                    }
+                    context.mutableVariables.put(varName, true);
+                } else {
+                    forHeader.append(transformExpression(sourceText(unit.source(), init.expression()), context));
+                }
+            }
+            forHeader.append("; ");
+            if (content.cStyleCond != null) {
+                forHeader.append(transformExpression(sourceText(unit.source(), content.cStyleCond), context));
+            }
+            forHeader.append("; ");
+            if (content.cStyleUpdate != null) {
+                forHeader.append(transformExpression(sourceText(unit.source(), content.cStyleUpdate), context));
+            }
+            forHeader.append(") {");
+            out.append(indent(indent)).append(forHeader).append(System.lineSeparator());
         } else {
-            String expression = transformExpression(sourceText(unit.source(), content.expression()), context);
+            String expression = transformExpression(sourceText(unit.source(), content.expression(0)), context);
             out.append(indent(indent)).append("for (").append(stripOuterParens(expression)).append(") {").append(System.lineSeparator());
         }
         writeBlockStatements(out, unit, forStatement.block(), context, indent + 1);
@@ -1029,7 +1065,7 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
     private String transformLocalDeclaration(CompilationUnit unit, AffogatoParser.LocalVarDeclContext declaration, MethodContext context, int indent) {
         boolean immutable = declaration.variableKind().LET() != null;
         String name = declaration.Identifier().getText();
-        TypeRef type = declaration.typeRef() == null ? null : typeRef(declaration.typeRef());
+        TypeRef type = declaration.declaredType == null ? null : typeRef(declaration.declaredType);
         int declLine = declaration.getStart().getLine();
         int declCol = declaration.getStart().getCharPositionInLine() + 1;
         validateDeclaredName(unit.sourceFile(), name, "local variable",
@@ -1066,7 +1102,8 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
         String rawInitializer = declaration.expression() == null
                 ? ""
                 : mergeTrailingClosure(sourceText(unit.source(), declaration.expression()),
-                        unit.source(), declaration.trailingClosure(), context);
+                        unit.source(), declaration.trailingClosure(), context)
+                  + (declaration.AS() != null ? " as " + declaration.castType.getText() : "");
         // Target-type an array-literal initializer to the declared single-dimension array element type, so
         // `let xs: Person[] = [...]` emits `new Person[]{...}` (matching the declared type) rather than the
         // too-wide `new Object[]` that the element-based inference would otherwise pick.

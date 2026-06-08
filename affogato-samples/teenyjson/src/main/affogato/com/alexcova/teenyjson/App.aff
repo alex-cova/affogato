@@ -1,0 +1,29 @@
+package com.alexcova.teenyjson
+
+class Person(var name: String, var age: int) {
+    init() {
+        this.name = ""
+        this.age = 0
+    }
+}
+
+class App {
+    static func main(args: String[]) {
+        let teenyJson = TeenyJson()
+
+        let person = Person(name = "John Doe", age = 30)
+
+        let json = teenyJson.writeValueAsString(person)
+        println("Serialized: " + json)
+
+        let deserialized = teenyJson.readValue(json, Person.class) as Person
+        println("Deserialized Name: " + deserialized.name)
+        println("Deserialized Age: " + deserialized.age)
+
+        if deserialized.name == "John Doe" && deserialized.age == 30 {
+            println("Verification SUCCESS!")
+        } else {
+            println("Verification FAILED!")
+        }
+    }
+}
