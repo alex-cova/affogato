@@ -308,6 +308,9 @@ final class MethodContext {
 
     String resolveOwnerType(String owner) {
         if ("this".equals(owner)) {
+            if (receiverType != null) {
+                return receiverType;
+            }
             return currentClass.name();
         }
         if ("super".equals(owner) && !currentClass.superTypes().isEmpty()) {
@@ -399,11 +402,23 @@ final class MethodContext {
         return javaResolver.hasMethodNamed(resolvedReceiverType, name, unit);
     }
 
+    boolean typeHasMethodNamed(String ownerType, String name) {
+        String resolvedOwnerType = activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
+        return !affogatoMethods(resolvedOwnerType, name, unit).isEmpty()
+                || javaResolver.hasMethodNamed(resolvedOwnerType, name, unit);
+    }
+
     boolean identifierResolvesAsMember(String name) {
         return identifierType(name).isPresent();
     }
 
     Optional<String> identifierType(String name) {
+        if ("this".equals(name) && receiverType != null) {
+            return Optional.of(receiverType);
+        }
+        if ("this".equals(name) && currentClass != null) {
+            return Optional.of(currentClass.name());
+        }
         String localType = variableTypes.get(name);
         if (localType != null) {
             return Optional.of(localType);

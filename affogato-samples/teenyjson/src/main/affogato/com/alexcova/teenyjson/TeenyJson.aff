@@ -1,9 +1,12 @@
 package com.alexcova.teenyjson
 
 import java.io.BufferedOutputStream
+import java.lang.reflect.Method
 import java.lang.reflect.Type
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.text.ParseException
+import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -17,6 +20,8 @@ import java.util.Map
 import java.util.Set
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
+import com.alexcova.teenyjson.api.JsonDeserialize
+import com.alexcova.teenyjson.api.ValueParser
 
 class TeenyJson {
     let encoder: JsonEncoder
@@ -51,7 +56,7 @@ class TeenyJson {
             return null
         }
 
-        let list = result as List
+        let list: java.util.List = result as java.util.List
 
         if java.util.List.class.isAssignableFrom(collectionType) {
             let resList = new ArrayList<Object>()
@@ -110,7 +115,7 @@ class TeenyJson {
             return parse(result, type) as T
         }
 
-        throw new JsonParsingException("Unsupported type: " + type.getTypeName() + " " + type.getClass().getName())
+        throw new JsonParsingException("Unsupported type: " + type.getTypeName())
     }
 
     func registerSerializer<T>(clazz: Class, serializer: com.alexcova.teenyjson.api.ValueSerializer) {
@@ -201,7 +206,7 @@ class TeenyJson {
             let targetClass = target as Class
 
             if targetClass.isInterface() {
-                throw new JsonParsingException("Unsupported type: " + target.getTypeName() + " " + target.getClass().getName())
+                throw new JsonParsingException("Unsupported type: " + target.getTypeName())
             }
 
             if targetClass.isPrimitive() {
@@ -227,7 +232,7 @@ class TeenyJson {
             return parseSimple(value, targetClass)
         }
 
-        throw new JsonParsingException("Unsupported type: " + target.getTypeName() + " " + target.getClass().getName())
+        throw new JsonParsingException("Unsupported type: " + target.getTypeName())
     }
 
     private func parseArray(value: Object?, componentType: Class): Object? {
@@ -254,7 +259,7 @@ class TeenyJson {
         }
 
         if helper.isParentTypeOf(java.util.List.class) {
-            let list = value as List
+            let list: java.util.List = value as java.util.List
             var parsedList: List<Object>? = null
 
             if helper.getParentType() == java.util.ArrayList.class || helper.getParentType() == java.util.List.class {
@@ -271,7 +276,7 @@ class TeenyJson {
         }
 
         if helper.isParentTypeOf(java.util.Set.class) {
-            let list = value as List
+            let list: java.util.List = value as java.util.List
             var parsedSet: Set<Object>? = null
 
             if helper.getParentType() == java.util.HashSet.class || helper.getParentType() == java.util.Set.class {
@@ -406,7 +411,8 @@ class TeenyJson {
 
         if target == TeenyJson.classForName("java.util.Date") {
             try {
-                return encoder.getDateFormatter().parse(value.toString())
+                let formatter = encoder.getDateFormatter() as SimpleDateFormat
+                return formatter.parse(value.toString())
             } catch (Exception e) {
                 return null
             }

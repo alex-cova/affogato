@@ -122,6 +122,17 @@ final class JavaResolver implements AutoCloseable {
                 )));
     }
 
+    Optional<TypeGuess> staticFieldType(String ownerType, String fieldName, CompilationUnit unit) {
+        return loadClass(ownerType, unit)
+                .flatMap(type -> fieldForInvocation(type, fieldName, unit)
+                        .filter(field -> Modifier.isStatic(field.getModifiers())))
+                .map(field -> TypeGuess.of(genericTypeName(
+                        field.getGenericType(),
+                        classTypeBindings(field.getDeclaringClass(), ownerType),
+                        unit
+                )));
+    }
+
     boolean fieldMutable(String ownerType, String fieldName, CompilationUnit unit) {
         return loadClass(ownerType, unit)
                 .flatMap(type -> fieldForInvocation(type, fieldName, unit))
@@ -169,6 +180,9 @@ final class JavaResolver implements AutoCloseable {
     }
 
     Optional<TypeGuess> methodReturnType(String ownerType, String methodName, List<TypedArgument> arguments, CompilationUnit unit) {
+        if (ownerType.endsWith("[]") && methodName.equals("clone") && arguments.isEmpty()) {
+            return Optional.of(TypeGuess.of(ownerType));
+        }
         return loadClass(ownerType, unit)
                 .flatMap(type -> resolveExecutableArguments(
                         methodsForInvocation(type, unit).stream()
@@ -182,10 +196,28 @@ final class JavaResolver implements AutoCloseable {
                 ))
                 .filter(match -> match.executable() instanceof Method)
                 .map(match -> TypeGuess.of(genericTypeName(
-                        ((Method) match.executable()).getGenericReturnType(),
+                        effectiveReturnType((Method) match.executable(), ownerType, unit),
                         match.typeBindings(),
                         unit
                 )));
+    }
+
+    Type effectiveReturnType(Method method, String ownerType, CompilationUnit unit) {
+        Type genericReturn = method.getGenericReturnType();
+        if ((method.getName().equals("parallel") || method.getName().equals("sequential") || method.getName().equals("unordered"))
+                && method.getDeclaringClass().getName().equals("java.util.stream.BaseStream")) {
+            Optional<Class<?>> ownerClass = classForType(ownerType, unit);
+            if (ownerClass.isPresent()) {
+                return ownerClass.get();
+            }
+        }
+        if (genericReturn instanceof TypeVariable<?> typeVariable && "S".equals(typeVariable.getName())) {
+            Optional<Class<?>> ownerClass = classForType(ownerType, unit);
+            if (ownerClass.isPresent() && method.getReturnType().isAssignableFrom(ownerClass.get())) {
+                return ownerClass.get();
+            }
+        }
+        return genericReturn;
     }
 
     Optional<TypeGuess> staticMethodReturnType(String methodName, List<TypedArgument> arguments, CompilationUnit unit) {
@@ -736,7 +768,10 @@ final class JavaResolver implements AutoCloseable {
             String bound = target.substring("? super ".length()).trim();
             return rawClassName(source).equals(rawClassName(bound)) || typeMoreSpecific(bound, source, unit);
         }
-        if (!rawClassName(source).equals(rawClassName(target))) {
+        if ("Object".equals(simpleType(source))) {
+            return true;
+        }
+        if (!sameRawType(source, target)) {
             return false;
         }
         return genericTypeArgumentsAssignable(source, target, unit);
@@ -820,8 +855,13 @@ final class JavaResolver implements AutoCloseable {
             return typeMoreSpecific(sourceArgument, genericTypeName(upperBounds[0], bindings, unit), unit)
                     || rawClassName(sourceArgument).equals(rawClassName(genericTypeName(upperBounds[0], bindings, unit)));
         }
+        // A source argument of Object means the type variable was unresolved (raw type usage).
+        // Treat it as compatible with any target, mirroring Java's unchecked raw type semantics.
+        if ("Object".equals(simpleType(sourceArgument))) {
+            return true;
+        }
         String target = genericTypeName(targetArgument, bindings, unit);
-        return rawClassName(sourceArgument).equals(rawClassName(target));
+        return sameRawType(sourceArgument, target);
     }
 
     Optional<Method> getterMethod(Class<?> type, String methodName) {
@@ -944,6 +984,12 @@ final class JavaResolver implements AutoCloseable {
         return !left.equals(right) && (right.equals("Object") || right.equals("java.lang.Object"));
     }
 
+    private boolean sameRawType(String leftType, String rightType) {
+        String left = rawClassName(leftType);
+        String right = rawClassName(rightType);
+        return left.equals(right) || simpleType(left).equals(simpleType(right));
+    }
+
     boolean typeMoreSpecific(Class<?> leftType, Class<?> rightType) {
         if (leftType.equals(rightType)) {
             return false;
@@ -971,6 +1017,12 @@ final class JavaResolver implements AutoCloseable {
         if (sourceType.isPrimitive() || target.isPrimitive()) {
             if (sourceType.isPrimitive() && target.isPrimitive()) {
                 return numericPrimitive(sourceType) && numericPrimitive(target) || sourceType == boolean.class && target == boolean.class;
+            }
+            if (!sourceType.isPrimitive() && target.isPrimitive()) {
+                Class<?> boxedTarget = BOXED_PRIMITIVES.get(target);
+                if (boxedTarget != null && (sourceType.isAssignableFrom(boxedTarget) || Number.class.isAssignableFrom(sourceType) && numericPrimitive(target))) {
+                    return true;
+                }
             }
             return BOXED_PRIMITIVES.get(sourceType) == target || BOXED_PRIMITIVES.get(target) == sourceType;
         }
@@ -1060,7 +1112,11 @@ final class JavaResolver implements AutoCloseable {
             return 0;
         }
         if (sourceType.isPrimitive() && targetType.isPrimitive()) {
-            return primitiveWideningScore(sourceType, targetType);
+            int wideScore = primitiveWideningScore(sourceType, targetType);
+            if (wideScore < NO_CONVERSION) {
+                return wideScore;
+            }
+            return NO_CONVERSION;
         }
         if (phase == InvocationPhase.STRICT) {
             if (!sourceType.isPrimitive() && !targetType.isPrimitive() && targetType.isAssignableFrom(sourceType)) {

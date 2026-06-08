@@ -1,6 +1,9 @@
 package dev.affogato.compiler.internal;
 
 import org.junit.Test;
+import java.util.List;
+import java.util.Set;
+import static dev.affogato.compiler.internal.TranspilerTypes.*;
 
 public final class ExpressionSemanticCheckerTest {
     @Test
@@ -26,6 +29,35 @@ public final class ExpressionSemanticCheckerTest {
     public void invalidExpressionFallsBackToUnknownWithoutRegex() {
         AstExpression ast = new ExpressionSemanticChecker(new StubSupport()).parse("???");
         require(ast instanceof UnknownExpression, "Expected unknown node without regex fallback, got: " + ast.getClass().getSimpleName());
+    }
+
+    @Test
+    public void javaResolverResolvesJdkAppendAndBufferLimit() {
+        CompilationUnit unit = new CompilationUnit(
+                java.nio.file.Path.of("Test.aff"),
+                "",
+                "dev.affogato.test",
+                List.of("java.nio.ByteBuffer"),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of());
+        try (JavaResolver resolver = new JavaResolver(List.of(), null)) {
+            TypeGuess append = resolver.methodReturnType(
+                    "StringBuilder",
+                    "append",
+                    List.of(new TypedArgument("", "c", TypeGuess.of("char"))),
+                    unit).orElse(TypeGuess.unknown());
+            require(append.isKnown(), "Expected StringBuilder.append(char) to resolve.");
+
+            TypeGuess limit = resolver.methodReturnType(
+                    "ByteBuffer",
+                    "limit",
+                    List.of(new TypedArgument("", "0", TypeGuess.of("int"))),
+                    unit).orElse(TypeGuess.unknown());
+            require(limit.isKnown(), "Expected ByteBuffer.limit(int) to resolve.");
+        }
     }
 
     private static void require(boolean condition, String message) {
@@ -128,6 +160,11 @@ public final class ExpressionSemanticCheckerTest {
 
         @Override
         public TypeGuess propertyResultType(TypeGuess receiverType, String property) {
+            return TypeGuess.unknown();
+        }
+
+        @Override
+        public TypeGuess callResultType(String callName, AstExpression receiver, java.util.List<AstExpression> arguments) {
             return TypeGuess.unknown();
         }
     }

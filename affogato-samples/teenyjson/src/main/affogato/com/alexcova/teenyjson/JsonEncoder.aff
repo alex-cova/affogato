@@ -38,7 +38,7 @@ class JsonEncoder {
             return value as String
         }
         if value is Collection {
-            let collection = value as Collection
+            let collection: java.util.Collection = value as java.util.Collection
             let list = new ArrayList<String>()
             for item in collection {
                 let serializedItem = serialize(item)
@@ -72,7 +72,7 @@ class JsonEncoder {
         }
 
         if object is Collection {
-            let list = object as Collection
+            let list: java.util.Collection = object as java.util.Collection
             let strList = new ArrayList<String>()
             for item in list {
                 strList.add(serialize(item))
@@ -193,7 +193,7 @@ class JsonEncoder {
             if value is Collection {
                 sb.append("[")
 
-                let collection = value as Collection
+                let collection: java.util.Collection = value as java.util.Collection
                 let list = new ArrayList<String>()
                 for item in collection {
                     list.add(serialize(item))
@@ -366,13 +366,13 @@ class Mapper: ConcurrentHashMap<String, AccessorInvoker> {
         }
 
         let fieldName = JsonEncoder.getFieldName(method)
-        put(fieldName, JsonEncoder.createFunction(target, method))
+        (this as java.util.concurrent.ConcurrentHashMap).put(fieldName, JsonEncoder.createFunction(target, method))
     }
 
     func serialize(object: Object, encoder: JsonEncoder): String {
         let properties = new java.util.LinkedList<String>()
 
-        for entry in entrySet() {
+        for entry in (this as java.util.concurrent.ConcurrentHashMap).entrySet() {
             let entryMap = entry as java.util.Map.Entry
             let key = entryMap.getKey() as String
             let invoker = entryMap.getValue() as AccessorInvoker

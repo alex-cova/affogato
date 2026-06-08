@@ -7,6 +7,7 @@ import static dev.affogato.compiler.internal.TranspilerTypes.*;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,7 +49,7 @@ final class AffogatoSymbolResolver implements AutoCloseable {
                 ClassSymbol symbol = new ClassSymbol(unit.packageName(), clazz.name(), extendsType, false,
                         clazz.typeParameters().stream().map(TypeParamDecl::name).toList());
                 for (FieldDecl field : clazz.fields()) {
-                    symbol.fields.put(field.name(), new FieldSymbol(field.name(), field.type(), field.mutable()));
+                    symbol.fields.put(field.name(), new FieldSymbol(field.name(), field.type(), field.mutable(), field.isStatic()));
                 }
                 for (MethodDecl method : clazz.methods()) {
                     symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
@@ -93,7 +94,9 @@ final class AffogatoSymbolResolver implements AutoCloseable {
                         parsedRecord.typeParameters().stream().map(TypeParamDecl::name).toList());
                 symbol.isRecord = true;
                 for (ParamDecl component : parsedRecord.components()) {
-                    symbol.fields.put(component.name(), new FieldSymbol(component.name(), component.type(), false));
+                    symbol.fields.put(component.name(), new FieldSymbol(component.name(), component.type(), false, false));
+                    symbol.methods.computeIfAbsent(component.name(), ignored -> new ArrayList<>())
+                            .add(new MethodSymbol(component.name(), component.type(), List.of(), false));
                 }
                 for (MethodDecl method : parsedRecord.methods()) {
                     symbol.methods.computeIfAbsent(method.name(), ignored -> new ArrayList<>())
@@ -158,6 +161,11 @@ final class AffogatoSymbolResolver implements AutoCloseable {
             registerEnumMethod(symbol, "name", "String");
             registerEnumMethod(symbol, "ordinal", "int");
             registerEnumMethod(symbol, "toString", "String");
+            symbol.methods.computeIfAbsent("values", ignored -> new ArrayList<>())
+                    .add(new MethodSymbol("values", TypeRef.unspecified(parsedEnum.name() + "[]"), List.of(), true));
+            symbol.methods.computeIfAbsent("valueOf", ignored -> new ArrayList<>())
+                    .add(new MethodSymbol("valueOf", TypeRef.unspecified(parsedEnum.name()),
+                            List.of(new ParamDecl("name", TypeRef.unspecified("String"), PropertyKind.NONE, List.of())), true));
             return symbol;
         });
     }
@@ -235,8 +243,15 @@ final class AffogatoSymbolResolver implements AutoCloseable {
         FieldSymbol field = fieldForOwnerType(resolvedOwnerType, property, context);
         if (field != null) {
             ClassSymbol ownerSymbol = lookupClass(resolvedOwnerType, context.unit);
+            if (field.isStatic()) {
+                return new PropertyHop(property, false, TypeGuess.of(field.type().javaType()));
+            }
             String accessor = ownerSymbol != null && ownerSymbol.isRecord() ? property : getterName(property, field.type());
             return new PropertyHop(accessor, true, TypeGuess.of(field.type().javaType()));
+        }
+        ClassSymbol ownerSymbol = lookupClass(resolvedOwnerType, context.unit);
+        if (ownerSymbol != null && ownerSymbol.isEnum && ownerSymbol.enumConstants.contains(property)) {
+            return new PropertyHop(property, false, TypeGuess.of(ownerSymbol.name()));
         }
         if (isArrayLengthAccess(resolvedOwnerType, property)) {
             return new PropertyHop(property, false, TypeGuess.of("int"));
@@ -269,11 +284,20 @@ final class AffogatoSymbolResolver implements AutoCloseable {
     }
 
     FieldSymbol fieldForOwnerType(String ownerType, String property, MethodContext context) {
-        ClassSymbol symbol = lookupClass(ownerType, context.unit);
-        if (symbol == null) {
-            return null;
+        Set<String> seen = new LinkedHashSet<>();
+        String current = ownerType;
+        while (current != null && !current.isBlank()) {
+            ClassSymbol symbol = lookupClass(current, context.unit);
+            if (symbol == null || !seen.add(symbol.name())) {
+                break;
+            }
+            FieldSymbol field = symbol.fields.get(property);
+            if (field != null) {
+                return field;
+            }
+            current = symbol.extendsType();
         }
-        return symbol.fields.get(property);
+        return null;
     }
 
     private static String extensionsHolderName(CompilationUnit unit) {

@@ -194,9 +194,9 @@ final class ExpressionRenderer {
                 }
             }
 
-            if (AffogatoTypeChecker.isPrimitiveArrayType(impl) && renderedArgs.size() == 1) {
+            if (AffogatoTypeChecker.isArrayType(impl) && renderedArgs.size() == 1) {
                 String elementType = impl.substring(0, impl.length() - 2);
-                return "new " + elementType + "[" + renderedArgs.getFirst() + "]";
+                return "new " + formatGenericCommas(elementType) + "[" + renderedArgs.getFirst() + "]";
             }
             return "new " + formatGenericCommas(impl) + "(" + String.join(", ", renderedArgs) + ")";
         }
@@ -208,6 +208,10 @@ final class ExpressionRenderer {
                 String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
                 AffogatoSymbolResolver.PropertyHop hop = services.resolvePropertyHopOnType(resolvedOwner, property.property(), context);
                 if (hop != null) {
+                    FieldSymbol field = services.fieldForOwnerType(resolvedOwner, property.property(), context);
+                    if ("this".equals(receiverText) && context.receiverType == null && field != null && !field.isStatic()) {
+                        return receiverText + "." + property.property();
+                    }
                     if (hop.call()) {
                         return receiverText + "." + hop.accessor() + "()";
                     }
@@ -228,6 +232,12 @@ final class ExpressionRenderer {
                     String valueText = render(assignment.value(), context);
                     
                     if (services.isGetterSetterBackedPropertyAccess(prop, context)) {
+                        if ("this".equals(receiverText) && context.receiverType == null && field != null && !field.isStatic()) {
+                            return receiverText + "." + prop.property() + " " + assignment.operator() + " " + valueText;
+                        }
+                        if (field != null && field.isStatic()) {
+                            return receiverText + "." + prop.property() + " " + assignment.operator() + " " + valueText;
+                        }
                         String accessor = field != null ? services.getterName(prop.property(), field.type()) : services.getterName(prop.property(), TypeRef.unspecified("Object"));
                         if (accessor == null || accessor.isEmpty()) {
                             accessor = context.javaResolver.getterInvocationName(resolvedOwner, prop.property(), context.unit)
@@ -275,6 +285,12 @@ final class ExpressionRenderer {
                     String ownerType = receiverType.javaType();
                     String resolvedOwner = context.activeTypeParams.contains(ownerType) ? "java.lang.Object" : ownerType;
                     FieldSymbol field = services.fieldForOwnerType(resolvedOwner, prop.property(), context);
+                    if ("this".equals(receiverText) && context.receiverType == null && field != null && !field.isStatic()) {
+                        if (ast.source().trim().endsWith("++") || ast.source().trim().endsWith("--")) {
+                            return receiverText + "." + prop.property() + unary.operator();
+                        }
+                        return unary.operator() + receiverText + "." + prop.property();
+                    }
                     String accessor = field != null ? services.getterName(prop.property(), field.type()) : services.getterName(prop.property(), TypeRef.unspecified("Object"));
                     String setter = services.setterName(prop.property());
                     String op = unary.operator().substring(0, 1);
@@ -315,6 +331,17 @@ final class ExpressionRenderer {
             return unary.operator() + render(unary.expression(), context);
         }
         if (ast instanceof CastExpression cast) {
+            TypeGuess sourceType = cast.expression().resolvedType().isKnown()
+                    ? cast.expression().resolvedType()
+                    : services.inferExpressionType(cast.expression().source(), context);
+            String rendered = render(cast.expression(), context);
+            String primitiveTarget = primitiveCastTarget(cast.targetType());
+            if (primitiveTarget != null
+                    && sourceType.isKnown()
+                    && !sourceType.isNullLiteral()
+                    && primitiveCastTarget(sourceType.javaType()) == null) {
+                return renderPrimitiveUnboxingCast(rendered, primitiveTarget);
+            }
             return "((" + formatGenericCommas(cast.targetType()) + ") " + render(cast.expression(), context) + ")";
         }
         if (ast instanceof LambdaExpression lambda) {
@@ -466,6 +493,27 @@ final class ExpressionRenderer {
             case "Byte" -> "byte";
             case "Short" -> "short";
             default -> type;
+        };
+    }
+
+    private String primitiveCastTarget(String type) {
+        return switch (type) {
+            case "byte", "short", "int", "long", "float", "double", "boolean", "char" -> type;
+            default -> null;
+        };
+    }
+
+    private String renderPrimitiveUnboxingCast(String expression, String target) {
+        return switch (target) {
+            case "byte" -> "((Number) " + expression + ").byteValue()";
+            case "short" -> "((Number) " + expression + ").shortValue()";
+            case "int" -> "((Number) " + expression + ").intValue()";
+            case "long" -> "((Number) " + expression + ").longValue()";
+            case "float" -> "((Number) " + expression + ").floatValue()";
+            case "double" -> "((Number) " + expression + ").doubleValue()";
+            case "boolean" -> "((Boolean) " + expression + ").booleanValue()";
+            case "char" -> "((Character) " + expression + ").charValue()";
+            default -> "((" + target + ") " + expression + ")";
         };
     }
 

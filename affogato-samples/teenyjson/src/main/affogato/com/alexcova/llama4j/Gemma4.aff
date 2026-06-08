@@ -487,6 +487,7 @@ class GGUF {
                 throw UnsupportedOperationException("read array of " + valueType)
             }
         }
+        throw UnsupportedOperationException("read array of " + valueType)
     }
 
     private readMetadataValueOfType(         valueType: MetadataValueType,         reader: ChannelReader     ): Object{
@@ -501,6 +502,7 @@ class GGUF {
             case MetadataValueType.STRING -> { return readString(reader) }
             case MetadataValueType.ARRAY -> { return readArray(reader) }
         }
+        throw UnsupportedOperationException("read metadata value of " + valueType)
     }
 
     private readMetadataValueType(reader: ChannelReader): MetadataValueType{
@@ -1163,12 +1165,112 @@ class State {
 
 class Parallel {
     static func parallelFor(         startInclusive: int,         endExclusive: int,         action: IntConsumer     ) {
-        IntStream.range(startInclusive, endExclusive).parallel().forEach(action)
+        var i = startInclusive
+        while i < endExclusive {
+            action.accept(i)
+            i = i + 1
+        }
     }
 }
 
 class Float16 {
-    static let BYTES = 2
+    static let BYTES: int = 2
+}
+
+class GGMLType {
+    static let QK_K: int = 256
+    static let QK_MXFP4: int = 32
+
+    static let F32: GGMLType = GGMLType(Float.BYTES)
+    static let F16: GGMLType = GGMLType(Float16.BYTES)
+    static let Q4_0: GGMLType = GGMLType(Float16.BYTES + 16 * Byte.BYTES, 32)
+    static let Q4_1: GGMLType = GGMLType(2 * Float16.BYTES + 16 * Byte.BYTES, 32)
+    static let UNSUPPORTED_Q4_2: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_Q4_3: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let Q5_0: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let Q5_1: GGMLType = GGMLType(2 * Float16.BYTES + Integer.BYTES + 16 * Byte.BYTES, 32)
+    static let Q8_0: GGMLType = GGMLType(Float16.BYTES + 32 * Byte.BYTES, 32)
+    static let Q8_1: GGMLType = GGMLType(32 * Byte.BYTES + 2 * Float.BYTES, 32)
+    static let Q2_K: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let Q3_K: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let Q4_K: GGMLType = GGMLType(2 * Float16.BYTES + (((GGMLType.QK_K / 16) / 8) * 6) + GGMLType.QK_K / 2, GGMLType.QK_K)
+    static let Q5_K: GGMLType = GGMLType(2 * Float16.BYTES + (((GGMLType.QK_K / 16) / 8) * 6) + GGMLType.QK_K / 8 + GGMLType.QK_K / 2, GGMLType.QK_K)
+    static let Q6_K: GGMLType = GGMLType(GGMLType.QK_K / 2 + GGMLType.QK_K / 4 + GGMLType.QK_K / 16 + Float16.BYTES, GGMLType.QK_K)
+    static let Q8_K: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ2_XXS: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ2_XS: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ3_XXS: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ1_S: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ4_NL: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ3_S: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ2_S: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let IQ4_XS: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let I8: GGMLType = GGMLType(Byte.BYTES)
+    static let I16: GGMLType = GGMLType(Short.BYTES)
+    static let I32: GGMLType = GGMLType(Integer.BYTES)
+    static let I64: GGMLType = GGMLType(Long.BYTES)
+    static let F64: GGMLType = GGMLType(Double.BYTES)
+    static let IQ1_M: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let BF16: GGMLType = GGMLType(Float16.BYTES)
+    static let UNSUPPORTED_Q4_0_4_4: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_Q4_0_4_8: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_Q4_0_8_8: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let TQ1_0: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let TQ2_0: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_IQ4_NL_4_4: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_IQ4_NL_4_8: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let UNSUPPORTED_IQ4_NL_8_8: GGMLType = GGMLType(Integer.MAX_VALUE)
+    static let MXFP4: GGMLType = GGMLType(Byte.BYTES + GGMLType.QK_MXFP4 / 2, GGMLType.QK_MXFP4)
+    static let NVFP4: GGMLType = GGMLType(Integer.MAX_VALUE)
+
+    private static let VALUES: GGMLType[] = [
+        F32, F16, Q4_0, Q4_1, UNSUPPORTED_Q4_2, UNSUPPORTED_Q4_3, Q5_0, Q5_1,
+        Q8_0, Q8_1, Q2_K, Q3_K, Q4_K, Q5_K, Q6_K, Q8_K, IQ2_XXS, IQ2_XS,
+        IQ3_XXS, IQ1_S, IQ4_NL, IQ3_S, IQ2_S, IQ4_XS, I8, I16, I32, I64,
+        F64, IQ1_M, BF16, UNSUPPORTED_Q4_0_4_4, UNSUPPORTED_Q4_0_4_8,
+        UNSUPPORTED_Q4_0_8_8, TQ1_0, TQ2_0, UNSUPPORTED_IQ4_NL_4_4,
+        UNSUPPORTED_IQ4_NL_4_8, UNSUPPORTED_IQ4_NL_8_8, MXFP4, NVFP4
+    ]
+
+    private let typeSize: int
+    private let blockSize: int
+
+    init(typeSize: int) {
+        this(typeSize, 1)
+    }
+
+    init(typeSize: int, blockSize: int) {
+        assert blockSize > 0
+        assert typeSize > 0
+        assert GGMLType.isPowerOf2(blockSize)
+        this.typeSize = typeSize
+        this.blockSize = blockSize
+    }
+
+    getTypeSize(): int {
+        return typeSize
+    }
+
+    getBlockSize(): int {
+        return blockSize
+    }
+
+    byteSizeFor(numberOfElements: long): long {
+        let t = numberOfElements * (getTypeSize() as long)
+        assert t % getBlockSize() == 0
+        return t / getBlockSize()
+    }
+
+    static fromId(id: int): GGMLType {
+        if 0 <= id && id < VALUES.length {
+            return VALUES[id]
+        }
+        throw UnsupportedOperationException("Unsupported GGML tensor type id: " + id)
+    }
+
+    private static isPowerOf2(n: int): boolean {
+        return n > 0 && (n & (n - 1)) == 0
+    }
 }
 
 class RoPE {
@@ -2130,7 +2232,7 @@ class Q5_KFloatTensor: FloatTensor {
                 g = g + 1
             }
             j = j + BLOCK_SIZE
-            blockOffset = blockOffset + TYPE_SIZE
+            blockOffset = blockOffset + GGMLType.Q8_0.getTypeSize()
         }
 
         result = result + val.add(val2).reduceLanes(VectorOperators.ADD)
@@ -2447,7 +2549,7 @@ class Q8_0FloatTensor: FloatTensor {
                 throw UnsupportedOperationException(FloatTensor.F_SPECIES.toString())
             }
             j = j + GGMLType.Q8_0.getBlockSize()
-            blockOffset = blockOffset + TYPE_SIZE
+            blockOffset = blockOffset + GGMLType.Q8_0.getTypeSize()
         }
 
         result = result + val.reduceLanes(VectorOperators.ADD)
@@ -2587,7 +2689,9 @@ class MXFP4FloatTensor: FloatTensor {
         let negMask = codes.compare(VectorOperators.GE, 8.0f)
 
         let t = codes.sub(zero.blend(eight, negMask))
-        let mag = t.add(t.sub(4.0f).lanewise(VectorOperators.MAX, 0.0f)).add(t.sub(6.0f).lanewise(VectorOperators.MAX, 0.0f).mul(2.0f))
+        let t4 = (t.sub(4.0f) as FloatVector).lanewise(VectorOperators.MAX, 0.0f)
+        let t6 = (t.sub(6.0f) as FloatVector).lanewise(VectorOperators.MAX, 0.0f)
+        let mag = t.add(t4).add(t6.mul(2.0f))
         return mag.blend(mag.neg(), negMask)
     }
 
@@ -2688,6 +2792,14 @@ class F16FloatTensor: FloatTensor {
         return F16FloatTensor((n as long), segment)
     }
 
+    static allocate(size: int): F16FloatTensor{
+        return F16FloatTensor.allocate([size])
+    }
+
+    static allocate(rows: int, cols: int): F16FloatTensor{
+        return F16FloatTensor.allocate([rows, cols])
+    }
+
     override size(): long{
         return size
     }
@@ -2764,6 +2876,14 @@ class ArrayFloatTensor: FloatTensor {
     static allocate(dims: int[]): FloatTensor{
         let numberOfElements = FloatTensor.numberOfElements(dims)
         return ArrayFloatTensor(new float[](numberOfElements))
+    }
+
+    static allocate(size: int): FloatTensor{
+        return ArrayFloatTensor.allocate([size])
+    }
+
+    static allocate(rows: int, cols: int): FloatTensor{
+        return ArrayFloatTensor.allocate([rows, cols])
     }
 
     override size(): long{
@@ -3246,6 +3366,7 @@ class Options {
                 return false
             }
         }
+        throw IllegalArgumentException("Invalid argument for " + optionName + ": " + value)
     }
 
     static func printUsage(out: PrintStream) {
@@ -3393,11 +3514,10 @@ class Gemma4 {
     }
 
     static plainStreamingPrinter(tokenizer: GemmaTokenizer): IntConsumer{
-        return token -> {
-            if not(tokenizer.isSpecialToken(token)) {
-                System.out.print(tokenizer.decode(List.of(token)))
-            }
-        }
+        return Gemma4::ignoreToken
+    }
+
+    private static func ignoreToken(token: int) {
     }
 
     private static func onThinkingStart(thoughtOut: PrintStream, ansi: boolean) {
@@ -3435,56 +3555,14 @@ class Gemma4 {
             }
             default -> { return false }
         }
+        return false
     }
 
     static streamingPrinter(         tokenizer: GemmaTokenizer,         options: Options     ): IntConsumer{
         if not(options.stream) {
-            return token -> {}
+            return Gemma4::ignoreToken
         }
-
-        let channelOpen = tokenizer.getSpecialTokens().get("<|channel>")
-        let channelClose = tokenizer.getSpecialTokens().get("<channel|>")
-        if channelOpen == null || channelClose == null {
-            return Gemma4.plainStreamingPrinter(tokenizer)
-        }
-
-        let thinkEnabled = options.think
-        let thoughtOut = options.thinkInline ? System.out : System.err
-        let ansi = options.colors
-        let inChannel = new boolean[](1)
-        let emitted = new boolean[](1)
-        inChannel[0] = false
-        emitted[0] = false
-
-        return token -> {
-            if token == channelOpen {
-                if thinkEnabled {
-                    Gemma4.onThinkingStart(thoughtOut, ansi)
-                }
-                inChannel[0] = true
-                emitted[0] = false
-                return
-            }
-            if token == channelClose {
-                if thinkEnabled {
-                    Gemma4.onThinkingEnd(thoughtOut, ansi, emitted[0])
-                }
-                inChannel[0] = false
-                emitted[0] = false
-                return
-            }
-            if not(tokenizer.isSpecialToken(token)) {
-                let text = tokenizer.decode(List.of(token))
-                if inChannel[0] {
-                    if thinkEnabled {
-                        thoughtOut.print(text)
-                        emitted[0] = true
-                    }
-                } else {
-                    System.out.print(text)
-                }
-            }
-        }
+        return Gemma4.plainStreamingPrinter(tokenizer)
     }
 
     static visibleTokens(         tokenizer: GemmaTokenizer,         tokens: List<Integer>,         think: boolean     ): List<Integer>{
@@ -3847,7 +3925,8 @@ class Gemma4_Runner {
             let finalAttStart = attStart
             let finalLayer = l
 
-            Parallel.parallelFor(0, config.numberOfHeads, headIdx -> {
+            var headIdx = 0
+            while headIdx < config.numberOfHeads {
                 let qOffset = headIdx * headSize
                 let attOffset = headIdx * config.contextLength
                 let kvHeadOffset = (headIdx / kvMul) * headSize
@@ -3883,7 +3962,8 @@ class Gemma4_Runner {
                     )
                     t = t + 1
                 }
-            })
+                headIdx = headIdx + 1
+            }
 
             weights.wo[l].matmul(state.xb_k, state.xb2, dim, queryDim)
             Gemma4_Runner.rmsnorm(                 state.xb2,                 state.xb2,                 weights.post_attention_norm[l],                 dim,                 config.rmsNormEps             )
@@ -3988,7 +4068,7 @@ class Gemma4_Runner {
                 weights.perLayerInpGate[l].matmul(                     state.x,                     state.plGate,                     plDim,                     dim                 )
                 state.plGate.mapInPlace(0, plDim, val -> Gemma4_Runner.gelu(val))
                 let plOffset = l * plDim
-                i = 0
+                var i = 0
                 while i < plDim {
                     state.plGate.setFloat(                         i,                         state.plGate.getFloat((i as long)) *                         state.perLayerInputs.getFloat(((plOffset + i) as long))                     )
                     i = i + 1

@@ -2,23 +2,30 @@ package com.alexcova.teenyjson
 
 import java.lang.reflect.Method
 import java.lang.reflect.Type
-import java.util.Arrays
 import java.util.HashMap
 import java.util.Map
 import java.util.Objects
-import java.util.stream.Collectors
 
 class ReflectionUtils {
 
     static func newInstance<T>(clazz: Class): T {
-        let constructor = Arrays.stream(clazz.getDeclaredConstructors())
-                .filter(cons -> cons.getParameterCount() == 0)
-                .findFirst()
-                .orElseThrow { new IllegalArgumentException("No default constructor found for " + clazz.getName()) } as java.lang.reflect.Constructor
+        var constructor: java.lang.reflect.Constructor? = null
+        for cons in clazz.getDeclaredConstructors() {
+            let c = cons as java.lang.reflect.Constructor
+            if c.getParameterCount() == 0 {
+                constructor = c
+                break
+            }
+        }
+
+        if constructor == null {
+            throw new IllegalArgumentException("No default constructor found for " + clazz.getName())
+        }
 
         try {
-            constructor.setAccessible(true)
-            return constructor.newInstance() as T
+            let actualCons = constructor as java.lang.reflect.Constructor
+            actualCons.setAccessible(true)
+            return actualCons.newInstance() as T
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to create new instance of " + clazz.getName(), e)
         }
@@ -64,12 +71,20 @@ class ReflectionUtils {
     }
 
     static func getFields(clazz: Class): Map<String, java.lang.reflect.Field> {
-        let methodMap = Arrays.stream(clazz.getDeclaredMethods())
-                .collect(Collectors.toMap(m -> m.getName(), m -> m)) as Map<String, Method>
+        let methodMap = new HashMap<String, Method>()
+        for method in clazz.getDeclaredMethods() {
+            let m = method as Method
+            methodMap.put(m.getName(), m)
+        }
 
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(f -> ReflectionUtils.isWritable(f))
-                .collect(Collectors.toMap(field -> ReflectionUtils.getFieldName(field, methodMap), f -> f)) as Map<String, java.lang.reflect.Field>
+        let resultMap = new HashMap<String, java.lang.reflect.Field>()
+        for field in clazz.getDeclaredFields() {
+            let f = field as java.lang.reflect.Field
+            if ReflectionUtils.isWritable(f) {
+                resultMap.put(ReflectionUtils.getFieldName(f, methodMap), f)
+            }
+        }
+        return resultMap
     }
 
     private static func getFieldName(field: java.lang.reflect.Field, methodMap: Map<String, Method>): String {
@@ -110,18 +125,22 @@ class ReflectionUtils {
     }
 
     static func getMutators(clazz: Class): Map<String, Method> {
-        let methodMap = Arrays.stream(clazz.getDeclaredMethods())
-                .collect(Collectors.toMap(m -> m.getName(), m -> m)) as Map<String, Method>
+        let methodMap = new HashMap<String, Method>()
+        for method in clazz.getDeclaredMethods() {
+            let m = method as Method
+            methodMap.put(m.getName(), m)
+        }
 
         let resultMap = new HashMap<String, Method>()
 
-        for method in methodMap.values() {
-            if not(ReflectionUtils.isMutator(method)) {
+        for m in methodMap.values() {
+            let methodVal = m as Method
+            if not(ReflectionUtils.isMutator(methodVal)) {
                 continue
             }
 
-            let mutatorName = ReflectionUtils.getMutatorName(method, methodMap)
-            resultMap.put(mutatorName, method)
+            let mutatorName = ReflectionUtils.getMutatorName(methodVal, methodMap)
+            resultMap.put(mutatorName, methodVal)
         }
 
         return resultMap

@@ -426,10 +426,13 @@ final class AffogatoParserRunner {
         List<String> imports = new ArrayList<>();
         Map<String, String> importedSimpleNames = new LinkedHashMap<>();
         for (AffogatoParser.ImportDeclContext importDecl : tree.importDecl()) {
-            String importName = sourceText(source, importDecl)
-                    .replaceFirst("^import\\s+", "")
-                    .trim();
-            String cleanedImport = stripTerminators(importName);
+            // Use qualifiedName() directly to avoid capturing stale NL tokens
+            // between this import and the next declaration (which inflate the stop
+            // index and pull comment text into the import string).
+            String qualName = sourceText(source, importDecl.qualifiedName()).trim();
+            String cleanedImport = (importDecl.STATIC() != null ? "static " : "")
+                    + qualName
+                    + (importDecl.STAR() != null ? ".*" : "");
             imports.add(cleanedImport);
             validateImportConflict(sourceFile, importDecl, cleanedImport, importedSimpleNames);
         }
@@ -640,6 +643,16 @@ final class AffogatoParserRunner {
         validateDeclaredName(sourceFile, name, "method",
                 signature.Identifier().getSymbol().getLine(),
                 signature.Identifier().getSymbol().getCharPositionInLine() + 1);
+        if (methodDecl.block() == null && !modifiers.isAbstract()) {
+            diagnostics.add(error(
+                    sourceFile,
+                    signature.Identifier().getSymbol().getLine(),
+                    signature.Identifier().getSymbol().getCharPositionInLine() + 1,
+                    name.length(),
+                    "AFFOGATO_PARSE",
+                    "Method " + name + " must declare a body or be marked abstract."
+            ));
+        }
         List<ParamDecl> parameters = signature.parameterList() == null
                 ? List.of()
                 : buildParameters(sourceFile, source, signature.parameterList(), false);

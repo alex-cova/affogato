@@ -56,6 +56,8 @@ final class ExpressionSemanticChecker {
         boolean typeExists(String qualifiedName);
 
         TypeGuess propertyResultType(TypeGuess receiverType, String property);
+
+        TypeGuess callResultType(String callName, AstExpression receiver, List<AstExpression> arguments);
     }
 
     private final Support support;
@@ -415,7 +417,8 @@ final class ExpressionSemanticChecker {
         if (!simple.isBlank() && Character.isUpperCase(simple.charAt(0))) {
             return new ConstructorExpression(source, callName, arguments, TypeGuess.of(support.constructorImplementation(callName)));
         }
-        return new CallExpression(source, callName, receiver, arguments, TypeGuess.unknown());
+        TypeGuess resultType = support.callResultType(callName, receiver, arguments);
+        return new CallExpression(source, callName, receiver, arguments, resultType.isKnown() ? resultType : TypeGuess.unknown());
     }
 
     private AstExpression buildPrimary(AffogatoParser.PrimaryExpressionContext ctx, String whole) {
@@ -450,6 +453,9 @@ final class ExpressionSemanticChecker {
         String variableType = support.variableType(text);
         if (variableType != null) {
             return new IdentifierExpression(text, text, TypeGuess.of(variableType));
+        }
+        if (support.typeExists(text)) {
+            return new IdentifierExpression(text, text, TypeGuess.of(text));
         }
         return new IdentifierExpression(text, text, TypeGuess.unknown());
     }

@@ -43,7 +43,7 @@ class ParameterizedTypeHelper: Type {
     }
 
     override getTypeName(): String {
-        return getClass().getSimpleName()
+        return ((this as Object).getClass() as Class).getSimpleName()
     }
 
     isParentTypeOf(type: Class): boolean {

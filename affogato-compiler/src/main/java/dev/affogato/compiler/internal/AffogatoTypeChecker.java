@@ -274,8 +274,17 @@ final class AffogatoTypeChecker {
                 reportJavaLocalShadow(unit, content.Identifier().getSymbol(), variable);
             }
             TypedExpression typedIterable = validateExpressionTyped(renderServices.sourceText(unit.source(), content.expression(0)), context, content.expression(0));
-            Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
+            Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType(), unit);
             if (elementType.isPresent()) context.declareVariable(variable, TypeRef.unspecified(elementType.get().javaType()), true);
+            else if (!typedIterable.resolvedType().isKnown()
+                    || typedIterable.resolvedType().javaType().isBlank()
+                    || typedIterable.resolvedType().javaType().equals("Object")
+                    || typedIterable.resolvedType().javaType().equals("java.lang.Object")
+                    || typedIterable.resolvedType().javaType().endsWith("Collection")
+                    || typedIterable.resolvedType().javaType().endsWith("List")
+                    || typedIterable.resolvedType().javaType().endsWith("Set")) {
+                context.declareVariable(variable, TypeRef.unspecified("Object"), true);
+            }
             else if (typedIterable.resolvedType().isKnown() && !typedIterable.resolvedType().isNullLiteral()) {
                 diagnostics.add(error(unit.sourceFile(), forStatement.getStart().getLine(), forStatement.getStart().getCharPositionInLine() + 1,
                         "AFFOGATO_FOR_ITERABLE_TYPE", "For-in loops require an array or Iterable expression."));
@@ -1029,6 +1038,9 @@ final class AffogatoTypeChecker {
             validateExpressionSemantics(elvis.right(), context, rawExpression, false);
             return;
         }
+        if (ast instanceof LambdaExpression lambda) {
+            return;
+        }
         if (ast instanceof BinaryExpression binary) {
             validateExpressionSemantics(binary.left(), context, rawExpression, false);
             validateExpressionSemantics(binary.right(), context, rawExpression, false);
@@ -1221,7 +1233,16 @@ final class AffogatoTypeChecker {
                     TypeGuess returnType = receiverType.isKnown()
                             ? context.returnTypeForReceiverType(receiverType.javaType(), simpleName, typedArgs)
                             : context.returnType(call.name(), typedArgs);
-                    if (!returnType.isKnown() || context.javaResolver.lastResolutionAmbiguous()) {
+                    boolean classNameReceiver = call.receiver() instanceof IdentifierExpression identifier
+                            && !context.variableTypes.containsKey(identifier.name())
+                            && (symbols.lookupClass(identifier.name(), context.unit) != null
+                            || context.javaResolver.typeExists(identifier.name(), context.unit));
+                    boolean affogatoReceiverType = receiverType.isKnown()
+                            && symbols.lookupClass(receiverType.javaType(), context.unit) != null;
+                    boolean unresolvedKnownMember = receiverType.isKnown()
+                            && !classNameReceiver
+                            && (affogatoReceiverType || context.typeHasMethodNamed(receiverType.javaType(), simpleName));
+                    if ((!returnType.isKnown() || context.javaResolver.lastResolutionAmbiguous()) && !unresolvedKnownMember) {
                         String failure = context.resolutionFailure();
                         diagnostics.add(error(
                                 context.unit.sourceFile(),
@@ -1278,8 +1299,8 @@ final class AffogatoTypeChecker {
             String displayType = constructor.typeName();
             String impl = constructorImplementation(displayType);
             
-            boolean primitiveArray = isPrimitiveArrayType(displayType);
-            if (!primitiveArray
+            boolean arrayConstructor = isArrayType(displayType);
+            if (!arrayConstructor
                     && symbols.lookupClass(displayType, context.unit) == null
                     && !context.javaResolver.typeExists(impl, context.unit)) {
                 diagnostics.add(error(
@@ -1295,7 +1316,7 @@ final class AffogatoTypeChecker {
             ClassSymbol affogatoTarget = symbols.lookupClass(displayType, context.unit);
             boolean resolvedOk = false;
             boolean isAmbiguous = false;
-            if (primitiveArray) {
+            if (arrayConstructor) {
                 resolvedOk = typedArgs.size() == 1
                         && isNumericOperand(typedArgs.getFirst().ast(), context);
             } else if (affogatoTarget != null) {
@@ -1624,7 +1645,7 @@ final class AffogatoTypeChecker {
         if (value.endsWith("]")) {
             int open = matchBackward(new StringBuilder(value), value.length() - 1, '[', ']');
             if (open > 0) {
-                Optional<TypeGuess> element = elementType(inferExpressionType(value.substring(0, open), context));
+                Optional<TypeGuess> element = elementType(inferExpressionType(value.substring(0, open), context), context.unit);
                 if (element.isPresent()) {
                     return element.get();
                 }
@@ -1636,7 +1657,7 @@ final class AffogatoTypeChecker {
             return TypeGuess.of("java.lang.Class");
         }
 
-        Matcher affogatoCast = Pattern.compile("^.+\\s+as\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?\\??)$").matcher(value);
+        Matcher affogatoCast = Pattern.compile("^.+\\s+as\\s+([A-Za-z_][A-Za-z0-9_.$]*(?:<[^>]+>)?(?:\\[\\])*\\??)$").matcher(value);
         if (affogatoCast.matches()) {
             return TypeGuess.of(stripNullableSuffix(affogatoCast.group(1)));
         }
@@ -1764,7 +1785,10 @@ final class AffogatoTypeChecker {
                 // (Object), so without the AST short-circuit `let x = 1 << 4` emits invalid Java and
                 // `let m = 0xFF & x` emits an imprecise Object. The known-type guard keeps this to the
                 // numeric cases (boolean operands are rejected earlier and never resolve to a type here).
-                || (ast instanceof BinaryExpression binary && isShiftOrBitwiseOperator(binary.operator()) && ast.resolvedType().isKnown())
+                || (ast instanceof BinaryExpression && ast.resolvedType().isKnown())
+                || (ast instanceof CallExpression && ast.resolvedType().isKnown())
+                || (ast instanceof PropertyAccessExpression && ast.resolvedType().isKnown())
+                || (ast instanceof CastExpression && ast.resolvedType().isKnown())
                 // A conditional with mixed numeric branches has the binary-numeric-promoted type
                 // (buildTernary's ternaryType): `cond ? 1 : 2.0` is double, `cond ? 1 : 2L` is long.
                 // The regex inference picks one branch instead, so `let x = cond ? 1 : 2.0` would emit
@@ -1882,6 +1906,10 @@ final class AffogatoTypeChecker {
         return operator == '+' || operator == '-' || operator == '*' || operator == '/' || operator == '%';
     }
     Optional<TypeGuess> elementType(TypeGuess iterableType) {
+        return elementType(iterableType, null);
+    }
+
+    Optional<TypeGuess> elementType(TypeGuess iterableType, CompilationUnit unit) {
         if (!iterableType.isKnown() || iterableType.isNullLiteral()) {
             return Optional.empty();
         }
@@ -1896,6 +1924,14 @@ final class AffogatoTypeChecker {
         }
         if (type.endsWith("[]")) {
             return Optional.of(TypeGuess.of(type.substring(0, type.length() - 2)));
+        }
+        // For raw Iterable/Collection types (no generics, not array), treat element type as Object.
+        if (unit != null) {
+            String rawType = genericStart >= 0 ? type.substring(0, genericStart).trim() : type;
+            Optional<Class<?>> loaded = javaResolver.loadClass(rawType, unit);
+            if (loaded.map(c -> Iterable.class.isAssignableFrom(c)).orElse(false)) {
+                return Optional.of(TypeGuess.of("Object"));
+            }
         }
         return Optional.empty();
     }
@@ -2166,6 +2202,32 @@ final class AffogatoTypeChecker {
         }
         return params.isEmpty() ? UNKNOWN_ARITY : 1;
     }
+    List<String> lambdaParameterNames(String header) {
+        if (header == null) {
+            return List.of();
+        }
+        String params = header.trim();
+        if (params.startsWith("(") && params.endsWith(")")) {
+            params = params.substring(1, params.length() - 1).trim();
+        }
+        if (params.isEmpty()) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (String part : splitTopLevel(params, ',')) {
+            String name = part.trim();
+            int colon = name.indexOf(':');
+            if (colon >= 0) {
+                name = name.substring(0, colon).trim();
+            }
+            if (!name.isBlank()
+                    && Character.isJavaIdentifierStart(name.charAt(0))
+                    && name.chars().allMatch(Character::isJavaIdentifierPart)) {
+                names.add(name);
+            }
+        }
+        return names;
+    }
     boolean containsTopLevelOperator(String value, String operator) {
         return topLevelOperatorIndex(value, List.of(operator)) >= 0;
     }
@@ -2369,6 +2431,10 @@ final class AffogatoTypeChecker {
             return false;
         }
         return PRIMITIVES.contains(typeName.substring(0, typeName.length() - 2));
+    }
+
+    static boolean isArrayType(String typeName) {
+        return typeName != null && typeName.endsWith("[]");
     }
 
     String constructorImplementation(String typeName) {
@@ -2703,7 +2769,46 @@ final class AffogatoTypeChecker {
                 return TypeGuess.unknown();
             }
             AffogatoSymbolResolver.PropertyHop hop = symbols.resolvePropertyHopOnType(receiverType.javaType(), property, context);
-            return hop != null ? hop.resultType() : TypeGuess.unknown();
+            if (hop != null) {
+                return hop.resultType();
+            }
+            return context.javaResolver.staticFieldType(receiverType.javaType(), property, context.unit)
+                    .orElse(TypeGuess.unknown());
+        }
+
+        @Override
+        public TypeGuess callResultType(String callName, AstExpression receiver, List<AstExpression> arguments) {
+            List<TypedArgument> typedArgs = new ArrayList<>();
+            for (AstExpression argument : arguments) {
+                if (argument instanceof NamedArgumentExpression named) {
+                    typedArgs.add(new TypedArgument(
+                            named.name(),
+                            named.expression().source(),
+                            named.expression().resolvedType().isKnown()
+                                    ? named.expression().resolvedType()
+                                    : AffogatoTypeChecker.this.inferExpressionType(named.expression().source(), context),
+                            named.expression()));
+                } else {
+                    typedArgs.add(new TypedArgument(
+                            "",
+                            argument.source(),
+                            argument.resolvedType().isKnown()
+                                    ? argument.resolvedType()
+                                    : AffogatoTypeChecker.this.inferExpressionType(argument.source(), context),
+                            argument));
+                }
+            }
+
+            String simpleName = callName.contains(".") ? callName.substring(callName.lastIndexOf('.') + 1) : callName;
+            if (receiver != null && !(receiver instanceof UnknownExpression)) {
+                TypeGuess receiverType = receiver.resolvedType().isKnown()
+                        ? receiver.resolvedType()
+                        : AffogatoTypeChecker.this.inferExpressionType(receiver.source(), context);
+                if (receiverType.isKnown()) {
+                    return context.returnTypeForReceiverType(receiverType.javaType(), simpleName, typedArgs);
+                }
+            }
+            return context.returnType(callName, typedArgs);
         }
     }
 

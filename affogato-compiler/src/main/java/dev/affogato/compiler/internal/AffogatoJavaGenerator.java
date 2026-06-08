@@ -828,6 +828,14 @@ final class AffogatoJavaGenerator implements ExpressionRenderServices {
             Optional<TypeGuess> elementType = elementType(typedIterable.resolvedType());
             if (elementType.isPresent()) {
                 context.declareVariable(variable, TypeRef.unspecified(elementType.get().javaType()), true);
+            } else if (!typedIterable.resolvedType().isKnown()
+                    || typedIterable.resolvedType().javaType().isBlank()
+                    || typedIterable.resolvedType().javaType().equals("Object")
+                    || typedIterable.resolvedType().javaType().equals("java.lang.Object")
+                    || typedIterable.resolvedType().javaType().endsWith("Collection")
+                    || typedIterable.resolvedType().javaType().endsWith("List")
+                    || typedIterable.resolvedType().javaType().endsWith("Set")) {
+                context.declareVariable(variable, TypeRef.unspecified("Object"), true);
             } else if (typedIterable.resolvedType().isKnown() && !typedIterable.resolvedType().isNullLiteral()) {
                 diagnostics.add(error(
                         unit.sourceFile(),

@@ -286,7 +286,7 @@ final class TranspilerTypes {
         }
     }
 
-    record FieldSymbol(String name, TypeRef type, boolean mutable) {
+    record FieldSymbol(String name, TypeRef type, boolean mutable, boolean isStatic) {
     }
 
     record ParsedUnit(Path sourceFile, CompilationUnit unit) {
