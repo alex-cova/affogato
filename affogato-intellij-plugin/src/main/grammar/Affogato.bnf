@@ -201,6 +201,7 @@ private expressionAtom ::= identifier
   | NUMBER
   | callGroup
   | arrayGroup
+  | CLASS_KEYWORD
   | QUESTION_DOT
   | ELVIS
   | AS_KEYWORD

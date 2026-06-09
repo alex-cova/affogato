@@ -17,7 +17,7 @@ class AccessorInvoker {
     invoke(instance: Object): Object? {
         try {
             return function.apply(instance)
-        } catch (Exception ex) {
+        } catch (ex : Exception) {
             Logger.getLogger(AccessorInvoker.class.getName())
                     .severe("Error invoking method: " + method.getName())
         }

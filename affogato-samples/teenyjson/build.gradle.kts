@@ -1,6 +1,12 @@
+buildscript {
+    repositories {
+        mavenLocal()
+    }
+}
+
 plugins {
     application
-    id("dev.affogato")
+    id("dev.affogato") version "0.1.0-SNAPSHOT"
 }
 
 application {

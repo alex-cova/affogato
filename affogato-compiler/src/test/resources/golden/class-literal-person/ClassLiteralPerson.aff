@@ -1,0 +1,11 @@
+package dev.affogato.golden
+
+class Person(var name: String) {}
+
+class ClassLiteralPerson {
+    run(): String {
+        let personType = Person.class
+        let elementType = Person[].class
+        return personType.getName() + ":" + personType.getSimpleName() + ":" + elementType.getSimpleName()
+    }
+}
