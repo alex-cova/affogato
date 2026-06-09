@@ -5,6 +5,7 @@ import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.junit.Test;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,39 @@ public final class AffogatoGradlePluginTest {
         require(result.task(":compileJava").getOutcome() == TaskOutcome.SUCCESS, "compileJava should compile generated Java.");
         require(Files.exists(projectDir.resolve("build/generated/sources/affogato/main/java/dev/affogato/app/App.java")),
                 "Affogato output should be wired to the main Java source set.");
+    }
+
+    @Test
+    public void registersAffogatoDirectoryAsJavaSourceRoot() throws Exception {
+        Path projectDir = newProjectDir();
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), """
+                pluginManagement {
+                    repositories {
+                        gradlePluginPortal()
+                        mavenCentral()
+                    }
+                }
+
+                rootProject.name = "fixture"
+                """, StandardCharsets.UTF_8);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    java
+                    id("dev.affogato")
+                }
+
+                tasks.register("printAffogatoSourceDirs") {
+                    doLast {
+                        sourceSets.getByName("main").java.srcDirs.forEach { println("AFFOGATO_SRC_DIR=" + it.path) }
+                    }
+                }
+                """, StandardCharsets.UTF_8);
+
+        BuildResult result = runner(projectDir, "printAffogatoSourceDirs").build();
+
+        String expectedSuffix = "src" + File.separator + "main" + File.separator + "affogato";
+        require(result.getOutput().lines().anyMatch(line -> line.startsWith("AFFOGATO_SRC_DIR=") && line.endsWith(expectedSuffix)),
+                "src/main/affogato should be registered as a Java source root so IntelliJ marks it as a source folder.");
     }
 
     @Test

@@ -5,6 +5,7 @@
     <description>Language support scaffold for Affogato source files.</description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileType
@@ -28,5 +29,21 @@
         <externalAnnotator
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.annotator.AffogatoExternalAnnotator"/>
+        <annotator
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.highlighting.AffogatoHighlightAnnotator"/>
+        <colorSettingsPage
+                implementation="dev.affogato.intellij.highlighting.AffogatoColorSettingsPage"/>
+        <lang.commenter
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.AffogatoCommenter"/>
+        <lang.braceMatcher
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.AffogatoBraceMatcher"/>
+        <runLineMarkerContributor
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.run.AffogatoRunLineMarkerContributor"/>
+        <runConfigurationProducer
+                implementation="dev.affogato.intellij.run.AffogatoRunConfigurationProducer"/>
     </extensions>
 </idea-plugin>

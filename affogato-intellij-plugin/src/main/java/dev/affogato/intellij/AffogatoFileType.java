@@ -3,7 +3,6 @@ package dev.affogato.intellij;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
 
@@ -30,7 +29,7 @@ public final class AffogatoFileType extends LanguageFileType {
     }
 
     @Override
-    public @Nullable Icon getIcon() {
-        return null;
+    public @NotNull Icon getIcon() {
+        return AffogatoIcons.FILE;
     }
 }

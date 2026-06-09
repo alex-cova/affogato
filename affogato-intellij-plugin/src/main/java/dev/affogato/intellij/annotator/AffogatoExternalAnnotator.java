@@ -32,6 +32,9 @@ public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoE
 
     record Info(Path filePath, List<Path> sourceRoots, List<Path> classpath) {}
 
+    public AffogatoExternalAnnotator() {
+    }
+
     @Override
     public @Nullable Info collectInformation(@NotNull PsiFile file) {
         var virtualFile = file.getVirtualFile();

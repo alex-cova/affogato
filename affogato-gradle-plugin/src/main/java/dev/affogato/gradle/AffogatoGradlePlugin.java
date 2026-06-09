@@ -14,6 +14,10 @@ import java.io.File;
 import java.net.URISyntaxException;
 
 public final class AffogatoGradlePlugin implements Plugin<Project> {
+
+    public AffogatoGradlePlugin() {
+    }
+
     @Override
     public void apply(Project project) {
         AffogatoExtension extension = project.getExtensions().create("affogato", AffogatoExtension.class, project);
@@ -23,6 +27,14 @@ public final class AffogatoGradlePlugin implements Plugin<Project> {
             sourceSets.configureEach(sourceSet -> {
                 TaskProvider<AffogatoCompile> compileAffogato = registerCompileTask(project, extension, sourceSet);
                 sourceSet.getJava().srcDir(compileAffogato.flatMap(AffogatoCompile::getOutputDirectory));
+                // Register the Affogato input directory as a source root so IntelliJ marks it as a
+                // (blue) source folder and indexes .aff files. JavaCompile only consumes **/*.java,
+                // so the .aff files here are never handed to javac.
+                if (SourceSet.MAIN_SOURCE_SET_NAME.equals(sourceSet.getName())) {
+                    sourceSet.getJava().srcDir(extension.getSourceDirs());
+                } else {
+                    sourceSet.getJava().srcDir(project.file("src/" + sourceSet.getName() + "/affogato"));
+                }
                 project.getTasks().named(sourceSet.getCompileJavaTaskName(), JavaCompile.class).configure(task -> {
                     task.dependsOn(compileAffogato);
                     task.getOptions().getRelease().set(extension.getJavaRelease());
