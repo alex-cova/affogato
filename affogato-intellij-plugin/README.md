@@ -11,10 +11,14 @@ Implemented:
 - Parser definition and syntax highlighter registration.
 - Project-level Affogato symbol references, navigation, find usages and rename for
   classes, fields, methods and parameters.
+- Basic code completion: keywords, Affogato types, locals, parameters, fields,
+  methods and member access after `.` or `?.` (including enum constants, record
+  components, qualified chains, `this` and `super`).
+- Import-line completion for Affogato and Java types, plus auto-import on symbol
+  selection when a type is not visible without an import.
 
 Remaining:
 
-- Formatter, brace matcher and code style settings.
 - Broader references that include Java symbols/imports and richer local scopes.
+- Static and wildcard import completion.
 - Inspections and quick fixes.
-- Compiler diagnostics surfaced inside the IDE.

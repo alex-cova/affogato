@@ -4,9 +4,6 @@ import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.ExternalAnnotator;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleUtilCore;
-import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
@@ -16,51 +13,31 @@ import dev.affogato.compiler.AffogatoCompiler;
 import dev.affogato.compiler.AffogatoCompilerOptions;
 import dev.affogato.compiler.AffogatoDiagnostic;
 import dev.affogato.compiler.AffogatoDiagnosticCodes;
+import dev.affogato.intellij.project.AffogatoClasspath;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoExternalAnnotator.Info, List<AffogatoDiagnostic>> {
-
-    record Info(Path filePath, List<Path> sourceRoots, List<Path> classpath) {}
+public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoClasspath.ModuleInfo, List<AffogatoDiagnostic>> {
 
     public AffogatoExternalAnnotator() {
     }
 
     @Override
-    public @Nullable Info collectInformation(@NotNull PsiFile file) {
-        var virtualFile = file.getVirtualFile();
-        if (virtualFile == null) {
-            return null;
-        }
-        Path filePath = Path.of(virtualFile.getPath());
-        String packageName = extractPackage(file.getText());
-        Path sourceRoot = findSourceRoot(filePath, packageName);
-        if (sourceRoot == null) {
-            return null;
-        }
-
-        List<Path> classpath = new ArrayList<>();
-        Module module = ModuleUtilCore.findModuleForFile(virtualFile, file.getProject());
-        if (module != null) {
-            for (String entry : ModuleRootManager.getInstance(module).orderEntries().librariesOnly().getPathsList().getPathList()) {
-                classpath.add(Path.of(entry));
-            }
-        }
-
-        return new Info(filePath, List.of(sourceRoot), List.copyOf(classpath));
+    public @Nullable AffogatoClasspath.ModuleInfo collectInformation(@NotNull PsiFile file) {
+        return AffogatoClasspath.moduleInfo(file);
     }
 
     @Override
-    public @Nullable List<AffogatoDiagnostic> doAnnotate(Info info) {
+    public @Nullable List<AffogatoDiagnostic> doAnnotate(AffogatoClasspath.ModuleInfo info) {
+        if (info == null) {
+            return null;
+        }
         Path outputDir;
         try {
             outputDir = Files.createTempDirectory("affogato-annotator");
@@ -71,10 +48,8 @@ public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoE
         try {
             AffogatoCompilerOptions.Builder builder = AffogatoCompilerOptions.builder()
                     .outputDirectory(outputDir);
-            for (Path root : info.sourceRoots()) {
-                builder.addSourceRoot(root);
-            }
-            for (Path entry : info.classpath()) {
+            builder.addSourceRoot(info.sourceRoot());
+            for (Path entry : info.libraryPaths()) {
                 builder.addClasspathEntry(entry);
             }
 
@@ -132,30 +107,6 @@ public final class AffogatoExternalAnnotator extends ExternalAnnotator<AffogatoE
             end = Math.min(start + 1, lineEnd);
         }
         return TextRange.create(start, end);
-    }
-
-    private static @Nullable Path findSourceRoot(Path filePath, @Nullable String packageName) {
-        Path dir = filePath.getParent();
-        if (dir == null) {
-            return null;
-        }
-        if (packageName == null || packageName.isBlank()) {
-            return dir;
-        }
-        String[] parts = packageName.split("\\.");
-        Path root = dir;
-        for (int i = parts.length - 1; i >= 0; i--) {
-            if (root == null || !root.getFileName().toString().equals(parts[i])) {
-                return dir;
-            }
-            root = root.getParent();
-        }
-        return root != null ? root : dir;
-    }
-
-    private static @Nullable String extractPackage(String source) {
-        Matcher matcher = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)").matcher(source);
-        return matcher.find() ? matcher.group(1) : null;
     }
 
     private static boolean isSameFile(Path a, Path b) {

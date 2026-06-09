@@ -21,6 +21,9 @@
         <lang.syntaxHighlighterFactory
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.highlighting.AffogatoSyntaxHighlighterFactory"/>
+        <completion.contributor
+                language="Affogato"
+                implementationClass="dev.affogato.intellij.completion.AffogatoCompletionContributor"/>
         <lang.findUsagesProvider
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.findusages.AffogatoFindUsagesProvider"/>

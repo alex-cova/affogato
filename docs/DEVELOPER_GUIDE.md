@@ -139,7 +139,11 @@ GRADLE_USER_HOME=.gradle ./gradlew :affogato-intellij-plugin:generateLexer :affo
 - **Navigation / rename** — Affogato declarations in `.aff` files.
 - **Errors in editor** — `AffogatoExternalAnnotator` runs the real compiler with
   module classpath.
-- **Not yet** — formatter, completion, quick fixes (see `AFFOGATO_ROADMAP.md`).
+- **Completion** — keywords plus Affogato symbols (types, locals, parameters,
+  fields, methods, members after `.`), import-line completion for Affogato/Java
+  types, and auto-import when selecting a cross-package type.
+- **Not yet** — static/wildcard import completion, quick fixes (see
+  `AFFOGATO_ROADMAP.md`).
 
 ## Adding a language feature (checklist)
 

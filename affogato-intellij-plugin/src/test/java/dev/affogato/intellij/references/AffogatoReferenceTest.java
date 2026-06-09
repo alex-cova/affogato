@@ -204,6 +204,31 @@ public final class AffogatoReferenceTest extends BasePlatformTestCase {
         assertFalse(app.getText().contains("Coord(1, 2)"));
     }
 
+    public void testImportedClassReferenceResolvesAcrossPackages() {
+        myFixture.addFileToProject("Person.aff", """
+                package dev.affogato.other
+
+                class Person {
+                }
+                """);
+        myFixture.configureByText("App.aff", """
+                package dev.affogato.test
+
+                import dev.affogato.other.Person
+
+                class App {
+                    func main() {
+                        let person = Per<caret>son()
+                    }
+                }
+                """);
+
+        PsiElement resolved = referenceAtCaret().resolve();
+
+        assertNotNull(resolved);
+        assertEquals("Person", resolved.getText());
+    }
+
     public void testModernSyntaxParsesWithoutPsiErrors() {
         PsiFile file = myFixture.configureByText("Modern.aff", """
                 package dev.affogato.test
