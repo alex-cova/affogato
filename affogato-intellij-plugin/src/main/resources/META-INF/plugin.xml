@@ -32,6 +32,8 @@
         <lang.formatter
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.formatter.AffogatoFormattingModelBuilder"/>
+        <langCodeStyleSettingsProvider
+                implementation="dev.affogato.intellij.formatter.AffogatoLanguageCodeStyleSettingsProvider"/>
         <externalAnnotator
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.annotator.AffogatoExternalAnnotator"/>
