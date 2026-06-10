@@ -1,8 +1,11 @@
 package dev.affogato.intellij.completion;
 
 import com.intellij.codeInsight.completion.CompletionParameters;
+import com.intellij.psi.PsiErrorElement;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
+import dev.affogato.intellij.psi.AffogatoFile;
 import dev.affogato.intellij.psi.AffogatoPsiUtil;
 import dev.affogato.intellij.psi.AffogatoSymbols;
 import dev.affogato.intellij.psi.AffogatoTextUtil;
@@ -79,6 +82,24 @@ public final class AffogatoCompletionContext {
 
     public boolean expectsType() {
         return kind == Kind.TYPE || afterNew || AffogatoSymbols.isTypeReferenceIdentifier(position);
+    }
+
+    public static boolean isErrorTreeContext(@NotNull PsiElement position, int offset) {
+        if (position instanceof PsiErrorElement) {
+            return true;
+        }
+        for (PsiElement element = position; element != null; element = element.getParent()) {
+            if (element instanceof PsiErrorElement error) {
+                TextRange range = error.getTextRange();
+                if (range.getStartOffset() <= offset && offset <= range.getEndOffset() + 24) {
+                    return true;
+                }
+            }
+            if (element instanceof AffogatoFile) {
+                break;
+            }
+        }
+        return false;
     }
 
     private static @NotNull Kind classify(@NotNull PsiElement position, char previous) {

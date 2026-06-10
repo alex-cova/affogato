@@ -3,7 +3,7 @@ package dev.affogato.intellij.completion;
 import com.intellij.codeInsight.completion.CompletionType;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import dev.affogato.intellij.psi.AffogatoFile;
 import dev.affogato.intellij.psi.AffogatoImports;
 
@@ -11,7 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public final class AffogatoImportCompletionTest extends LightJavaCodeInsightFixtureTestCase {
+public final class AffogatoImportCompletionTest extends BasePlatformTestCase {
     public void testAffogatoImportQualifiedNameCompletion() {
         myFixture.addFileToProject("Person.aff", """
                 package dev.affogato.other
@@ -34,11 +34,23 @@ public final class AffogatoImportCompletionTest extends LightJavaCodeInsightFixt
         assertContainsElements(lookupStrings(elements), "Person");
     }
 
-    public void testJavaImportQualifiedNameCompletion() {
+    public void testAffogatoImportPackageMemberCompletion() {
+        myFixture.addFileToProject("Person.aff", """
+                package dev.affogato.other
+
+                class Person {
+                }
+                """);
+        myFixture.addFileToProject("Place.aff", """
+                package dev.affogato.other
+
+                class Place {
+                }
+                """);
         myFixture.configureByText("App.aff", """
                 package dev.affogato.test
 
-                import java.util.L<caret>ist
+                import dev.affogato.other.<caret>
 
                 class App {
                 }
@@ -47,14 +59,20 @@ public final class AffogatoImportCompletionTest extends LightJavaCodeInsightFixt
         LookupElement[] elements = myFixture.complete(CompletionType.BASIC);
 
         assertNotNull(elements);
-        assertContainsElements(lookupStrings(elements), "List");
+        assertContainsElements(lookupStrings(elements), "Person", "Place");
     }
 
-    public void testJavaImportPackageMemberCompletion() {
+    public void testJavaSourceImportQualifiedNameCompletion() {
+        myFixture.addFileToProject("com/example/util/Util.java", """
+                package com.example.util;
+
+                public class Util {
+                }
+                """);
         myFixture.configureByText("App.aff", """
                 package dev.affogato.test
 
-                import java.util.<caret>
+                import com.example.util.U<caret>til
 
                 class App {
                 }
@@ -63,7 +81,35 @@ public final class AffogatoImportCompletionTest extends LightJavaCodeInsightFixt
         LookupElement[] elements = myFixture.complete(CompletionType.BASIC);
 
         assertNotNull(elements);
-        assertContainsElements(lookupStrings(elements), "List", "Map");
+        assertContainsElements(lookupStrings(elements), "Util");
+    }
+
+    public void testJavaSourceImportPackageMemberCompletion() {
+        myFixture.addFileToProject("com/example/util/Alpha.java", """
+                package com.example.util;
+
+                public class Alpha {
+                }
+                """);
+        myFixture.addFileToProject("com/example/util/Beta.java", """
+                package com.example.util;
+
+                public class Beta {
+                }
+                """);
+        myFixture.configureByText("App.aff", """
+                package dev.affogato.test
+
+                import com.example.util.<caret>
+
+                class App {
+                }
+                """);
+
+        LookupElement[] elements = myFixture.complete(CompletionType.BASIC);
+
+        assertNotNull(elements);
+        assertContainsElements(lookupStrings(elements), "Alpha", "Beta");
     }
 
     public void testAddImportInsertsStatement() {
@@ -79,21 +125,26 @@ public final class AffogatoImportCompletionTest extends LightJavaCodeInsightFixt
         assertTrue(file.getText().contains("import dev.affogato.other.Person"));
     }
 
-    public void testJavaTypeSymbolCompletionIncludesClasspathType() {
-        myFixture.configureByText("App.aff", """
+    public void testAutoImportAddsStatementForCrossPackageType() {
+        myFixture.addFileToProject("Person.aff", """
+                package dev.affogato.other
+
+                class Person {
+                }
+                """);
+        PsiFile file = myFixture.configureByText("App.aff", """
                 package dev.affogato.test
 
                 class App {
                     func main() {
-                        let values = Arr<caret>
+                        let person = Person()
                     }
                 }
                 """);
 
-        LookupElement[] elements = myFixture.complete(CompletionType.BASIC);
+        AffogatoImports.addImport((AffogatoFile) file, "dev.affogato.other.Person");
 
-        assertNotNull(elements);
-        assertContainsElements(lookupStrings(elements), "ArrayList");
+        assertTrue(file.getText().contains("import dev.affogato.other.Person"));
     }
 
     private static List<String> lookupStrings(LookupElement[] elements) {

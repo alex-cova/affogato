@@ -24,6 +24,8 @@
         <completion.contributor
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.completion.AffogatoCompletionContributor"/>
+        <weigher key="completion"
+                 implementationClass="dev.affogato.intellij.completion.AffogatoCompletionWeigher"/>
         <lang.findUsagesProvider
                 language="Affogato"
                 implementationClass="dev.affogato.intellij.findusages.AffogatoFindUsagesProvider"/>

@@ -53,7 +53,7 @@ final class AffogatoKeywordCompletionProvider extends CompletionProvider<Complet
         }
 
         for (String keyword : keywordsFor(position, completionContext)) {
-            LookupElementBuilder element = AffogatoLookupElements.keyword(keyword);
+            var element = AffogatoLookupElements.keyword(keyword);
             result.addElement(element);
         }
     }

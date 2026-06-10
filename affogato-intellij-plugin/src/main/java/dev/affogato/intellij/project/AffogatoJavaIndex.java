@@ -7,13 +7,18 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiShortNamesCache;
+import dev.affogato.intellij.psi.AffogatoFile;
+import dev.affogato.intellij.psi.AffogatoImports;
+import dev.affogato.intellij.psi.AffogatoSymbols;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,6 +100,108 @@ public final class AffogatoJavaIndex {
             addFallbackClasses(project, scope, packagePrefix, classPrefix, classes);
         }
         return List.copyOf(classes);
+    }
+
+    public static @Nullable PsiClass resolveClass(
+            @NotNull PsiElement context,
+            @NotNull Project project,
+            @NotNull GlobalSearchScope scope,
+            @NotNull String typeName
+    ) {
+        if (typeName.isBlank()) {
+            return null;
+        }
+        if (typeName.contains(".")) {
+            return JavaPsiFacade.getInstance(project).findClass(typeName, scope);
+        }
+        PsiFile file = context.getContainingFile();
+        if (file instanceof AffogatoFile affogatoFile) {
+            PsiClass imported = findImportedClass(affogatoFile, project, scope, typeName);
+            if (imported != null) {
+                return imported;
+            }
+        }
+        String simpleName = AffogatoSymbols.simpleTypeName(typeName);
+        List<PsiClass> candidates = classesByName(project, scope, simpleName);
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+        PsiClass javaLang = findClassByQualifiedName(project, scope, "java.lang." + simpleName);
+        if (javaLang != null) {
+            return javaLang;
+        }
+        if (candidates.size() > 1) {
+            return candidates.get(0);
+        }
+        return null;
+    }
+
+    public static @Nullable PsiClass findImportedClass(
+            @NotNull AffogatoFile file,
+            @NotNull Project project,
+            @NotNull GlobalSearchScope scope,
+            @NotNull String simpleName
+    ) {
+        String normalized = AffogatoSymbols.simpleTypeName(simpleName);
+        for (AffogatoImports.ImportEntry entry : AffogatoImports.importEntries(file)) {
+            if (entry.isStatic()) {
+                continue;
+            }
+            if (entry.isWildcard()) {
+                PsiClass wildcard = findClassByQualifiedName(project, scope, entry.packageName() + "." + normalized);
+                if (wildcard != null) {
+                    return wildcard;
+                }
+                continue;
+            }
+            if (entry.simpleName().equals(normalized)) {
+                PsiClass imported = findClassByQualifiedName(project, scope, entry.qualifiedName());
+                if (imported != null) {
+                    return imported;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static @Nullable PsiClass findClassByQualifiedName(
+            @NotNull Project project,
+            @NotNull GlobalSearchScope scope,
+            @NotNull String qualifiedName
+    ) {
+        JavaPsiFacade facade = JavaPsiFacade.getInstance(project);
+        PsiClass psiClass = facade.findClass(qualifiedName, scope);
+        if (psiClass != null) {
+            return psiClass;
+        }
+        return facade.findClass(qualifiedName, GlobalSearchScope.allScope(project));
+    }
+
+    public static boolean isStaticMemberContext(@NotNull PsiElement place, @NotNull String receiver) {
+        if (receiver.contains(".")) {
+            return false;
+        }
+        String name = receiver.trim();
+        if (name.isEmpty()) {
+            return false;
+        }
+        if (!AffogatoSymbols.resolveOwnerType(place, name).isBlank()) {
+            return false;
+        }
+        if (AffogatoSymbols.findClassLikeDecl(place, name) != null) {
+            return true;
+        }
+        PsiFile file = place.getContainingFile();
+        if (!(file instanceof AffogatoFile affogatoFile)) {
+            return false;
+        }
+        GlobalSearchScope scope = scopeFor(file);
+        return findImportedClass(affogatoFile, place.getProject(), scope, name) != null
+                || JavaPsiFacade.getInstance(place.getProject()).findClass("java.lang." + name, scope) != null;
+    }
+
+    public static @NotNull String memberType(@NotNull PsiClass owner, @NotNull String memberName) {
+        return AffogatoJavaMembers.memberType(owner, memberName);
     }
 
     private static void addProjectSourceClasses(

@@ -141,9 +141,13 @@ GRADLE_USER_HOME=.gradle ./gradlew :affogato-intellij-plugin:generateLexer :affo
   module classpath.
 - **Completion** — keywords plus Affogato symbols (types, locals, parameters,
   fields, methods, members after `.`), import-line completion for Affogato/Java
-  types, and auto-import when selecting a cross-package type.
-- **Not yet** — static/wildcard import completion, quick fixes (see
-  `AFFOGATO_ROADMAP.md`).
+  types, auto-import when selecting a cross-package type, Java classpath member
+  completion via IntelliJ Java PSI, call-site named-argument / overload signature
+  completion, relevance weighers, statement snippets (`sout` → `println()`,
+  `main` → entry-point skeleton), and lenient completion when the caret is near a
+  parse error.
+- **Not yet** — static/wildcard import completion, parameter info / documentation
+  on completion, quick fixes (see `AFFOGATO_ROADMAP.md`).
 
 ## Adding a language feature (checklist)
 

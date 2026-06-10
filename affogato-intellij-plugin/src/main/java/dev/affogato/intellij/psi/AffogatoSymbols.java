@@ -221,6 +221,82 @@ public final class AffogatoSymbols {
         return List.copyOf(methods);
     }
 
+    public static @NotNull List<MethodSignature> methodSignatures(
+            @NotNull PsiElement typeDecl,
+            @NotNull String name
+    ) {
+        List<MethodSignature> signatures = new ArrayList<>();
+        if (typeDecl instanceof InterfaceDecl interfaceDecl) {
+            InterfaceBody interfaceBody = interfaceDecl.getInterfaceBody();
+            if (interfaceBody != null) {
+                for (InterfaceMember member : interfaceBody.getInterfaceMemberList()) {
+                    MethodSignature signature = member.getMethodSignature();
+                    if (signature != null && signature.getIdentifier().getText().equals(name)) {
+                        signatures.add(signature);
+                    }
+                }
+            }
+            return signatures;
+        }
+        ClassBody classBody = classBody(typeDecl);
+        if (classBody == null) {
+            return signatures;
+        }
+        for (ClassMember member : classBody.getClassMemberList()) {
+            MethodDecl methodDecl = member.getMethodDecl();
+            if (methodDecl != null) {
+                MethodSignature signature = methodDecl.getMethodSignature();
+                if (signature.getIdentifier().getText().equals(name)) {
+                    signatures.add(signature);
+                }
+            }
+        }
+        return signatures;
+    }
+
+    public static @NotNull List<MethodSignature> projectMethodSignatures(
+            @NotNull Project project,
+            @NotNull String name
+    ) {
+        List<MethodSignature> signatures = new ArrayList<>();
+        for (AffogatoFile file : affogatoFiles(project)) {
+            for (ClassDecl classDecl : PsiTreeUtil.findChildrenOfType(file, ClassDecl.class)) {
+                signatures.addAll(methodSignatures(classDecl, name));
+            }
+            for (RecordDecl recordDecl : PsiTreeUtil.findChildrenOfType(file, RecordDecl.class)) {
+                signatures.addAll(methodSignatures(recordDecl, name));
+            }
+            for (InterfaceDecl interfaceDecl : PsiTreeUtil.findChildrenOfType(file, InterfaceDecl.class)) {
+                signatures.addAll(methodSignatures(interfaceDecl, name));
+            }
+        }
+        return signatures;
+    }
+
+    public static @NotNull List<Parameter> parameters(@NotNull MethodSignature signature) {
+        ParameterList parameterList = signature.getParameterList();
+        if (parameterList == null) {
+            return List.of();
+        }
+        return List.copyOf(PsiTreeUtil.findChildrenOfType(parameterList, Parameter.class));
+    }
+
+    public static @NotNull List<Parameter> constructorParameters(@NotNull PsiElement typeDecl) {
+        List<Parameter> parameters = new ArrayList<>();
+        if (typeDecl instanceof RecordDecl recordDecl) {
+            ParameterList parameterList = recordDecl.getRecordHeader().getParameterList();
+            if (parameterList != null) {
+                parameters.addAll(PsiTreeUtil.findChildrenOfType(parameterList, Parameter.class));
+            }
+            return parameters;
+        }
+        ParameterList parameterList = constructorParameterList(typeDecl);
+        if (parameterList != null) {
+            parameters.addAll(PsiTreeUtil.findChildrenOfType(parameterList, Parameter.class));
+        }
+        return parameters;
+    }
+
     public static @NotNull List<Identifier> allEnumConstants(@NotNull EnumDecl enumDecl) {
         LinkedHashSet<Identifier> constants = new LinkedHashSet<>();
         EnumBody enumBody = enumDecl.getEnumBody();

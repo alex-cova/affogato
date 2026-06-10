@@ -1,8 +1,12 @@
 package dev.affogato.intellij.psi;
 
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
+import dev.affogato.intellij.project.AffogatoJavaIndex;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,6 +52,11 @@ public final class AffogatoTypeResolver {
     public static @NotNull String resolveMemberType(@NotNull PsiElement context, @NotNull String ownerType, @NotNull String memberName) {
         PsiElement ownerDecl = findTypeDecl(context, ownerType);
         if (ownerDecl == null) {
+            GlobalSearchScope scope = AffogatoJavaIndex.scopeFor(context.getContainingFile());
+            PsiClass javaClass = AffogatoJavaIndex.resolveClass(context, context.getProject(), scope, ownerType);
+            if (javaClass != null) {
+                return AffogatoJavaIndex.memberType(javaClass, memberName);
+            }
             return "";
         }
         if (ownerDecl instanceof EnumDecl enumDecl) {
@@ -86,6 +95,17 @@ public final class AffogatoTypeResolver {
         }
         if (findTypeDecl(place, name) != null) {
             return AffogatoSymbols.simpleTypeName(name);
+        }
+        PsiFile file = place.getContainingFile();
+        if (file instanceof AffogatoFile affogatoFile) {
+            GlobalSearchScope scope = AffogatoJavaIndex.scopeFor(file);
+            PsiClass javaClass = AffogatoJavaIndex.findImportedClass(affogatoFile, place.getProject(), scope, name);
+            if (javaClass == null) {
+                javaClass = AffogatoJavaIndex.resolveClass(place, place.getProject(), scope, name);
+            }
+            if (javaClass != null && javaClass.getName() != null) {
+                return javaClass.getName();
+            }
         }
         return "";
     }

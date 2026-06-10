@@ -27,5 +27,10 @@ public final class AffogatoCompletionContributor extends CompletionContributor {
                 PlatformPatterns.psiElement().withLanguage(AffogatoLanguage.INSTANCE),
                 new AffogatoImportCompletionProvider()
         );
+        extend(
+                CompletionType.BASIC,
+                PlatformPatterns.psiElement().withLanguage(AffogatoLanguage.INSTANCE),
+                new AffogatoCallSiteCompletionProvider()
+        );
     }
 }

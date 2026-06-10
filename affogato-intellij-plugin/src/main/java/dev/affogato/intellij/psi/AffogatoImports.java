@@ -3,9 +3,12 @@ package dev.affogato.intellij.psi;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
+import dev.affogato.intellij.project.AffogatoJavaIndex;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -89,8 +92,17 @@ public final class AffogatoImports {
         String normalized = AffogatoSymbols.simpleTypeName(simpleName);
         String filePackage = AffogatoSymbols.packageName(file);
 
+        GlobalSearchScope scope = AffogatoJavaIndex.scopeFor(file);
         for (ImportEntry entry : importEntries(file)) {
             if (entry.isWildcard()) {
+                PsiClass javaClass = AffogatoJavaIndex.findClassByQualifiedName(
+                        project,
+                        scope,
+                        entry.packageName() + "." + normalized
+                );
+                if (javaClass != null) {
+                    return javaClass;
+                }
                 for (AffogatoSymbols.TopLevelType type : AffogatoSymbols.allTopLevelTypes(project)) {
                     if (type.identifier().getText().equals(normalized) && type.packageName().equals(entry.packageName())) {
                         return type.declaration();
@@ -130,7 +142,12 @@ public final class AffogatoImports {
                 return type.declaration();
             }
         }
-        return null;
+        PsiClass javaClass = AffogatoJavaIndex.findClassByQualifiedName(
+                project,
+                GlobalSearchScope.allScope(project),
+                qualifiedName
+        );
+        return javaClass;
     }
 
     public static void addImport(@NotNull AffogatoFile file, @NotNull String qualifiedName) {
